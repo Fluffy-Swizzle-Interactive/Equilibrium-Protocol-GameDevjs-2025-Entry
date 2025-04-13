@@ -1,5 +1,6 @@
 # Fluffy-Swizz Game Jam 2025
 
+
 A top-down shooter game built with Phaser 3 and React.
 
 ## Game Overview
@@ -37,6 +38,7 @@ This project is configured with GitHub Actions for automatic deployment to itch.
 
 1. Create an itch.io account at https://itch.io
 2. Create a new game page on itch.io with project name: `gjg2`
+
 3. Generate a Butler API key at https://itch.io/user/settings/api-keys
 4. Add the API key as a GitHub secret named `BUTLER_API_KEY` in your repository settings
 
@@ -47,6 +49,7 @@ This project is configured with GitHub Actions for automatic deployment to itch.
   - Deploy to itch.io using Butler
   - Channel will be set to `web` for browser-based play
   - The game will be published to https://fluffymcchicken.itch.io/gjg2
+
 
 ### Manual Deployment
 
@@ -67,6 +70,7 @@ npm run deploy:all
 
 1. Install Butler: https://itch.io/docs/butler/installing.html
    - Or use the included `install-butler.bat` script on Windows
+
 2. Log in to Butler:
 ```bash
 butler login
