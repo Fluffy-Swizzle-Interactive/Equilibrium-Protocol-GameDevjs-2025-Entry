@@ -3,61 +3,82 @@ import { forwardRef, useEffect, useLayoutEffect, useRef } from 'react';
 import StartGame from './main';
 import { EventBus } from './EventBus';
 
-export const PhaserGame = forwardRef(function PhaserGame ({ currentActiveScene }, ref)
-{
+/**
+ * PhaserGame component that integrates the Phaser game engine with React
+ * 
+ * @param {Object} props - Component props
+ * @param {React.Ref} ref - Forwarded ref to access game and scene objects
+ */
+export const PhaserGame = forwardRef(function PhaserGame(props, ref) {
     const game = useRef();
+    const containerId = "game-container";
 
-    // Create the game inside a useLayoutEffect hook to avoid the game being created outside the DOM
+    // Create the game instance when component mounts
     useLayoutEffect(() => {
-        
-        if (game.current === undefined)
-        {
-            game.current = StartGame("game-container");
-            
-            if (ref !== null)
-            {
-                ref.current = { game: game.current, scene: null };
-            }
+        if (game.current === undefined) {
+            initializeGame();
         }
 
-        return () => {
-
-            if (game.current)
-            {
-                game.current.destroy(true);
-                game.current = undefined;
-            }
-
-        }
+        return cleanupGame;
     }, [ref]);
 
+    // Listen for scene updates
     useEffect(() => {
+        setupEventListeners();
+        return removeEventListeners;
+    }, [ref]);
 
-        EventBus.on('current-scene-ready', (currentScene) => {
-
-            if (currentActiveScene instanceof Function)
-            {
-                currentActiveScene(currentScene);
-            }
-            ref.current.scene = currentScene;
+    /**
+     * Initialize the Phaser game instance
+     */
+    const initializeGame = () => {
+        game.current = StartGame(containerId);
             
-        });
-
-        return () => {
-
-            EventBus.removeListener('current-scene-ready');
-
+        if (ref !== null) {
+            ref.current = { game: game.current, scene: null };
         }
-        
-    }, [currentActiveScene, ref])
+    };
+    
+    /**
+     * Clean up the Phaser game instance when component unmounts
+     */
+    const cleanupGame = () => {
+        if (game.current) {
+            game.current.destroy(true);
+            game.current = undefined;
+        }
+    };
+    
+    /**
+     * Set up event listeners for scene updates
+     */
+    const setupEventListeners = () => {
+        EventBus.on('current-scene-ready', handleSceneReady);
+    };
+    
+    /**
+     * Remove event listeners when component unmounts
+     */
+    const removeEventListeners = () => {
+        EventBus.removeListener('current-scene-ready');
+    };
+    
+    /**
+     * Handle when a scene becomes ready
+     * @param {Phaser.Scene} currentScene - The current active scene
+     */
+    const handleSceneReady = (currentScene) => {
+        if (ref) {
+            ref.current.scene = currentScene;
+        }
+    };
 
     return (
-        <div id="game-container"></div>
+        <div id={containerId}></div>
     );
-
 });
 
-// Props definitions
+// PropTypes for documentation and validation
 PhaserGame.propTypes = {
-    currentActiveScene: PropTypes.func 
-}
+    children: PropTypes.node
+};

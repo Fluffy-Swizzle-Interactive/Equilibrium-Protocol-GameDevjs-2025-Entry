@@ -3,7 +3,29 @@ export class Enemy {
         this.scene = scene;
         this.isBoss = isBoss;
         
+        // Initialize enemy properties based on type
+        this.initProperties();
+        
+        // Create visual representation
+        this.createVisuals(x, y);
+        
+        // Add to scene's enemy group
+        scene.enemies.add(this.graphics);
+        
+        // Connect enemy object to its graphics object
+        this.graphics.parentEnemy = this;
+        
+        // Create health bar for bosses
         if (isBoss) {
+            this.createHealthBar();
+        }
+    }
+    
+    /**
+     * Initialize enemy properties based on type (boss or regular)
+     */
+    initProperties() {
+        if (this.isBoss) {
             // Boss properties
             this.speed = 0.3; // Slower but more powerful
             this.size = 50; // Larger size
@@ -18,22 +40,22 @@ export class Enemy {
             this.health = 10; // Standard health
             this.baseHealth = 10; // For health bar calculations
         }
-        
-        // Create the visual representation (square)
-        this.graphics = scene.add.rectangle(x, y, this.size, this.size, this.color);
-        
-        // Add to scene's physics
-        scene.enemies.add(this.graphics);
-        
-        // Reference to the visual object
-        this.graphics.parentEnemy = this;
-        
-        // Create health bar for bosses
-        if (isBoss) {
-            this.createHealthBar();
-        }
     }
     
+    /**
+     * Create the visual representation of the enemy
+     * @param {number} x - Initial x position
+     * @param {number} y - Initial y position
+     */
+    createVisuals(x, y) {
+        // Create the visual representation (square)
+        this.graphics = this.scene.add.rectangle(x, y, this.size, this.size, this.color);
+    }
+    
+    /**
+     * Manage the health bar for boss enemies
+     * @param {boolean} create - Whether to create a new health bar or update an existing one
+     */
     manageHealthBar(create = false) {
         if (!this.isBoss) return;
         
@@ -81,9 +103,24 @@ export class Enemy {
         this.manageHealthBar(false);
     }
     
+    /**
+     * Update enemy position and behavior each frame
+     */
     update() {
         const playerPos = this.scene.player.getPosition();
         
+        // Move towards player
+        this.moveTowardsPlayer(playerPos);
+        
+        // Check collision with player
+        this.checkPlayerCollision(playerPos);
+    }
+    
+    /**
+     * Move the enemy towards the player
+     * @param {Object} playerPos - The player's position {x, y}
+     */
+    moveTowardsPlayer(playerPos) {
         // Calculate direction to player
         const dx = playerPos.x - this.graphics.x;
         const dy = playerPos.y - this.graphics.y;
@@ -105,8 +142,13 @@ export class Enemy {
                 this.updateHealthBar();
             }
         }
-        
-        // Check collision with player
+    }
+    
+    /**
+     * Check if the enemy is colliding with the player
+     * @param {Object} playerPos - The player's position {x, y}
+     */
+    checkPlayerCollision(playerPos) {
         const playerDistance = Phaser.Math.Distance.Between(
             this.graphics.x, this.graphics.y,
             playerPos.x, playerPos.y
@@ -119,6 +161,10 @@ export class Enemy {
         }
     }
     
+    /**
+     * Apply damage to the enemy
+     * @param {number} damage - Amount of damage to apply
+     */
     takeDamage(damage) {
         this.health -= damage;
         
@@ -139,6 +185,9 @@ export class Enemy {
         }
     }
     
+    /**
+     * Handle enemy death
+     */
     die() {
         // Increment the game's kill counter
         this.scene.killCount++;

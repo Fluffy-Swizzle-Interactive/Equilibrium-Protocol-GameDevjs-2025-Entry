@@ -13,26 +13,26 @@ function App() {
         }
     }
 
-    // Event emitted from the PhaserGame component
-    const currentScene = (scene) => {
-        // We'll use phaserRef directly in the DebugPanel
-    }
+    // Only show debug panel and control buttons in development mode
+    const isDev = import.meta.env.DEV;
 
     return (
         <div id="app">
-            <PhaserGame ref={phaserRef} currentActiveScene={currentScene} />
-            <div style={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '15px'
-            }}>
-                <div>
-                    <button className="button" onClick={changeScene}>Change Scene</button>
+            <PhaserGame ref={phaserRef} />
+            {isDev && (
+                <div style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '15px'
+                }}>
+                    <div>
+                        <button className="button" onClick={changeScene}>Change Scene</button>
+                    </div>
+                    
+                    {/* Debug Panel */}
+                    <DebugPanel gameRef={phaserRef} />
                 </div>
-                
-                {/* Debug Panel */}
-                <DebugPanel gameRef={phaserRef} />
-            </div>
+            )}
         </div>
     )
 }

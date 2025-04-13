@@ -7,51 +7,65 @@ export class Game extends Scene {
     constructor() {
         super('Game');
         
-        // Enemy properties
+        // Initialize game state properties
         this.enemySpawnRate = 2000; // Milliseconds between enemy spawns
         this.enemySpawnRateDecrease = 50; // How much to decrease spawn rate over time
         this.minEnemySpawnRate = 500; // Minimum time between enemy spawns
         this.gameTime = 0; // Track game time for difficulty scaling
         this.enemyList = []; // Track all active enemies
         this.killCount = 0; // Track number of enemies killed
+        
+        // Check if we're in development mode
+        this.isDev = import.meta.env.DEV;
     }
 
     init(data) {
         // Store the game mode received from menu selection
         this.gameMode = data.mode || 'minigun'; // Default to minigun if no mode is specified
         
-        // Reset kill counter for new game
+        // Reset game state for new game
+        this.resetGameState();
+    }
+
+    /**
+     * Reset all game state variables for a new game
+     */
+    resetGameState() {
         this.killCount = 0;
-        
-        // Reset game time and other level-specific variables
         this.gameTime = 0;
         this.survivalTime = 0;
         this.enemySpawnRate = 2000; // Reset to initial spawn rate
         this.enemyList = [];
-        
-        // Initialize pause state
         this.isPaused = false;
     }
 
     create() {
+        this.setupMap();
+        this.setupGameObjects();
+        this.setupUI();
+        this.setupInput();
+        this.setupEnemySpawner();
+        
+        EventBus.emit('current-scene-ready', this);
+    }
+
+    /**
+     * Set up the game map and boundaries
+     */
+    setupMap() {
         // Create the tilemap
         this.map = this.make.tilemap({ key: 'map' });
-        
-        // The tileset name must match the name used in the tilemap JSON
         this.tileset = this.map.addTilesetImage('scifi_tiles', 'scifi_tiles');
-        
-        // Create the ground layer
         this.groundLayer = this.map.createLayer('Tile Layer 1', this.tileset);
         
-        // Resize the world boundaries based on the map dimensions
+        // Calculate map scaling and boundaries
         const mapWidth = this.map.widthInPixels;
         const mapHeight = this.map.heightInPixels;
         
-        // Scaling the tilemap to fit the game window better
-        // Calculate how much to scale up to fill the screen nicely
+        // Scale the map to fill the screen
         const scaleX = this.game.config.width / mapWidth;
         const scaleY = this.game.config.height / mapHeight;
-        const scale = Math.max(scaleX, scaleY) * 1.5; // Scale up by 50% to make it larger than the window
+        const scale = Math.max(scaleX, scaleY) * 1.5; // 50% larger than needed
         
         this.groundLayer.setScale(scale);
         
@@ -59,28 +73,46 @@ export class Game extends Scene {
         const effectiveMapWidth = mapWidth * scale;
         const effectiveMapHeight = mapHeight * scale;
         
-        // Set physics world bounds to the scaled map size
+        // Set physics world bounds
         this.physics.world.setBounds(0, 0, effectiveMapWidth, effectiveMapHeight);
         
+        // Store map dimensions for use elsewhere
+        this.mapDimensions = {
+            width: effectiveMapWidth,
+            height: effectiveMapHeight
+        };
+    }
+
+    /**
+     * Set up game objects including player, enemies, and bullets
+     */
+    setupGameObjects() {
         // Create groups for game objects
         this.bullets = this.add.group();
         this.enemies = this.add.group();
         
         // Create player instance (in center of map)
-        const playerX = effectiveMapWidth / 2;
-        const playerY = effectiveMapHeight / 2;
+        const playerX = this.mapDimensions.width / 2;
+        const playerY = this.mapDimensions.height / 2;
         this.player = new Player(this, playerX, playerY);
         
-        // Setup camera to follow player with wider bounds
-        this.cameras.main.setBounds(0, 0, effectiveMapWidth, effectiveMapHeight);
+        // Setup camera to follow player
+        this.setupCamera();
+    }
+
+    /**
+     * Set up the camera to follow the player
+     */
+    setupCamera() {
+        this.cameras.main.setBounds(0, 0, this.mapDimensions.width, this.mapDimensions.height);
         this.cameras.main.startFollow(this.player.graphics, true, 0.09, 0.09);
-        
-        // Set a zoom level that shows a good portion of the map
         this.cameras.main.setZoom(0.7);
-        
-        // Initialize survival time
-        this.survivalTime = 0;
-        
+    }
+
+    /**
+     * Set up UI elements like timer and kill counter
+     */
+    setupUI() {
         // Create survival timer UI
         this.timerText = this.add.text(16, 16, 'Time: 0s', {
             fontFamily: 'Arial',
@@ -99,46 +131,13 @@ export class Game extends Scene {
             strokeThickness: 4
         }).setScrollFactor(0).setDepth(100);
         
-        // Track mouse position - converting screen coordinates to world coordinates
-        this.input.on('pointermove', (pointer) => {
-            this.mouseX = pointer.worldX;
-            this.mouseY = pointer.worldY;
-        });
-        
-        // Track mouse states
-        this.input.on('pointerdown', () => {
-            this.isMouseDown = true;
-        });
-        
-        this.input.on('pointerup', () => {
-            this.isMouseDown = false;
-        });
-        
-        // Set up WASD keys
-        this.wasd = {
-            up: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.W),
-            down: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.S),
-            left: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.A),
-            right: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D)
-        };
-        
-        // Set up spacebar for pause (replacing ESC key)
-        this.pauseKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
-        
-        // Create pause overlay (invisible by default)
+        // Create pause overlay
         this.createPauseOverlay();
-        
-        // Start enemy spawner
-        this.time.addEvent({
-            delay: this.enemySpawnRate,
-            callback: this.spawnEnemy,
-            callbackScope: this,
-            loop: true
-        });
-
-        EventBus.emit('current-scene-ready', this);
     }
 
+    /**
+     * Create the pause overlay elements
+     */
     createPauseOverlay() {
         // Create a semi-transparent overlay
         this.pauseOverlay = this.add.rectangle(
@@ -164,6 +163,49 @@ export class Game extends Scene {
                 strokeThickness: 4
             }
         ).setOrigin(0.5).setScrollFactor(0).setDepth(1001).setVisible(false);
+    }
+
+    /**
+     * Set up input handlers for keyboard and mouse
+     */
+    setupInput() {
+        // Track mouse position
+        this.input.on('pointermove', (pointer) => {
+            this.mouseX = pointer.worldX;
+            this.mouseY = pointer.worldY;
+        });
+        
+        // Track mouse states
+        this.input.on('pointerdown', () => {
+            this.isMouseDown = true;
+        });
+        
+        this.input.on('pointerup', () => {
+            this.isMouseDown = false;
+        });
+        
+        // Set up WASD keys
+        this.wasd = {
+            up: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.W),
+            down: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.S),
+            left: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.A),
+            right: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D)
+        };
+        
+        // Set up spacebar for pause
+        this.pauseKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+    }
+
+    /**
+     * Set up the enemy spawner timer
+     */
+    setupEnemySpawner() {
+        this.time.addEvent({
+            delay: this.enemySpawnRate,
+            callback: this.spawnEnemy,
+            callbackScope: this,
+            loop: true
+        });
     }
 
     setPauseState(isPaused, reason = 'toggle') {
@@ -197,23 +239,62 @@ export class Game extends Scene {
     }
 
     update(time, delta) {
-        // Check for spacebar press in the update loop
-        if (Phaser.Input.Keyboard.JustDown(this.pauseKey)) {
-            this.togglePause();
-        }
+        // Handle pause state
+        this.handlePauseState();
         
         // If game is paused, don't update game logic
         if (this.isPaused) {
             return;
         }
         
+        // Update game timers
+        this.updateGameTimers(delta);
+        
+        // Update player, bullets, and enemies
+        this.updateGameObjects();
+        
+        // Check for collisions
+        this.checkCollisions();
+        
+        // Update difficulty based on game time
+        this.updateDifficulty();
+    }
+
+    /**
+     * Handle pause key press and game pause state
+     */
+    handlePauseState() {
+        if (Phaser.Input.Keyboard.JustDown(this.pauseKey)) {
+            this.togglePause();
+        }
+    }
+
+    /**
+     * Update game time and survival time
+     * @param {number} delta - Time since last frame in ms
+     */
+    updateGameTimers(delta) {
         // Update game time for difficulty scaling
         this.gameTime += delta;
         
         // Update survival time
         this.survivalTime += delta / 1000;
-        this.timerText.setText(`Time: ${Math.floor(this.survivalTime)}s`);
         
+        // Only update UI text if it exists
+        if (this.timerText) {
+            this.timerText.setText(`Time: ${Math.floor(this.survivalTime)}s`);
+        }
+        
+        // Log debug info only in development mode
+        if (this.isDev && this.gameTime % 1000 < 16) {
+            console.debug(`Game time: ${Math.floor(this.gameTime / 1000)}s, Enemy count: ${this.enemyList.length}`);
+        }
+    }
+
+    /**
+     * Update all game objects (player, bullets, enemies)
+     */
+    updateGameObjects() {
         // Update player
         this.player.update();
         
@@ -227,14 +308,8 @@ export class Game extends Scene {
         
         // Update enemies
         this.updateEnemies();
-        
-        // Check for bullet-enemy collisions
-        this.checkBulletEnemyCollisions();
-        
-        // Update enemy spawn rate based on game time
-        this.updateDifficulty();
     }
-    
+
     updateBullets() {
         // Update each bullet's position
         this.bullets.getChildren().forEach(bullet => {
@@ -420,6 +495,10 @@ export class Game extends Scene {
         }
     }
     
+    checkCollisions() {
+        this.checkBulletEnemyCollisions();
+    }
+
     checkBulletEnemyCollisions() {
         // Check each bullet against each enemy
         this.bullets.getChildren().forEach(bullet => {
