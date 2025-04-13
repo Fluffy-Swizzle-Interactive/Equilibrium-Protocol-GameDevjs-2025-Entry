@@ -25,9 +25,9 @@
         "build": "node log.js build & vite build --config vite/config.prod.mjs",
         "dev-nolog": "vite --config vite/config.dev.mjs",
         "build-nolog": "vite build --config vite/config.prod.mjs",
-        "deploy": "npm run build && butler push dist fluffyswizz/minigun-madness:web",
-        "deploy:win": "npm run build && butler push dist fluffyswizz/minigun-madness:windows-web",
-        "deploy:all": "npm run build && butler push dist fluffyswizz/minigun-madness:all"
+        "deploy": "npm run build && butler push dist fluffymcchicken/gjg2:web",
+        "deploy:win": "npm run build && butler push dist fluffymcchicken/gjg2:windows-web",
+        "deploy:all": "npm run build && butler push dist fluffymcchicken/gjg2:all"
     },
     "dependencies": {
         "phaser": "^3.88.2",
