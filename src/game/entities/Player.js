@@ -2,45 +2,68 @@ export class Player {
     constructor(scene, x, y) {
         this.scene = scene;
         
-        // Player physics properties
-        this.speed = 3; // Increased from 1.5 for better movement in larger map
+        // Initialize core properties
+        this.initPhysicsProperties();
+        this.initWeaponProperties(scene.gameMode || 'minigun');
+        this.initGraphics(x, y);
+        
+        // Timing properties
+        this.lastFireTime = 0;
+    }
+    
+    /**
+     * Initialize physics-related properties
+     */
+    initPhysicsProperties() {
+        this.speed = 3;
         this.velX = 0;
         this.velY = 0;
         this.friction = 0.9;
-        this.acceleration = 0.3; // Increased from 0.15 for better responsiveness
+        this.acceleration = 0.3;
         this.radius = 20;
         
-        // Get the game mode from the scene
-        this.gameMode = scene.gameMode || 'minigun';
-        
-        // Shooting properties
-        if (this.gameMode === 'minigun') {
-            this.fireRate = 10; // Fast firing rate
-            this.caliber = 5;
-            this.bulletSpeed = 10;
-            this.bulletDamage = 30; // Increased from 3 to 30 for 10-health enemies
-            this.bulletColor = 0xffff00; // Yellow
-        } else if (this.gameMode === 'shotgun') {
-            this.fireRate = 40; // Slower firing rate
-            this.caliber = 3;
-            this.bulletSpeed = 12;
-            this.bulletDamage = 20; // Increased from 2 to 20 for 10-health enemies
-            this.bulletColor = 0xff6600; // Orange
-            this.spreadAngle = 30; // Spread angle in degrees
-            this.bulletCount = 10; // Number of bullets per shot
-        }
-        
         // Aiming properties
-        this.maxMouseDistance = 300; // Increased from 200 for the scaled world
+        this.maxMouseDistance = 300;
         this.targetX = null;
         this.targetY = null;
+    }
+    
+    /**
+     * Initialize weapon-specific properties based on game mode
+     * @param {string} gameMode - The weapon mode ('minigun' or 'shotgun')
+     */
+    initWeaponProperties(gameMode) {
+        this.gameMode = gameMode;
         
+        if (this.gameMode === 'minigun') {
+            this.fireRate = 10;
+            this.caliber = 5;
+            this.bulletSpeed = 10;
+            this.bulletDamage = 30;
+            this.bulletColor = 0xffff00; // Yellow
+        } else if (this.gameMode === 'shotgun') {
+            this.fireRate = 40;
+            this.caliber = 3;
+            this.bulletSpeed = 12;
+            this.bulletDamage = 20;
+            this.bulletColor = 0xff6600; // Orange
+            this.spreadAngle = 30;
+            this.bulletCount = 10;
+        }
+    }
+    
+    /**
+     * Initialize visual elements for the player
+     * @param {number} x - Initial x position
+     * @param {number} y - Initial y position
+     */
+    initGraphics(x, y) {
         // Create the player circle
-        this.graphics = scene.add.circle(x, y, this.radius, 0xff0000);
+        this.graphics = this.scene.add.circle(x, y, this.radius, 0xff0000);
         
         // Create line and cursor for aiming
-        this.line = scene.add.graphics();
-        this.cursorCircle = scene.add.graphics();
+        this.line = this.scene.add.graphics();
+        this.cursorCircle = this.scene.add.graphics();
         
         // Make these graphics follow the camera
         this.line.setScrollFactor(1);
@@ -48,10 +71,7 @@ export class Player {
     }
     
     update() {
-        // Handle player movement
         this.updateMovement();
-        
-        // Update aiming line and cursor
         this.updateAiming();
     }
     
@@ -201,6 +221,10 @@ export class Player {
         return bullets;
     }
 
+    /**
+     * Shoot a bullet or multiple bullets based on weapon type
+     * @returns {boolean} Whether a shot was successfully fired
+     */
     shoot() {
         const currentTime = this.scene.time.now;
         
@@ -215,58 +239,34 @@ export class Player {
         // Make sure we have a target
         if (!this.targetX || !this.targetY) return false;
         
+        // Calculate direction vector to target
+        const directionVector = this.calculateDirectionVector();
+        
+        // Calculate spawn position (edge of player circle)
+        const spawnX = this.graphics.x + directionVector.x * this.radius;
+        const spawnY = this.graphics.y + directionVector.y * this.radius;
+        
+        // Create bullets using the dedicated methods
+        this.createBullet(spawnX, spawnY, directionVector.x, directionVector.y);
+        
+        return true; // Successfully shot
+    }
+    
+    /**
+     * Calculate normalized direction vector from player to target
+     * @returns {Object} Object with x and y properties representing direction
+     */
+    calculateDirectionVector() {
         // Calculate direction from player to target
         const dx = this.targetX - this.graphics.x;
         const dy = this.targetY - this.graphics.y;
-        const angle = Math.atan2(dy, dx);
         
         // Normalize direction vector
         const distance = Math.sqrt(dx * dx + dy * dy);
-        const dirX = dx / distance;
-        const dirY = dy / distance;
-        
-        // Calculate spawn position (edge of player circle)
-        const spawnX = this.graphics.x + dirX * this.radius;
-        const spawnY = this.graphics.y + dirX * this.radius;
-        
-        if (this.gameMode === 'minigun') {
-            // Create bullet
-            const bullet = this.scene.add.circle(spawnX, spawnY, this.caliber, this.bulletColor);
-            
-            // Add bullet properties
-            bullet.dirX = dirX;
-            bullet.dirY = dirY;
-            bullet.speed = this.bulletSpeed;
-            bullet.health = 1; // Bullet penetration (how many enemies it can hit)
-            
-            // Add bullet to group
-            this.scene.bullets.add(bullet);
-        } else if (this.gameMode === 'shotgun') {
-            for (let i = 0; i < this.bulletCount; i++) {
-                const spread = Phaser.Math.DegToRad(this.spreadAngle * (i / (this.bulletCount - 1) - 0.5));
-                const spreadDirX = Math.cos(angle + spread);
-                const spreadDirY = Math.sin(angle + spread);
-                
-                // Create bullet
-                const bullet = this.scene.add.circle(
-                    this.graphics.x + spreadDirX * this.radius,
-                    this.graphics.y + spreadDirY * this.radius,
-                    this.caliber,
-                    this.bulletColor
-                );
-                
-                // Add bullet properties
-                bullet.dirX = spreadDirX;
-                bullet.dirY = spreadDirY;
-                bullet.speed = this.bulletSpeed;
-                bullet.health = 1; // Bullet penetration (how many enemies it can hit)
-                
-                // Add bullet to group
-                this.scene.bullets.add(bullet);
-            }
-        }
-        
-        return true; // Successfully shot
+        return {
+            x: dx / distance,
+            y: dy / distance
+        };
     }
     
     getPosition() {

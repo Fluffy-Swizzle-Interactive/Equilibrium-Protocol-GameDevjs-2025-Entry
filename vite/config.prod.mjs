@@ -24,18 +24,30 @@ export default defineConfig({
         phasermsg()
     ],
     logLevel: 'warning',
+    define: {
+        // Define global constants that will be replaced at build time
+        __DEBUG__: false,
+    },
     build: {
         rollupOptions: {
             output: {
                 manualChunks: {
                     phaser: ['phaser']
                 }
-            }
+            },
+            // Exclude the debug panel from the build
+            external: ['src/game/debug/*'],
         },
         minify: 'terser',
         terserOptions: {
             compress: {
-                passes: 2
+                passes: 2,
+                // Remove debug-only code
+                pure_funcs: ['console.log', 'console.debug'],
+                // Remove code guarded by DEV checks
+                global_defs: {
+                    'import.meta.env.DEV': false
+                }
             },
             mangle: true,
             format: {
