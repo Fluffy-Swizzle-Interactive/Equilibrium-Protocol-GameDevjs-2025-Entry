@@ -1,0 +1,29 @@
+{
+    "section1": {
+        "files": [
+            {
+                "url": "assets/bg.png",
+                "type": "image",
+                "key": "background"
+            },
+            {
+                "url": "assets/map.json",
+                "type": "tilemapTiledJSON",
+                "key": "map"
+            },
+            {
+                "url": "assets/scifi_tiles.png",
+                "type": "image",
+                "key": "scifi_tiles"
+            }
+        ]
+    },
+    "meta": {
+        "app": "Phaser Editor 2D - Asset Pack Editor",
+        "contentType": "phasereditor2d.pack.core.AssetContentType",
+        "url": "https://phasereditor2d.com",
+        "version": 2,
+        "showAllFilesInBlocks": false,
+        "visible": true
+    }
+}
