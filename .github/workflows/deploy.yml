@@ -30,6 +30,6 @@ jobs:
         env:
           BUTLER_CREDENTIALS: ${{ secrets.BUTLER_API_KEY }}
           CHANNEL: web
-          ITCH_GAME: GJG2
-          ITCH_USER: SwizzleShizzle
+          ITCH_GAME: gjg2
+          ITCH_USER: fluffymcchicken
           PACKAGE: dist
