@@ -135,8 +135,32 @@ export class SoundManager {
      * Pause current music
      */
     pauseMusic() {
-        if (this.currentMusic && this.currentMusic.isPlaying) {
-            this.currentMusic.pause();
+        if (this.currentMusic) {
+            // Store the current music state and position
+            this._musicWasPlaying = this.currentMusic.isPlaying;
+            
+            if (this._musicWasPlaying) {
+                // Store information needed to resume properly
+                this._originalVolume = this.currentMusic.volume;
+                this._musicKey = this._getMusicKeyByTrack(this.currentMusic);
+                this._seekPosition = this.currentMusic.seek; // Store current position
+                
+                // Cancel any existing volume tweens to prevent conflicts
+                this.scene.tweens.killTweensOf(this.currentMusic);
+                
+                // Stop the music completely
+                this.currentMusic.stop();
+                
+                // Set the flag to indicate we specifically stopped it
+                this._musicPaused = true;
+                
+                // For extra safety, directly pause the WebAudio node if possible
+                if (this.scene.sound.context && !this.scene.sound.context.suspended) {
+                    this.scene.sound.pauseAll(); // This helps ensure all audio pauses
+                }
+                
+                console.debug(`Background music paused at position ${this._seekPosition}`);
+            }
         }
     }
 
@@ -144,9 +168,63 @@ export class SoundManager {
      * Resume paused music
      */
     resumeMusic() {
-        if (this.currentMusic && !this.currentMusic.isPlaying) {
-            this.currentMusic.resume();
+        // Only resume if we specifically paused the music
+        if (this._musicPaused && this._musicWasPlaying && this._musicKey) {
+            // Resume the WebAudio context if it was suspended
+            if (this.scene.sound.context && this.scene.sound.context.suspended) {
+                this.scene.sound.resumeAll();
+            }
+            
+            // Get the track
+            const track = this.musicTracks[this._musicKey];
+            
+            if (track) {
+                // Make sure track is stopped before restarting it
+                if (track.isPlaying) {
+                    track.stop();
+                }
+                
+                // Reset this track as current
+                this.currentMusic = track;
+                
+                // Start the music from where it was paused
+                this.currentMusic.play({
+                    loop: true,
+                    volume: this._originalVolume || this.musicVolume,
+                    seek: this._seekPosition || 0
+                });
+                
+                console.debug(`Background music resumed from position ${this._seekPosition}`);
+            } else {
+                console.warn(`Could not resume music: track ${this._musicKey} not found`);
+            }
+            
+            // Clear the pause state
+            this._musicPaused = false;
+            this._musicWasPlaying = false;
+            this._originalVolume = null;
+            this._seekPosition = 0;
+            this._musicKey = null;
         }
+    }
+
+    /**
+     * Helper method to find the key of a music track
+     * @private
+     * @param {Phaser.Sound.BaseSound} track - The track to find
+     * @returns {string|null} - The key of the track, or null if not found
+     */
+    _getMusicKeyByTrack(track) {
+        if (!track) return null;
+        
+        // Find the key by comparing the track references
+        for (const [key, value] of Object.entries(this.musicTracks)) {
+            if (value === track) {
+                return key;
+            }
+        }
+        
+        return null;
     }
 
     /**
@@ -227,12 +305,44 @@ export class SoundManager {
     playSoundEffect(key, options = {}) {
         // Make sure the sound exists
         if (!this.soundEffects[key]) {
-            console.warn(`Sound effect "${key}" not found`);
+            // If sound effect doesn't exist, try to create it on-demand
+            if (this.scene.cache.audio.exists(key)) {
+                console.debug(`Sound effect "${key}" not found in SoundManager, initializing on-demand`);
+                this.initSoundEffect(key, {
+                    volume: this.effectsVolume,
+                    rate: 1.0
+                });
+            } else {
+                console.warn(`Sound effect "${key}" not found and cannot be created`);
+                return null;
+            }
+        }
+
+        // Check if audio system is ready
+        if (this.scene.sound.locked) {
+            console.debug(`Audio system is locked, attempting to unlock before playing "${key}"`);
+            
+            // Create a one-time event listener for the unlock event
+            this.scene.sound.once('unlocked', () => {
+                // Try playing the sound after the system is unlocked
+                if (this.soundEffects[key]) {
+                    console.debug(`Audio system unlocked, now playing "${key}"`);
+                    this.soundEffects[key].play(options);
+                }
+            });
+            
+            // Also try to unlock the audio system manually (needed in some browsers)
+            this.scene.sound.unlock();
             return null;
         }
 
-        // Play the sound with options
-        return this.soundEffects[key].play(options);
+        // Sound exists and audio system is ready, play the sound
+        try {
+            return this.soundEffects[key].play(options);
+        } catch (error) {
+            console.warn(`Error playing sound "${key}":`, error);
+            return null;
+        }
     }
 
     /**

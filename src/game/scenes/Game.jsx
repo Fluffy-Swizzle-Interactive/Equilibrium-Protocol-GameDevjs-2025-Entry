@@ -42,11 +42,11 @@ export class Game extends Scene {
 
     create() {
         this.setupMap();
-        this.setupGameObjects();
+        this.setupSoundManager(); // Initialize sound manager first
+        this.setupGameObjects(); // Then create player and other objects
         this.setupUI();
         this.setupInput();
         this.setupEnemySpawner();
-        this.setupSoundManager();
         
         EventBus.emit('current-scene-ready', this);
     }
@@ -75,10 +75,23 @@ export class Game extends Scene {
             rate: 0.9
         });
         
-        // Start playing ambient music with fade in
-        this.soundManager.playMusic('ambient_music', {
-            fadeIn: 2000  // 2 second fade in
-        });
+        // Unlock audio context as early as possible - this helps with mobile browsers
+        // and cases where audio might be initially locked
+        if (this.sound.locked) {
+            console.debug('Audio system is locked. Attempting to unlock...');
+            this.sound.once('unlocked', () => {
+                console.debug('Audio system unlocked successfully');
+                // Start playing ambient music with fade in once audio is unlocked
+                this.soundManager.playMusic('ambient_music', {
+                    fadeIn: 2000  // 2 second fade in
+                });
+            });
+        } else {
+            // Sound already unlocked, play immediately
+            this.soundManager.playMusic('ambient_music', {
+                fadeIn: 2000  // 2 second fade in
+            });
+        }
     }
 
     /**

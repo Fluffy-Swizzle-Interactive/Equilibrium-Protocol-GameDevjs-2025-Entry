@@ -12,6 +12,7 @@
 - [Game Mechanics](#game-mechanics)
 - [Development Guidelines](#development-guidelines)
 - [Asset Management](#asset-management)
+- [Troubleshooting](#troubleshooting)
 
 ## Project Overview
 
@@ -157,6 +158,49 @@ Manages the player character, including movement, weapons, and shooting.
   - Multiple bullets per shot (10)
   - 30-degree spread
   - Orange bullets
+
+#### Audio Integration
+
+The Player class integrates with the SoundManager to play appropriate weapon sounds when shooting:
+
+```javascript
+// In Player.js - initSounds method
+initSounds() {
+    // Check if soundManager exists
+    if (!this.scene.soundManager) {
+        console.warn('SoundManager not found in scene. Weapon sounds will not be played.');
+        return;
+    }
+
+    // Use the sound effects that have already been initialized by the scene
+    if (this.gameMode === 'minigun') {
+        this.soundKey = 'shoot_minigun';
+    } else if (this.gameMode === 'shotgun') {
+        this.soundKey = 'shoot_shotgun';
+    }
+}
+
+// In the shoot method
+playWeaponSound() {
+    if (!this.scene.soundManager || !this.soundKey) return;
+    
+    try {
+        const detune = Math.random() * 200 - 100;
+        
+        // Force unlock on first shot if needed
+        if (!this.hasPlayedSound && this.scene.sound.locked) {
+            this.scene.sound.unlock();
+        }
+        
+        this.scene.soundManager.playSoundEffect(this.soundKey, { detune });
+        this.hasPlayedSound = true;
+    } catch (error) {
+        console.warn('Error playing weapon sound:', error);
+    }
+}
+```
+
+This approach follows the best practice of centralized audio management through the SoundManager.
 
 ### `Enemy` Class (`Enemy.js`)
 
@@ -354,6 +398,75 @@ this.soundManager.playSoundEffect('explosion', {
 });
 ```
 
+### Audio Pause Handling
+
+The audio system has been enhanced with an improved implementation for handling background music when the game is paused:
+
+```javascript
+pauseMusic() {
+    if (this.currentMusic) {
+        // Store the current music state and position
+        this._musicWasPlaying = this.currentMusic.isPlaying;
+        
+        if (this._musicWasPlaying) {
+            // Store information needed to resume properly
+            this._originalVolume = this.currentMusic.volume;
+            this._musicKey = this._getMusicKeyByTrack(this.currentMusic);
+            this._seekPosition = this.currentMusic.seek; // Store current position
+            
+            // Cancel any existing volume tweens to prevent conflicts
+            this.scene.tweens.killTweensOf(this.currentMusic);
+            
+            // Stop the music completely
+            this.currentMusic.stop();
+            
+            // For extra safety, directly pause the WebAudio node
+            if (this.scene.sound.context && !this.scene.sound.context.suspended) {
+                this.scene.sound.pauseAll();
+            }
+        }
+    }
+}
+
+resumeMusic() {
+    // Only resume if we specifically paused the music
+    if (this._musicPaused && this._musicWasPlaying && this._musicKey) {
+        // Resume the WebAudio context if it was suspended
+        if (this.scene.sound.context && this.scene.sound.context.suspended) {
+            this.scene.sound.resumeAll();
+        }
+        
+        // Get the track and restart it from where it was paused
+        const track = this.musicTracks[this._musicKey];
+        if (track) {
+            this.currentMusic = track;
+            this.currentMusic.play({
+                loop: true,
+                volume: this._originalVolume || this.musicVolume,
+                seek: this._seekPosition || 0
+            });
+        }
+        
+        // Clear the pause state
+        this._musicPaused = false;
+        this._musicWasPlaying = false;
+        this._originalVolume = null;
+        this._seekPosition = 0;
+        this._musicKey = null;
+    }
+}
+```
+
+This implementation ensures that background music properly stops during game pause and resumes from the exact position when the game is unpaused:
+
+1. **Position tracking**: The system now tracks the exact playback position when pausing
+2. **WebAudio API integration**: Uses Phaser's lower-level audio APIs for more reliable control
+3. **State management**: Properly manages state across pause/resume cycles
+4. **Error handling**: Provides graceful fallbacks if tracks can't be found
+5. **Tween cleanup**: Prevents volume tween conflicts when rapidly pausing/resuming
+
+The solution follows OOP principles with proper private helper methods and maintains all state internally in the SoundManager class.
+
 ### Sound Assets
 - `ambient_music`: Looping background music for atmosphere
 - `shoot_minigun`: Sound played when firing the minigun weapon
@@ -364,10 +477,11 @@ this.soundManager.playSoundEffect('explosion', {
 #### Main Menu
 The `MainMenu` scene initializes the ambient music that continues throughout the game:
 
-```javascript
-setupSoundManager() {
-    this.soundManager = new SoundManager(this);
-    this.soundManager.initBackgroundMusic('ambient_music', {
+1. **Scene Initialization Order**:
+   ```javascript
+   setupSoundManager() {
+       this.soundManager = new SoundManager(this);
+       this.soundManager.initBackgroundMusic('ambient_music', {
         volume: 0.3,
         loop: true
     });
@@ -375,59 +489,78 @@ setupSoundManager() {
         fadeIn: 3000
     });
 }
-```
 
-#### Game Scene
-The `Game` scene continues the ambient music and handles pausing during gameplay:
 
-```javascript
-setupSoundManager() {
-    this.soundManager = new SoundManager(this);
-    
-    // Initialize music and effects
-    this.soundManager.initBackgroundMusic('ambient_music', {
-        volume: 0.4,
-        loop: true
-    });
-    
-    // Initialize weapon sounds
-    this.soundManager.initSoundEffect('shoot_minigun', {
-        volume: 0.5
-    });
-    this.soundManager.initSoundEffect('shoot_shotgun', {
-        volume: 0.6
-    });
-    
-    // Music will crossfade if already playing
-    this.soundManager.playMusic('ambient_music');
-}
-```
+2.  **The `Game` scene continues the ambient music and handles pausing during gameplay**: 
 
-#### Player Sound Integration
-The `Player` class now uses the SoundManager for weapon sounds:
+   ```javascript
+   setupSoundManager() {
+       this.soundManager = new SoundManager(this);
+       
+       // Initialize audio assets
+       this.soundManager.initBackgroundMusic('ambient_music', {
+           volume: 0.4,
+           loop: true
+       });
+       
+       this.soundManager.initSoundEffect('shoot_minigun', {
+           volume: 0.5,
+           rate: 1.0
+       });
+       
+       this.soundManager.initSoundEffect('shoot_shotgun', {
+           volume: 0.6,
+           rate: 0.9
+       });
+       
+       // Handle audio context locking
+       if (this.sound.locked) {
+           console.debug('Audio system is locked. Attempting to unlock...');
+           this.sound.once('unlocked', () => {
+               this.soundManager.playMusic('ambient_music', {
+                   fadeIn: 2000
+               });
+           });
+       } else {
+           this.soundManager.playMusic('ambient_music', {
+               fadeIn: 2000
+           });
+       }
+   }
+   ```
 
-```javascript
-// In Player.js - initSounds method
-initSounds() {
-    if (!this.scene.soundManager) {
-        console.warn('SoundManager not found in scene');
-        return;
-    }
+3. **Robust Sound Playback**:
+   The SoundManager's `playSoundEffect` method includes comprehensive error handling to ensure reliable sound playback across browsers:
 
-    // Use the sound effects already initialized
-    if (this.gameMode === 'minigun') {
-        this.soundKey = 'shoot_minigun';
-    } else if (this.gameMode === 'shotgun') {
-        this.soundKey = 'shoot_shotgun';
-    }
-}
+   ```javascript
+   playSoundEffect(key, options = {}) {
+       // On-demand initialization for missing sounds
+       if (!this.soundEffects[key] && this.scene.cache.audio.exists(key)) {
+           this.initSoundEffect(key, { volume: this.effectsVolume, rate: 1.0 });
+       }
 
-// In the shoot method
-if (this.scene.soundManager && this.soundKey) {
-    const detune = Math.random() * 200 - 100;
-    this.scene.soundManager.playSoundEffect(this.soundKey, { detune });
-}
-```
+       // Handle locked audio context
+       if (this.scene.sound.locked) {
+           this.scene.sound.once('unlocked', () => {
+               if (this.soundEffects[key]) {
+                   this.soundEffects[key].play(options);
+               }
+           });
+           this.scene.sound.unlock();
+           return null;
+       }
+       
+       // Safe playback with try/catch
+       try {
+           return this.soundEffects[key].play(options);
+       } catch (error) {
+           console.warn(`Error playing sound "${key}":`, error);
+           return null;
+       }
+   }
+   ```
+
+These implementation details ensure that sounds play reliably across different browsers and handle common edge cases like audio context locking.
 
 ---
 
@@ -534,6 +667,51 @@ Score is determined by:
 - `map.json` - Tilemap data
 - `favicon.png` - Browser tab icon
 - `particle_texture.png` - Texture for particle effects
+
+---
+
+## Troubleshooting
+
+### Audio Issues
+
+#### Weapon Sounds Not Playing
+
+If weapon sounds aren't playing on initial scene load but work after reloading:
+
+1. **Check initialization order**:
+   - SoundManager must be initialized before Player objects are created
+   - Check the sequence in Game.jsx's `create()` method
+
+2. **Audio context locking**:
+   - Many browsers require user interaction before playing sounds
+   - The SoundManager includes unlocking logic to handle this
+   - If sounds still don't play, ensure the unlock mechanism is working:
+   ```javascript
+   if (this.scene.sound.locked) {
+       this.scene.sound.unlock();
+   }
+   ```
+
+3. **Debugging audio issues**:
+   - Check the browser console for warnings from SoundManager
+   - Verify that audio assets are properly loaded in Preloader.js
+   - Test with different browsers to isolate browser-specific issues
+
+#### Background Music Issues
+
+If background music isn't playing or cuts out unexpectedly:
+
+1. **Check for pause states**:
+   - The game automatically pauses music when the game is paused
+   - Verify that `resumeMusic()` is called when unpausing
+
+2. **Multiple music tracks**:
+   - The SoundManager handles crossfading between tracks
+   - Ensure only one music track is playing at a time
+
+3. **Audio format support**:
+   - Different browsers support different audio formats
+   - Consider providing both MP3 and OGG versions of audio files
 
 ---
 
