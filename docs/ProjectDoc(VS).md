@@ -11,6 +11,7 @@
 - [Sound System](#sound-system)
 - [Game Mechanics](#game-mechanics)
 - [Object Pooling System](#object-pooling-system)
+- [Mapping System](#mapping-system)
 - [Development Guidelines](#development-guidelines)
 - [Asset Management](#asset-management)
 - [Troubleshooting](#troubleshooting)
@@ -754,6 +755,7 @@ A centralized manager for object pooling that improves performance by recycling 
 #### Usage Example
 
 ```javascript
+
 // Create the global object manager
 this.gameObjectManager = new GameObjectManager(this);
 
@@ -892,6 +894,239 @@ Preliminary testing shows significant performance improvements:
 - 60% reduction in garbage collection pauses
 - Up to 30% improvement in frame rate during heavy combat
 - Stable memory usage even with thousands of objects created over time
+=======
+// In Preloader scene
+preload() {
+    // Initialize manager
+    this.tileMapManager = new TileMapManager(this);
+    
+    // Preload all configured maps
+    this.tileMapManager.preloadMaps();
+}
+
+// In MainMenu scene
+create() {
+    // Get available maps for selection
+    this.tileMapManager = new TileMapManager(this);
+    const maps = this.tileMapManager.getAvailableMaps();
+    
+    // Create UI elements to let user select maps
+    // ... 
+}
+
+// In Game scene
+setupMap() {
+    // Create the map with options
+    const mapData = this.tileMapManager.createMapFromTiled(this.selectedMap, {
+        scale: 1.5,
+        setCollision: false
+    });
+    
+    // Store references to map components
+    this.map = mapData.map;
+    this.groundLayer = mapData.layers["Tile Layer 1"];
+    this.tileset = mapData.tileset;
+    
+    // Set physics world bounds based on map dimensions
+    this.physics.world.setBounds(0, 0, mapData.dimensions.width, mapData.dimensions.height);
+}
+
+// Switch maps during gameplay
+changeLevel() {
+    this.tileMapManager.switchMap('new_map_key', {
+        scale: 1.5,
+        setCollision: true,
+        collisionIndices: [5, 6, 7, 8]
+    });
+}
+```
+
+#### Map Generation Functionality
+The TileMapManager can also generate maps programmatically:
+
+```javascript
+// Generate a sequential map (useful for testing)
+const levelData = this.tileMapManager.generateSequentialMap(24, 24);
+
+// Create a tilemap from the generated data
+const mapData = this.tileMapManager.createMapFromArray(levelData, 'tileset_key', {
+    tileWidth: 32,
+    tileHeight: 32
+});
+```
+
+#### Map Switching with EventBus
+Maps can be switched through the EventBus system:
+
+```javascript
+// Request a map switch from anywhere in the application
+EventBus.emit('request-map-switch', {
+    key: 'green_arena',
+    scale: 1.2,
+    setCollision: true,
+    collisionIndices: [1, 2, 3]
+});
+```
+
+The Game scene listens for this event and handles the map switching process.
+
+#### Error Handling and Fallback Mechanisms
+
+The TileMapManager includes several layers of error handling to ensure maps load correctly even with problematic Tiled files:
+
+```javascript
+// Multiple fallback approaches for tileset loading
+try {
+    // Standard approach
+    tileset = this.currentMap.addTilesetImage(config.tilesetName, config.tilesetKey);
+} catch (tilesetError) {
+    // Alternative approach using map tilesets directly
+    const matchingTileset = tiledTilesets.find(ts => ts.name === config.tilesetName);
+    tileset = this.currentMap.addTilesetImage(
+        matchingTileset.name, 
+        config.tilesetKey,
+        matchingTileset.tileWidth || 32,
+        matchingTileset.tileHeight || 32
+    );
+}
+```
+
+**Robust Layer Creation**
+
+For problematic tilemaps that cause index errors, the system uses a three-tiered approach:
+1. Standard layer creation via `createLayer()`
+2. If that fails, attempt manual layer creation with `createBlankLayer()` and populate it
+3. As a last resort, generate a completely new procedural map
+
+This ensures the game will always have a playable map, even when loading malformed tilemap data.
+
+#### Handling External Tileset References
+
+The manager properly handles both embedded tilesets and external tileset references (TSX files) by:
+
+1. Reading the tileset properties directly from the map data
+2. Applying appropriate first GID offsets to tile indices
+3. Supporting manual tile placement when standard methods fail
+
+This makes the system compatible with various Tiled export formats and workflows.
+
+### Adding New Maps to the Game
+
+Adding a new map to the game involves several steps:
+
+#### 1. Prepare Map Assets
+
+1. Create your Tiled map (.json) file and tileset image (.png)
+2. Place these files in the appropriate directories:
+   - Map JSON: `public/assets/` or `public/assets/tileMaps/`
+   - Tileset image: `public/assets/` or `public/assets/tileMaps/`
+
+#### 2. Update Preloader.js
+
+In `src/game/scenes/Preloader.js`, ensure the TileMapManager is initialized and configured:
+
+```javascript
+init() {
+    // Initialize TileMapManager
+    this.tileMapManager = new TileMapManager(this);
+}
+
+preload() {
+    // ...existing preload code...
+    
+    // Load all maps using the TileMapManager
+    this.tileMapManager.preloadMaps();
+    
+    // ...remaining preload code...
+}
+```
+
+#### 3. Add Map Configuration to TileMapManager
+
+In `src/game/mapping/tileMapManager.jsx`, add your new map to the `mapConfigs` object:
+
+```javascript
+this.mapConfigs = {
+    // ...existing maps...
+    
+    'new_map_key': {
+        key: 'new_map_json_key',
+        tilesetKey: 'new_map_tileset_key',
+        tilesetName: 'tileset_name_in_json',
+        path: 'assets/tileMaps/new_map.json',
+        tilesetImagePath: 'assets/tileMaps/new_map_tileset.png',
+        primaryLayerName: 'main_layer_name' // The primary layer name in your Tiled map
+    }
+};
+```
+
+#### 4. Update Game.jsx
+
+In `src/game/scenes/Game.jsx`, update the `setupMap` method (around lines 102-103) to properly handle the primary layer name from your map configuration:
+
+```javascript
+// Get the correct primary layer name from the config
+const mapConfig = this.tileMapManager.mapConfigs[this.selectedMap];
+const primaryLayerName = mapConfig?.primaryLayerName || "Tile Layer 1";
+
+// First try to get the primary layer from config
+if (mapData.layers[primaryLayerName]) {
+    this.groundLayer = mapData.layers[primaryLayerName];
+    if (this.isDev) console.debug(`Using primary layer: ${primaryLayerName}`);
+} 
+// Fall back to first available layer if primary not found
+else {
+    const layerNames = Object.keys(mapData.layers);
+    if (layerNames.length > 0) {
+        const firstLayerName = layerNames[0];
+        console.warn(`Primary layer '${primaryLayerName}' not found, using '${firstLayerName}' instead`);
+        this.groundLayer = mapData.layers[firstLayerName];
+    }
+}
+```
+
+#### 5. Update MainMenu.js (Optional)
+
+If you want to make the new map selectable from the main menu, update the MainMenu scene to include the new map option.
+
+#### Example: Complete Map Addition Workflow
+
+Here's a complete example workflow for adding a new desert-themed map:
+
+1. **Add files**:
+   - Add `desert_map.json` to `public/assets/tileMaps/`
+   - Add `desert_tileset.png` to `public/assets/tileMaps/`
+
+2. **Configure in TileMapManager**:
+   ```javascript
+   'desert_arena': {
+       key: 'desert_map',
+       tilesetKey: 'desert_tileset',
+       tilesetName: 'desert',
+       path: 'assets/tileMaps/desert_map.json',
+       tilesetImagePath: 'assets/tileMaps/desert_tileset.png',
+       primaryLayerName: 'Desert_Ground'
+   }
+   ```
+
+3. **Verify Game.jsx** handles the primary layer name correctly on lines 102-103
+
+4. **Run and test** the game to ensure the map loads properly
+
+#### Troubleshooting Common Map Issues
+
+1. **"Failed to load map" error**:
+   - Check that the map JSON path is correct
+   - Ensure the tileset image path is correct
+   - Verify JSON validity with a JSON validator
+
+2. **"Cannot access property X" error**:
+   - This typically means the layer's tile indices don't match the tileset
+   - Verify that the firstgid in your tileset configuration matches what's in the map JSON
+
+3. **"This.groundLayer is null" error**:
+   - Ensure the primaryLayerName matches exactly what's in your Tiled map
+   - Check the Game.jsx code to ensure it properly handles layer name lookup
 
 ---
 
