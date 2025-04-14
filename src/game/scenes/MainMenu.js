@@ -1,6 +1,6 @@
 import { EventBus } from '../EventBus';
 import { Scene } from 'phaser';
-import { SoundManager } from '../sound/SoundManager';
+import { SoundManager } from '../managers/SoundManager';
 
 export class MainMenu extends Scene
 {

@@ -199,46 +199,68 @@ export class Player {
     }
 
     createMinigunBullet(spawnX, spawnY, dirX, dirY) {
-        const bullet = this.scene.add.circle(spawnX, spawnY, this.caliber, this.bulletColor);
-        
-        // Add bullet properties
-        bullet.dirX = dirX;
-        bullet.dirY = dirY;
-        bullet.speed = this.bulletSpeed;
-        bullet.health = this.bulletHealth; // Health of the bullet
-        
-        // Add bullet to group
-        this.scene.bullets.add(bullet);
-        return bullet;
-    }
-
-    createShotgunBullets(spawnX, spawnY, dirX, dirY) {
-        const bullets = [];
-        const baseAngle = Math.atan2(dirY, dirX);
-        
-        for (let i = 0; i < this.bulletCount; i++) {
-            // Calculate spread angle
-            const spreadRadians = (Math.random() * this.spreadAngle - this.spreadAngle/2) * (Math.PI / 180);
-            const angle = baseAngle + spreadRadians;
-            
-            // Calculate new direction with spread
-            const newDirX = Math.cos(angle);
-            const newDirY = Math.sin(angle);
-            
-            // Create bullet with spread
+        // Use bullet pool instead of direct creation
+        if (this.scene.bulletPool) {
+            return this.scene.bulletPool.createMinigunBullet(
+                spawnX, spawnY, dirX, dirY,
+                this.bulletSpeed, this.bulletHealth,
+                this.bulletColor, this.caliber
+            );
+        } else {
+            // Fallback to old method if bulletPool not available
             const bullet = this.scene.add.circle(spawnX, spawnY, this.caliber, this.bulletColor);
             
             // Add bullet properties
-            bullet.dirX = newDirX;
-            bullet.dirY = newDirY;
+            bullet.dirX = dirX;
+            bullet.dirY = dirY;
             bullet.speed = this.bulletSpeed;
-            bullet.health = this.bulletHealth; // Health of the bullet
+            bullet.health = this.bulletHealth;
+            
             // Add bullet to group
             this.scene.bullets.add(bullet);
-            bullets.push(bullet);
+            return bullet;
         }
-        
-        return bullets;
+    }
+
+    createShotgunBullets(spawnX, spawnY, dirX, dirY) {
+        // Use bullet pool instead of direct creation
+        if (this.scene.bulletPool) {
+            return this.scene.bulletPool.createShotgunBullets(
+                spawnX, spawnY, dirX, dirY,
+                this.bulletSpeed, this.bulletHealth,
+                this.bulletColor, this.caliber,
+                this.bulletCount, this.spreadAngle
+            );
+        } else {
+            // Fallback to old method if bulletPool not available
+            const bullets = [];
+            const baseAngle = Math.atan2(dirY, dirX);
+            
+            for (let i = 0; i < this.bulletCount; i++) {
+                // Calculate spread angle
+                const spreadRadians = (Math.random() * this.spreadAngle - this.spreadAngle/2) * (Math.PI / 180);
+                const angle = baseAngle + spreadRadians;
+                
+                // Calculate new direction with spread
+                const newDirX = Math.cos(angle);
+                const newDirY = Math.sin(angle);
+                
+                // Create bullet with spread
+                const bullet = this.scene.add.circle(spawnX, spawnY, this.caliber, this.bulletColor);
+                
+                // Add bullet properties
+                bullet.dirX = newDirX;
+                bullet.dirY = newDirY;
+                bullet.speed = this.bulletSpeed;
+                bullet.health = this.bulletHealth;
+                
+                // Add bullet to group
+                this.scene.bullets.add(bullet);
+                bullets.push(bullet);
+            }
+            
+            return bullets;
+        }
     }
 
     /**
