@@ -2,6 +2,7 @@ import { EventBus } from '../EventBus';
 import { Scene } from 'phaser';
 import { Enemy } from '../entities/Enemy';
 import { Player } from '../entities/Player';
+import { SoundManager } from '../sound/SoundManager';
 
 export class Game extends Scene {
     constructor() {
@@ -41,12 +42,56 @@ export class Game extends Scene {
 
     create() {
         this.setupMap();
-        this.setupGameObjects();
+        this.setupSoundManager(); // Initialize sound manager first
+        this.setupGameObjects(); // Then create player and other objects
         this.setupUI();
         this.setupInput();
         this.setupEnemySpawner();
         
         EventBus.emit('current-scene-ready', this);
+    }
+
+    /**
+     * Set up the sound manager and start ambient music
+     */
+    setupSoundManager() {
+        // Create sound manager
+        this.soundManager = new SoundManager(this);
+        
+        // Initialize ambient music
+        this.soundManager.initBackgroundMusic('ambient_music', {
+            volume: 0.4,  // Slightly lower volume for ambient music
+            loop: true
+        });
+        
+        // Initialize sound effects
+        this.soundManager.initSoundEffect('shoot_minigun', {
+            volume: 0.5,
+            rate: 1.0
+        });
+        
+        this.soundManager.initSoundEffect('shoot_shotgun', {
+            volume: 0.6,
+            rate: 0.9
+        });
+        
+        // Unlock audio context as early as possible - this helps with mobile browsers
+        // and cases where audio might be initially locked
+        if (this.sound.locked) {
+            console.debug('Audio system is locked. Attempting to unlock...');
+            this.sound.once('unlocked', () => {
+                console.debug('Audio system unlocked successfully');
+                // Start playing ambient music with fade in once audio is unlocked
+                this.soundManager.playMusic('ambient_music', {
+                    fadeIn: 2000  // 2 second fade in
+                });
+            });
+        } else {
+            // Sound already unlocked, play immediately
+            this.soundManager.playMusic('ambient_music', {
+                fadeIn: 2000  // 2 second fade in
+            });
+        }
     }
 
     /**
@@ -220,9 +265,19 @@ export class Game extends Scene {
         if (isPaused) {
             this.physics.pause();
             this.time.paused = true;
+            
+            // Pause ambient music
+            if (this.soundManager) {
+                this.soundManager.pauseMusic();
+            }
         } else {
             this.physics.resume();
             this.time.paused = false;
+            
+            // Resume ambient music
+            if (this.soundManager) {
+                this.soundManager.resumeMusic();
+            }
         }
     }
 
@@ -561,6 +616,11 @@ export class Game extends Scene {
     }
     
     playerDeath() {
+        // Stop ambient music with fade out
+        if (this.soundManager) {
+            this.soundManager.stopMusic(1000); // 1s fade out
+        }
+
         // Pass survival time and kill count to the GameOver scene
         this.scene.start('GameOver', { 
             survivalTime: Math.floor(this.survivalTime),
@@ -569,6 +629,11 @@ export class Game extends Scene {
     }
 
     changeScene() {
+        // Stop ambient music
+        if (this.soundManager) {
+            this.soundManager.stopMusic(500);
+        }
+
         this.scene.start('GameOver', { 
             survivalTime: Math.floor(this.survivalTime),
             killCount: this.killCount,

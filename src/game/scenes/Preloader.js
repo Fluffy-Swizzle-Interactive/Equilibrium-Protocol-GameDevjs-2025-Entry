@@ -43,6 +43,13 @@ export class Preloader extends Scene
         // Load tilemap and tileset
         this.load.image('scifi_tiles', 'assets/scifi_tiles.png');
         this.load.tilemapTiledJSON('map', 'assets/map.json');
+        
+        // Load sound effects
+        this.load.audio('shoot_minigun', 'assets/audio/laserShoot.wav');
+        this.load.audio('shoot_shotgun', 'assets/audio/laserShoot.wav');
+        
+        // Load ambient background music
+        this.load.audio('ambient_music', 'assets/audio/ambient_loop.mp3');
     }
 
     create ()
