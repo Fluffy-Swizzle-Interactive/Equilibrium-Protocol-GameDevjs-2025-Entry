@@ -1,5 +1,6 @@
 import { EventBus } from '../EventBus';
 import { Scene } from 'phaser';
+import { SoundManager } from '../sound/SoundManager';
 
 export class MainMenu extends Scene
 {
@@ -28,7 +29,29 @@ export class MainMenu extends Scene
             align: 'center'
         }).setDepth(100).setOrigin(0.5).setInteractive().on('pointerdown', () => this.changeScene('shotgun'), this);
         
+        // Setup sound manager and start ambient music
+        this.setupSoundManager();
+        
         EventBus.emit('current-scene-ready', this);
+    }
+
+    /**
+     * Set up the sound manager and start ambient music
+     */
+    setupSoundManager() {
+        // Create sound manager
+        this.soundManager = new SoundManager(this);
+        
+        // Initialize ambient music
+        this.soundManager.initBackgroundMusic('ambient_music', {
+            volume: 0.3,  // Slightly lower volume for menu
+            loop: true
+        });
+        
+        // Start playing ambient music with fade in
+        this.soundManager.playMusic('ambient_music', {
+            fadeIn: 3000  // 3 second fade in for menu (longer for atmosphere)
+        });
     }
 
     changeScene (gameMode)
@@ -38,6 +61,9 @@ export class MainMenu extends Scene
             this.logoTween.stop();
             this.logoTween = null;
         }
+
+        // Don't stop music, it will be handled by the Game scene
+        // to ensure a smooth transition
 
         this.scene.start('Game', { mode: gameMode });
     }

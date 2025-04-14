@@ -8,7 +8,10 @@
 - [Scene Management](#scene-management)
 - [Event System](#event-system)
 - [UI Components](#ui-components)
+- [Sound System](#sound-system)
+- [Game Mechanics](#game-mechanics)
 - [Development Guidelines](#development-guidelines)
+- [Asset Management](#asset-management)
 
 ## Project Overview
 
@@ -44,6 +47,8 @@ src/
     ├── entities/          # Game objects
     │   ├── Enemy.js       # Enemy entity
     │   └── Player.js      # Player entity
+    ├── sound/             # Sound management
+    │   └── SoundManager.js # Centralized audio system
     └── scenes/            # Game screens
         ├── Boot.js        # Initial loading
         ├── Game.jsx       # Main gameplay
@@ -285,6 +290,205 @@ React component displaying real-time game metrics for development.
 - Kill count
 - Game mode
 - Survival time
+
+---
+
+## Sound System
+
+Handles audio playback for game events and background music.
+
+### `SoundManager` Class (`sound/SoundManager.js`)
+
+Centralized audio system that manages both background music and sound effects.
+
+#### Properties
+- `musicTracks` - Object storing all background music tracks
+- `soundEffects` - Object storing all sound effects
+- `currentMusic` - Reference to the currently playing music track
+- `musicVolume` - Volume level for background music (0-1)
+- `effectsVolume` - Volume level for sound effects (0-1)
+- `isMuted` - Boolean flag for mute state
+
+#### Methods
+- `constructor(scene)` - Initializes sound manager for a specific scene
+- `initBackgroundMusic(key, options)` - Registers a music track with options
+- `playMusic(key, options)` - Plays a music track with optional crossfade
+- `startNewMusic(key, fadeInDuration, delay)` - Starts new music with fade in
+- `stopMusic(fadeOutDuration)` - Stops current music with optional fade out
+- `pauseMusic()` - Pauses current music playback
+- `resumeMusic()` - Resumes paused music
+- `setMute(mute)` - Sets the mute state for all audio
+- `toggleMute()` - Toggles between muted and unmuted states
+- `setMusicVolume(volume)` - Sets volume level for all music tracks
+- `setEffectsVolume(volume)` - Sets volume level for sound effects
+- `initSoundEffect(key, options)` - Registers a sound effect with options
+- `playSoundEffect(key, options)` - Plays a sound effect with options
+- `destroy()` - Cleans up all audio resources
+
+#### Usage Example
+
+```javascript
+// Create sound manager in a scene
+this.soundManager = new SoundManager(this);
+
+// Register background music
+this.soundManager.initBackgroundMusic('ambient_music', {
+    volume: 0.4,
+    loop: true
+});
+
+// Play music with fade in
+this.soundManager.playMusic('ambient_music', {
+    fadeIn: 2000  // 2 second fade in
+});
+
+// Register sound effect
+this.soundManager.initSoundEffect('explosion', {
+    volume: 0.7,
+    rate: 1.2
+});
+
+// Play sound effect with options
+this.soundManager.playSoundEffect('explosion', {
+    detune: Math.random() * 200 - 100
+});
+```
+
+### Sound Assets
+- `ambient_music`: Looping background music for atmosphere
+- `shoot_minigun`: Sound played when firing the minigun weapon
+- `shoot_shotgun`: Sound played when firing the shotgun weapon
+
+### Audio Implementation
+
+#### Main Menu
+The `MainMenu` scene initializes the ambient music that continues throughout the game:
+
+```javascript
+setupSoundManager() {
+    this.soundManager = new SoundManager(this);
+    this.soundManager.initBackgroundMusic('ambient_music', {
+        volume: 0.3,
+        loop: true
+    });
+    this.soundManager.playMusic('ambient_music', {
+        fadeIn: 3000
+    });
+}
+```
+
+#### Game Scene
+The `Game` scene continues the ambient music and handles pausing during gameplay:
+
+```javascript
+setupSoundManager() {
+    this.soundManager = new SoundManager(this);
+    
+    // Initialize music and effects
+    this.soundManager.initBackgroundMusic('ambient_music', {
+        volume: 0.4,
+        loop: true
+    });
+    
+    // Initialize weapon sounds
+    this.soundManager.initSoundEffect('shoot_minigun', {
+        volume: 0.5
+    });
+    this.soundManager.initSoundEffect('shoot_shotgun', {
+        volume: 0.6
+    });
+    
+    // Music will crossfade if already playing
+    this.soundManager.playMusic('ambient_music');
+}
+```
+
+#### Player Sound Integration
+The `Player` class now uses the SoundManager for weapon sounds:
+
+```javascript
+// In Player.js - initSounds method
+initSounds() {
+    if (!this.scene.soundManager) {
+        console.warn('SoundManager not found in scene');
+        return;
+    }
+
+    // Use the sound effects already initialized
+    if (this.gameMode === 'minigun') {
+        this.soundKey = 'shoot_minigun';
+    } else if (this.gameMode === 'shotgun') {
+        this.soundKey = 'shoot_shotgun';
+    }
+}
+
+// In the shoot method
+if (this.scene.soundManager && this.soundKey) {
+    const detune = Math.random() * 200 - 100;
+    this.scene.soundManager.playSoundEffect(this.soundKey, { detune });
+}
+```
+
+---
+
+## Game Mechanics
+
+### Weapon Systems
+
+#### Minigun
+- Fast firing rate (100 shots/sec)
+- Lower damage per shot
+- Good for consistent damage output
+- Yellow projectiles
+
+#### Shotgun
+- Slow firing rate (25 shots/sec)
+- Multiple projectiles per shot
+- High burst damage
+- Good for close encounters
+- Orange projectiles
+
+### Enemy Spawning
+
+Enemies spawn at increasing rates as the game progresses:
+
+- Initial spawn rate: 2000ms
+- Minimum spawn rate: 500ms
+- Decrease: 50ms every 10 seconds
+
+#### Spawn Types
+- **Regular Edge Spawn (80% chance)**: Enemies spawn from the edges of the screen
+- **Corner Spawn (15% chance)**: Enemies spawn from the corners of the screen
+- **Group Spawn (5% chance)**: Groups of 3-6 enemies spawn together
+
+### Boss Encounters
+
+Boss enemies appear after every 1000 regular enemies killed:
+- 10x larger health pool
+- Larger size
+- Red color
+- Health bar displayed
+- Special death effects
+
+### Difficulty Progression
+
+Difficulty increases over time through:
+- Increasing enemy spawn rates
+- More frequent group spawns
+- Boss encounters
+- No hard time limit (survive as long as possible)
+
+### Collision System
+
+The game uses simple circular collision detection:
+- Player-Enemy: Game over when enemy touches player
+- Bullet-Enemy: Damage applied to enemy
+
+### Scoring System
+
+Score is determined by:
+- Survival time (in seconds)
+- Kill count
 
 ---
 

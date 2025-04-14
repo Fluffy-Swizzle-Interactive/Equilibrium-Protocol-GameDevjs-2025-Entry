@@ -6,6 +6,7 @@ export class Player {
         this.initPhysicsProperties();
         this.initWeaponProperties(scene.gameMode || 'minigun');
         this.initGraphics(x, y);
+        this.initSounds();
         
         // Timing properties
         this.lastFireTime = 0;
@@ -68,6 +69,24 @@ export class Player {
         // Make these graphics follow the camera
         this.line.setScrollFactor(1);
         this.cursorCircle.setScrollFactor(1);
+    }
+    
+    /**
+     * Initialize sound effects for the player
+     */
+    initSounds() {
+        // Check if soundManager exists - it should be created in the Game scene
+        if (!this.scene.soundManager) {
+            console.warn('SoundManager not found in scene. Weapon sounds will not be played.');
+            return;
+        }
+
+        // Use the sound effects that have already been initialized by the scene
+        if (this.gameMode === 'minigun') {
+            this.soundKey = 'shoot_minigun';
+        } else if (this.gameMode === 'shotgun') {
+            this.soundKey = 'shoot_shotgun';
+        }
     }
     
     update() {
@@ -248,6 +267,13 @@ export class Player {
         
         // Create bullets using the dedicated methods
         this.createBullet(spawnX, spawnY, directionVector.x, directionVector.y);
+        
+        // Play shooting sound using SoundManager
+        if (this.scene.soundManager && this.soundKey) {
+            // Add slight pitch variation for more realistic sound
+            const detune = Math.random() * 200 - 100; // Random detune between -100 and +100
+            this.scene.soundManager.playSoundEffect(this.soundKey, { detune: detune });
+        }
         
         return true; // Successfully shot
     }
