@@ -36,10 +36,6 @@ butler
 .env.test.local
 .env.production.local
 
-# Obsidian link related
-/docs/obsidian-vault
-/docs/game-docs
-
 # VS Code
 .history
 *.code-workspace
@@ -84,7 +80,3 @@ yarn-error.log*
 # Coverage directory used by tools like istanbul
 coverage/
 *.lcov
-
-# Docs
-/docs/*
-!/docs/README.md
