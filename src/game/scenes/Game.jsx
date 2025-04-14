@@ -100,7 +100,7 @@ export class Game extends Scene {
     setupMap() {
         // Create the tilemap
         this.map = this.make.tilemap({ key: 'map' });
-        this.tileset = this.map.addTilesetImage('scifi_tiles', 'scifi_tiles');
+        this.tileset = this.map.addTilesetImage('level1', 'level1');
         this.groundLayer = this.map.createLayer('Tile Layer 1', this.tileset);
         
         // Calculate map scaling and boundaries
