@@ -11,6 +11,13 @@ export class SoundManager {
         this.musicVolume = 0.5;
         this.effectsVolume = 0.7;
         this.isMuted = false;
+        
+        // Initialize pause-related state properties
+        this._musicPaused = false;
+        this._musicWasPlaying = false;
+        this._originalVolume = null;
+        this._seekPosition = 0;
+        this._musicKey = null;
     }
 
     /**
