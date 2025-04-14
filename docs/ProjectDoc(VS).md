@@ -487,8 +487,7 @@ The `MainMenu` scene initializes the ambient music that continues throughout the
     });
     this.soundManager.playMusic('ambient_music', {
         fadeIn: 3000
-    });
-}
+    });}
 
 
 2.  **The `Game` scene continues the ambient music and handles pausing during gameplay**: 
