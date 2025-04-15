@@ -6,19 +6,11 @@ import { GameObjectManager } from '../managers/GameObjectManager';
 import { EnemyManager } from '../managers/EnemyManager';
 import { BulletPool } from '../entities/BulletPool';
 import { MapManager } from '../managers/MapManager';
+import { DEPTHS } from '../constants';
 
 export class Game extends Scene {
     constructor() {
         super({ key: 'Game' });
-        
-        // Add this to your existing constructor
-        this.config = {
-            spatialGrid: {
-                enabled: true,
-                cellSize: 100,
-                debugDraw: false
-            }
-        };
         
         // Initialize game state properties
         this.enemySpawnRate = 2000; // Milliseconds between enemy spawns
@@ -30,11 +22,19 @@ export class Game extends Scene {
         this.regularKillCount = 0; // Track number of regular enemies killed (for boss spawning)
         this.bossesKilled = 0; // Track number of boss enemies killed
         
-        // Available maps in the game
-        this.availableMaps = ['level1', 'level2'];
+        // Available maps in the game (only level1 and darkcave exist)
+        this.availableMaps = ['level1', 'darkcave'];
         
         // Check if we're in development mode
         this.isDev = import.meta.env.DEV;
+        
+        // Spatial grid for collision optimization
+        this.gridCellSize = 100; // Size of each grid cell in pixels
+        this.spatialGrid = {}; // Will store enemies by grid cell for faster collision checks
+        // Cache grid calculations
+        this.gridCache = new Map();
+        this.lastGridUpdate = 0;
+        this.gridUpdateInterval = 100; // ms
     }
 
     init(data) {
@@ -67,9 +67,6 @@ export class Game extends Scene {
         this.setupUI();
         this.setupInput();
         this.setupEnemySpawner();
-        
-        this.gridCellSize = 100; // Adjust based on game scale
-        this.spatialGrid = {};
         
         EventBus.emit('current-scene-ready', this);
     }
@@ -417,7 +414,7 @@ export class Game extends Scene {
         this.updateDifficulty();
         
         // Uncomment the following line to visualize the spatial grid (for debugging)
-         //this.debugDrawGrid();
+         this.debugDrawGrid();
     }
 
     /**
@@ -975,15 +972,20 @@ export class Game extends Scene {
         
         // No spawn points found
         return null;
+    }
 
+    /**
+     * Update the spatial grid for efficient collision detection
+     * Organizes all enemies into a grid-based structure
+     */
     updateSpatialGrid() {
-        // Clear grid
+        const now = this.time.now;
+        if (now - this.lastGridUpdate < this.gridUpdateInterval) {
+            return; // Use cached grid
+        }
+
         this.spatialGrid = {};
-        
-        // Add enemies to grid
         this.enemies.getChildren().forEach(enemy => {
-            if (!enemy.active) return;
-            
             const cellX = Math.floor(enemy.x / this.gridCellSize);
             const cellY = Math.floor(enemy.y / this.gridCellSize);
             const cellKey = `${cellX},${cellY}`;
@@ -991,12 +993,16 @@ export class Game extends Scene {
             if (!this.spatialGrid[cellKey]) {
                 this.spatialGrid[cellKey] = [];
             }
-            
             this.spatialGrid[cellKey].push(enemy);
         });
+
+        this.lastGridUpdate = now;
     }
 
-    // Add this method to visualize the spatial grid (for debugging)
+    /**
+     * Visualize the spatial grid for debugging purposes
+     * Draws a grid showing which cells contain enemies
+     */
     debugDrawGrid() {
         // Clear previous debug graphics
         if (this.gridDebugGraphics) {
