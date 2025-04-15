@@ -1,3 +1,5 @@
+import { DEPTHS } from '../constants';
+
 /**
  * Base class for all enemy types in the game
  * Provides common functionality that all enemy types will inherit
@@ -108,6 +110,9 @@ export class BaseEnemy {
     createVisuals(x, y) {
         // Create the visual representation (square by default)
         this.graphics = this.scene.add.rectangle(x, y, this.size, this.size, this.color);
+        
+        // Set consistent depth to ensure proper layering
+        this.graphics.setDepth(DEPTHS.ENEMIES);
     }
     
     /**
@@ -141,7 +146,7 @@ export class BaseEnemy {
             barWidth, 
             barHeight, 
             0x000000
-        ).setDepth(100);
+        ).setDepth(DEPTHS.ENEMY_HEALTH_BAR_BG);
         
         // Health bar (red)
         this.healthBar = this.scene.add.rectangle(
@@ -150,7 +155,7 @@ export class BaseEnemy {
             barWidth, 
             barHeight, 
             0xff0000
-        ).setOrigin(0, 0.5).setDepth(101);
+        ).setOrigin(0, 0.5).setDepth(DEPTHS.ENEMY_HEALTH_BAR_FG);
     }
     
     /**
