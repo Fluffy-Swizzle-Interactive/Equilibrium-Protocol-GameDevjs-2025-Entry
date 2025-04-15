@@ -1,3 +1,5 @@
+import { DEPTHS } from '../constants';
+
 export class Player {
     constructor(scene, x, y) {
         this.scene = scene;
@@ -63,10 +65,14 @@ export class Player {
     initGraphics(x, y) {
         // Create the player circle
         this.graphics = this.scene.add.circle(x, y, this.radius, 0xff0000);
+        this.graphics.setDepth(DEPTHS.PLAYER);
         
         // Create line and cursor for aiming
         this.line = this.scene.add.graphics();
+        this.line.setDepth(DEPTHS.PLAYER_UI);
+        
         this.cursorCircle = this.scene.add.graphics();
+        this.cursorCircle.setDepth(DEPTHS.PLAYER_UI);
         
         // Make these graphics follow the camera
         this.line.setScrollFactor(1);
@@ -338,10 +344,59 @@ export class Player {
         };
     }
     
+    /**
+     * Set the player's position
+     * @param {number} x - New X position
+     * @param {number} y - New Y position
+     */
+    setPosition(x, y) {
+        if (this.graphics) {
+            this.graphics.x = x;
+            this.graphics.y = y;
+            
+            // Reset velocity to prevent momentum carrying over to new map
+            this.velX = 0;
+            this.velY = 0;
+        }
+    }
+    
     getPosition() {
         return {
             x: this.graphics.x,
             y: this.graphics.y
         };
+    }
+
+    /**
+     * Clean up player resources
+     * Called when the player is being removed or reinitialized
+     */
+    destroy() {
+        // Clean up graphics objects
+        if (this.graphics) {
+            this.graphics.destroy();
+        }
+        
+        if (this.line) {
+            this.line.destroy();
+        }
+        
+        if (this.cursorCircle) {
+            this.cursorCircle.destroy();
+        }
+        
+        // Clean up any active tweens related to this player
+        if (this.scene && this.scene.tweens) {
+            this.scene.tweens.killTweensOf(this.graphics);
+        }
+        
+        // Clean up any timers or events if needed
+        // Note: We don't need to clean up scene-level timers as they're managed by the scene
+        
+        // Reset properties to avoid memory leaks
+        this.velX = 0;
+        this.velY = 0;
+        this.targetX = null;
+        this.targetY = null;
     }
 }

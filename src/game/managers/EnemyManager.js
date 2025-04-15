@@ -525,4 +525,31 @@ export class EnemyManager {
         
         return stats;
     }
+    
+    /**
+     * Clear all active enemies
+     * Useful when switching maps or resetting the game
+     */
+    clearAllEnemies() {
+        // Release all enemies back to their respective pools
+        this.enemies.forEach(enemy => {
+            // If enemy has an associated pool, use it to release the enemy
+            if (enemy.fromPool && enemy.poolKey && this.enemyPools[enemy.poolKey]) {
+                this.enemyPools[enemy.poolKey].releaseEnemy(enemy);
+            } else {
+                // Otherwise destroy manually
+                if (enemy.graphics) enemy.graphics.destroy();
+                if (enemy.destroy) enemy.destroy();
+            }
+        });
+        
+        // Clear the enemy list
+        this.enemies = [];
+        
+        // Clear any active projectiles
+        this.projectiles.forEach(projectile => {
+            if (projectile.graphics) projectile.graphics.destroy();
+        });
+        this.projectiles = [];
+    }
 }

@@ -1,4 +1,5 @@
 import { GameObjectManager } from '../managers/GameObjectManager';
+import { DEPTHS } from '../constants';
 
 /**
  * Specialized class for managing bullet pools
@@ -20,6 +21,7 @@ export class BulletPool {
             () => {
                 const bullet = scene.add.circle(0, 0, 5, 0xffff00);
                 scene.bullets.add(bullet);  // Add to existing bullets group
+                bullet.setDepth(DEPTHS.BULLETS); // Set consistent depth using constants
                 return bullet;
             },
             // Reset function - configures bullet properties
@@ -32,6 +34,9 @@ export class BulletPool {
                 bullet.speed = speed;
                 bullet.health = health;
                 bullet.lifetime = 0;
+                
+                // Ensure depth is set on reset in case it was changed
+                bullet.setDepth(DEPTHS.BULLETS);
             }, 
             // Custom configuration
             options
@@ -113,6 +118,11 @@ export class BulletPool {
             
             // Track lifetime
             bullet.lifetime += this.scene.time.physicsFrameDelta;
+            
+            // Ensure bullet maintains proper depth - fixing z-index issues after map switching
+            if (bullet.depth !== DEPTHS.BULLETS) {
+                bullet.setDepth(DEPTHS.BULLETS);
+            }
             
             // Apply custom update logic if provided
             if (updateFunc) {

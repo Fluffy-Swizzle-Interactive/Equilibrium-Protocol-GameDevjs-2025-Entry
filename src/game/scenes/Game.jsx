@@ -5,19 +5,12 @@ import { SoundManager } from '../managers/SoundManager';
 import { GameObjectManager } from '../managers/GameObjectManager';
 import { EnemyManager } from '../managers/EnemyManager';
 import { BulletPool } from '../entities/BulletPool';
+import { MapManager } from '../managers/MapManager';
+import { DEPTHS } from '../constants';
 
 export class Game extends Scene {
     constructor() {
         super({ key: 'Game' });
-        
-        // Add this to your existing constructor
-        this.config = {
-            spatialGrid: {
-                enabled: true,
-                cellSize: 100,
-                debugDraw: false
-            }
-        };
         
         // Initialize game state properties
         this.enemySpawnRate = 2000; // Milliseconds between enemy spawns
@@ -29,8 +22,19 @@ export class Game extends Scene {
         this.regularKillCount = 0; // Track number of regular enemies killed (for boss spawning)
         this.bossesKilled = 0; // Track number of boss enemies killed
         
+        // Available maps in the game (only level1 and darkcave exist)
+        this.availableMaps = ['level1', 'darkcave'];
+        
         // Check if we're in development mode
         this.isDev = import.meta.env.DEV;
+        
+        // Spatial grid for collision optimization
+        this.gridCellSize = 100; // Size of each grid cell in pixels
+        this.spatialGrid = {}; // Will store enemies by grid cell for faster collision checks
+        // Cache grid calculations
+        this.gridCache = new Map();
+        this.lastGridUpdate = 0;
+        this.gridUpdateInterval = 100; // ms
     }
 
     init(data) {
@@ -63,9 +67,6 @@ export class Game extends Scene {
         this.setupUI();
         this.setupInput();
         this.setupEnemySpawner();
-        
-        this.gridCellSize = 100; // Adjust based on game scale
-        this.spatialGrid = {};
         
         EventBus.emit('current-scene-ready', this);
     }
@@ -143,34 +144,81 @@ export class Game extends Scene {
      * Set up the game map and boundaries
      */
     setupMap() {
-        // Create the tilemap
-        this.map = this.make.tilemap({ key: 'map' });
-        this.tileset = this.map.addTilesetImage('level1', 'level1');
-        this.groundLayer = this.map.createLayer('Tile Layer 1', this.tileset);
+        // Initialize map manager
+        this.mapManager = new MapManager(this, {
+            scaleFactor: 1.5,
+            enablePhysics: true
+        });
         
-        // Calculate map scaling and boundaries
-        const mapWidth = this.map.widthInPixels;
-        const mapHeight = this.map.heightInPixels;
+        // Register available maps
+        this.mapManager.registerMaps([
+            {
+                key: 'level1',
+                tilemapKey: 'map',
+                tilesets: [
+                    {
+                        key: 'level1',
+                        name: 'level1'
+                    }
+                ],
+                layers: [
+                    {
+                        name: 'Tile Layer 1',
+                        tilesetKey: 'level1',
+                        depth: 0
+                    }
+                ]
+            },
+            {
+                key: 'darkcave',
+                tilemapKey: 'darkcavemap',
+                tilesets: [
+                    {
+                        key: 'darkcavenet',
+                        name: 'DarkNetCaveSet'
+                    }
+                ],
+                layers: [
+                    {
+                        name: 'Ground',
+                        tilesetKey: 'darkcavenet',
+                        depth: 0
+                    },
+                    {
+                        name: 'Walls',
+                        tilesetKey: 'darkcavenet',
+                        depth: 1,
+                    },
+                    {
+                        name: 'Spawner',
+                        tilesetKey: 'darkcavenet',
+                        depth: 0,
+                        visible: true  // Hide spawner layer but use it for spawning logic
+                    }
+                ],
+                // Configure collision layers
+                collisionLayers: ['Walls'],
+                // Additional settings for dark cave map
+                options: {
+                    scaleFactor: 1.4
+                }
+            }
+        ]);
         
-        // Scale the map to fill the screen
-        const scaleX = this.game.config.width / mapWidth;
-        const scaleY = this.game.config.height / mapHeight;
-        const scale = Math.max(scaleX, scaleY) * 1.5; // 50% larger than needed
+        // Load the initial map (level1)
+        const mapData = this.mapManager.loadMap('level1');
         
-        this.groundLayer.setScale(scale);
+        // Store the ground layer for easy access
+        this.groundLayer = this.mapManager.getLayer('Tile Layer 1');
         
-        // Update the effective map dimensions after scaling
-        const effectiveMapWidth = mapWidth * scale;
-        const effectiveMapHeight = mapHeight * scale;
+        // Get map dimensions from the map manager
+        this.mapDimensions = this.mapManager.getMapDimensions();
         
-        // Set physics world bounds
-        this.physics.world.setBounds(0, 0, effectiveMapWidth, effectiveMapHeight);
-        
-        // Store map dimensions for use elsewhere
-        this.mapDimensions = {
-            width: effectiveMapWidth,
-            height: effectiveMapHeight
-        };
+        // Debug info for development mode
+        if (this.isDev) {
+            console.debug(`Map loaded: ${this.mapManager.currentMapKey}`);
+            console.debug(`Map dimensions: ${this.mapDimensions.width}x${this.mapDimensions.height}`);
+        }
     }
 
     /**
@@ -280,6 +328,13 @@ export class Game extends Scene {
         
         // Set up spacebar for pause
         this.pauseKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+        
+        // Setup map switching keys (1, 2, 3)
+        this.mapKeys = {
+            map1: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ONE),
+            map2: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.TWO),
+            map3: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.THREE)
+        };
     }
 
     /**
@@ -343,6 +398,9 @@ export class Game extends Scene {
             return;
         }
         
+        // Handle map switching keys
+        this.handleMapSwitchKeys();
+        
         // Update game timers
         this.updateGameTimers(delta);
         
@@ -356,7 +414,7 @@ export class Game extends Scene {
         this.updateDifficulty();
         
         // Uncomment the following line to visualize the spatial grid (for debugging)
-         //this.debugDrawGrid();
+         this.debugDrawGrid();
     }
 
     /**
@@ -365,6 +423,21 @@ export class Game extends Scene {
     handlePauseState() {
         if (Phaser.Input.Keyboard.JustDown(this.pauseKey)) {
             this.togglePause();
+        }
+    }
+
+    /**
+     * Handle map switching key presses
+     */
+    handleMapSwitchKeys() {
+        // Only switch maps if not paused
+        if (this.isPaused) return;
+
+        // Check each map key
+        if (Phaser.Input.Keyboard.JustDown(this.mapKeys.map1)) {
+            this.switchMap('level1');
+        } else if (Phaser.Input.Keyboard.JustDown(this.mapKeys.map3)) {
+            this.switchMap('darkcave');
         }
     }
 
@@ -765,14 +838,154 @@ export class Game extends Scene {
         });
     }
 
-    updateSpatialGrid() {
-        // Clear grid
-        this.spatialGrid = {};
+
+    /**
+     * Switch to a different map
+     * @param {string} mapKey - Key of the map to switch to
+     * @returns {Promise} Resolves when map switch is complete
+     */
+    switchMap(mapKey) {
+        // Don't switch if we're already on this map
+        if (this.mapManager.currentMapKey === mapKey) {
+            console.debug(`Already on map ${mapKey}`);
+            return Promise.resolve();
+        }
         
-        // Add enemies to grid
-        this.enemies.getChildren().forEach(enemy => {
-            if (!enemy.active) return;
+        // Pause the game during transition
+        this.pauseGame('map_transition');
+        
+        // Use the map manager to switch maps with fade transition
+        return this.mapManager.switchMap(mapKey, {
+            fadeOut: true,
+            fadeIn: true,
+            fadeDuration: 800
+        }).then(mapData => {
+            // Store the new ground layer and map dimensions
+            if (mapKey === 'darkcave') {
+                this.groundLayer = this.mapManager.getLayer('Ground');
+            } else {
+                this.groundLayer = this.mapManager.getLayer('Tile Layer 1');
+            }
             
+            this.mapDimensions = this.mapManager.getMapDimensions();
+            
+            // Update world bounds and camera bounds
+            this.cameras.main.setBounds(0, 0, this.mapDimensions.width, this.mapDimensions.height);
+            
+            // Save player's current properties we want to maintain
+            const playerWeaponType = this.player.gameMode;
+            
+            // Get the previous player position if we need it
+            const previousPlayerPos = this.player.getPosition();
+            
+            // Clean up old player instance
+            this.player.destroy();
+            
+            // Find appropriate spawn position
+            let spawnPosition;
+            if (mapKey === 'darkcave') {
+                // For dark cave, try to find a spawn point from the Spawner layer
+                spawnPosition = this.findSpawnPosition();
+            }
+            
+            // If no specific spawn position, use center of map
+            if (!spawnPosition) {
+                spawnPosition = {
+                    x: this.mapDimensions.width / 2,
+                    y: this.mapDimensions.height / 2
+                };
+            }
+            
+            // Create a new player instance at the spawn position
+            this.player = new Player(this, spawnPosition.x, spawnPosition.y);
+            
+            // Restore player's weapon type
+            this.player.initWeaponProperties(playerWeaponType);
+            
+            // Set up camera to follow new player instance
+            this.cameras.main.startFollow(this.player.graphics, true, 0.09, 0.09);
+            
+            // Clear any existing enemies
+            if (this.enemyManager) {
+                this.enemyManager.clearAllEnemies();
+            }
+            
+            // Emit event that player has been respawned in a new map
+            EventBus.emit('player-map-changed', {
+                player: this.player,
+                mapKey: mapKey,
+                previousPosition: previousPlayerPos,
+                newPosition: spawnPosition
+            });
+            
+            // Resume the game
+            this.resumeGame();
+            
+            // Debug info
+            if (this.isDev) {
+                console.debug(`Switched to map: ${mapKey}`);
+                console.debug(`New map dimensions: ${this.mapDimensions.width}x${this.mapDimensions.height}`);
+                console.debug(`Player spawned at: ${spawnPosition.x}, ${spawnPosition.y}`);
+            }
+            
+            return mapData;
+        });
+    }
+
+    /**
+     * Find an appropriate spawn position for the player when entering a map
+     * Uses the "Spawner" layer in maps that have it (like darkcave)
+     * @returns {Object|null} Spawn position {x, y} or null if none found
+     */
+    findSpawnPosition() {
+        // Check if we have a spawner layer in the current map
+        const spawnerLayer = this.mapManager.getLayer('Spawner');
+        if (!spawnerLayer) return null;
+        
+        // Get the data from the spawner layer
+        const layerData = spawnerLayer.layer.data;
+        const possibleSpawns = [];
+        
+        // Loop through all tiles in the spawner layer
+        for (let y = 0; y < layerData.length; y++) {
+            for (let x = 0; x < layerData[y].length; x++) {
+                const tile = layerData[y][x];
+                
+                // Check if this tile is a spawn point (tiles 29 and 30 in our tileset)
+                if (tile && (tile.index === 29 || tile.index === 23 || tile.index === 30)) {
+                    // Convert tile coordinates to world coordinates
+                    const worldX = (x * tile.width) * this.mapDimensions.scale;
+                    const worldY = (y * tile.height) * this.mapDimensions.scale;
+                    
+                    // Add to list of possible spawn points
+                    possibleSpawns.push({ x: worldX + (tile.width/2 * this.mapDimensions.scale), 
+                                          y: worldY + (tile.height/2 * this.mapDimensions.scale) });
+                }
+            }
+        }
+        
+        // If we found spawn points, pick a random one
+        if (possibleSpawns.length > 0) {
+            const randomIndex = Math.floor(Math.random() * possibleSpawns.length);
+            return possibleSpawns[randomIndex];
+        }
+        
+        // No spawn points found
+        return null;
+    }
+
+    /**
+     * Update the spatial grid for efficient collision detection
+     * Organizes all enemies into a grid-based structure
+     */
+    updateSpatialGrid() {
+        const now = this.time.now;
+        if (now - this.lastGridUpdate < this.gridUpdateInterval) {
+            return; // Use cached grid
+        }
+
+        this.spatialGrid = {};
+        this.enemies.getChildren().forEach(enemy => {
             const cellX = Math.floor(enemy.x / this.gridCellSize);
             const cellY = Math.floor(enemy.y / this.gridCellSize);
             const cellKey = `${cellX},${cellY}`;
@@ -780,12 +993,16 @@ export class Game extends Scene {
             if (!this.spatialGrid[cellKey]) {
                 this.spatialGrid[cellKey] = [];
             }
-            
             this.spatialGrid[cellKey].push(enemy);
         });
+
+        this.lastGridUpdate = now;
     }
 
-    // Add this method to visualize the spatial grid (for debugging)
+    /**
+     * Visualize the spatial grid for debugging purposes
+     * Draws a grid showing which cells contain enemies
+     */
     debugDrawGrid() {
         // Clear previous debug graphics
         if (this.gridDebugGraphics) {

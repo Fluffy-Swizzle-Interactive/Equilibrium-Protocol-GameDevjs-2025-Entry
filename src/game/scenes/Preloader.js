@@ -39,10 +39,10 @@ export class Preloader extends Scene
 
         this.load.image('logo', 'assets/logo.png');
         this.load.image('background', 'assets/bg.png');
+        this.load.image('particle_texture', 'assets/star.png');
         
-        // Load tilemap and tileset
-        this.load.image('level1', 'assets/level1.png');
-        this.load.tilemapTiledJSON('map', 'assets/level1.json');
+        // Load all map assets
+        this.loadMapAssets();
         
         // Load sound effects
         this.load.audio('shoot_minigun', 'assets/audio/laserShoot.wav');
@@ -50,6 +50,23 @@ export class Preloader extends Scene
         
         // Load ambient background music
         this.load.audio('ambient_music', 'assets/audio/ambient_loop.mp3');
+    }
+
+    /**
+     * Load all map-related assets
+     * This keeps map loading organized and centralized
+     */
+    loadMapAssets() {
+        // Load tilemap for level 1
+        this.load.image('level1', 'assets/level1.png');
+        this.load.tilemapTiledJSON('map', 'assets/level1.json');
+        
+        // Load the Dark Cave Net tilemap 
+        this.load.image('darkcavenet', 'assets/darkcavenet.png');
+        this.load.tilemapTiledJSON('darkcavemap', 'assets/darkcavenet.json');
+        
+        // Load any other tilemap assets needed for additional maps
+        // Example: this.load.tilemapTiledJSON('level3', 'assets/level3.json');
     }
 
     create ()
