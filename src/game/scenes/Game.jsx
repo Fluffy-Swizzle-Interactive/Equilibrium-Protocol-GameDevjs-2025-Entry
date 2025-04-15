@@ -8,7 +8,16 @@ import { BulletPool } from '../entities/BulletPool';
 
 export class Game extends Scene {
     constructor() {
-        super('Game');
+        super({ key: 'Game' });
+        
+        // Add this to your existing constructor
+        this.config = {
+            spatialGrid: {
+                enabled: true,
+                cellSize: 100,
+                debugDraw: false
+            }
+        };
         
         // Initialize game state properties
         this.enemySpawnRate = 2000; // Milliseconds between enemy spawns
@@ -54,6 +63,9 @@ export class Game extends Scene {
         this.setupUI();
         this.setupInput();
         this.setupEnemySpawner();
+        
+        this.gridCellSize = 100; // Adjust based on game scale
+        this.spatialGrid = {};
         
         EventBus.emit('current-scene-ready', this);
     }
@@ -342,6 +354,9 @@ export class Game extends Scene {
         
         // Update difficulty based on game time
         this.updateDifficulty();
+        
+        // Uncomment the following line to visualize the spatial grid (for debugging)
+         //this.debugDrawGrid();
     }
 
     /**
@@ -494,45 +509,58 @@ export class Game extends Scene {
     }
 
     checkBulletEnemyCollisions() {
-        // Check each bullet against each enemy
+        // Update spatial grid
+        this.updateSpatialGrid();
+        
+        // Check collisions with spatial optimization
         this.bullets.getChildren().forEach(bullet => {
             if (!bullet.active) return;
             
-            this.enemies.getChildren().forEach(enemyGraphics => {
-                // Skip inactive enemies or bullets
-                if (!enemyGraphics.active || !bullet.active) return;
-                
-                // Check distance
-                const distance = Phaser.Math.Distance.Between(
-                    bullet.x, bullet.y,
-                    enemyGraphics.x, enemyGraphics.y
-                );
-                
-                // If hit (sum of radii), damage enemy
-                if (distance < (this.player.caliber + enemyGraphics.parentEnemy.size/2)) {
-                    // Damage enemy with bullet's damage value
-                    enemyGraphics.parentEnemy.takeDamage(this.player.bulletDamage);
+            // Get bullet's cell and adjacent cells
+            const cellX = Math.floor(bullet.x / this.gridCellSize);
+            const cellY = Math.floor(bullet.y / this.gridCellSize);
+            
+            // Check only enemies in relevant cells
+            for (let x = cellX - 1; x <= cellX + 1; x++) {
+                for (let y = cellY - 1; y <= cellY + 1; y++) {
+                    const cellKey = `${x},${y}`;
+                    const enemiesInCell = this.spatialGrid[cellKey] || [];
                     
-                    // Reduce bullet health
-                    bullet.health--;
-                    
-                    // Visual feedback - make bullet flash
-                    const originalColor = this.player.bulletColor;
-                    bullet.fillColor = 0xffffff;
-                    
-                    // Reset bullet color after a short delay if it still exists
-                    this.time.delayedCall(50, () => {
-                        if (bullet && bullet.active) {
-                            bullet.fillColor = originalColor;
+                    // Check collisions with enemies in this cell
+                    enemiesInCell.forEach(enemyGraphics => {
+                        if (!enemyGraphics.active || !bullet.active) return;
+                        
+                        const distance = Phaser.Math.Distance.Between(
+                            bullet.x, bullet.y,
+                            enemyGraphics.x, enemyGraphics.y
+                        );
+                        
+                        if (distance < (this.player.caliber + enemyGraphics.parentEnemy.size/2)) {
+                            // Damage enemy with bullet's damage value
+                            enemyGraphics.parentEnemy.takeDamage(this.player.bulletDamage);
+                            
+                            // Reduce bullet health
+                            bullet.health--;
+                            
+                            // Visual feedback - make bullet flash
+                            const originalColor = this.player.bulletColor;
+                            bullet.fillColor = 0xffffff;
+                            
+                            // Reset bullet color after a short delay if it still exists
+                            this.time.delayedCall(50, () => {
+                                if (bullet && bullet.active) {
+                                    bullet.fillColor = originalColor;
+                                }
+                            });
+                            
+                            // Only release bullet back to pool if its health is depleted
+                            if (bullet.health <= 0) {
+                                this.bulletPool.releaseBullet(bullet);
+                            }
                         }
                     });
-                    
-                    // Only release bullet back to pool if its health is depleted
-                    if (bullet.health <= 0) {
-                        this.bulletPool.releaseBullet(bullet);
-                    }
                 }
-            });
+            }
         });
     }
     
@@ -733,6 +761,55 @@ export class Game extends Scene {
             ease: 'Power2',
             onComplete: () => {
                 victoryText.destroy();
+            }
+        });
+    }
+
+    updateSpatialGrid() {
+        // Clear grid
+        this.spatialGrid = {};
+        
+        // Add enemies to grid
+        this.enemies.getChildren().forEach(enemy => {
+            if (!enemy.active) return;
+            
+            const cellX = Math.floor(enemy.x / this.gridCellSize);
+            const cellY = Math.floor(enemy.y / this.gridCellSize);
+            const cellKey = `${cellX},${cellY}`;
+            
+            if (!this.spatialGrid[cellKey]) {
+                this.spatialGrid[cellKey] = [];
+            }
+            
+            this.spatialGrid[cellKey].push(enemy);
+        });
+    }
+
+    // Add this method to visualize the spatial grid (for debugging)
+    debugDrawGrid() {
+        // Clear previous debug graphics
+        if (this.gridDebugGraphics) {
+            this.gridDebugGraphics.clear();
+        } else {
+            this.gridDebugGraphics = this.add.graphics();
+        }
+        
+        // Draw grid cells that contain enemies
+        this.gridDebugGraphics.lineStyle(1, 0x00ff00, 0.3);
+        
+        Object.keys(this.spatialGrid).forEach(cellKey => {
+            const [cellX, cellY] = cellKey.split(',').map(Number);
+            const x = cellX * this.gridCellSize;
+            const y = cellY * this.gridCellSize;
+            
+            // Draw cell rectangle
+            this.gridDebugGraphics.strokeRect(x, y, this.gridCellSize, this.gridCellSize);
+            
+            // Optionally show enemy count in cell
+            const count = this.spatialGrid[cellKey].length;
+            if (count > 0) {
+                this.gridDebugGraphics.fillStyle(0x00ff00, 0.2);
+                this.gridDebugGraphics.fillRect(x, y, this.gridCellSize, this.gridCellSize);
             }
         });
     }
