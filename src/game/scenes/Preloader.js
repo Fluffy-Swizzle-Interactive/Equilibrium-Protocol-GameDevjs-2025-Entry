@@ -41,6 +41,31 @@ export class Preloader extends Scene
         this.load.image('background', 'assets/bg.png');
         this.load.image('particle_texture', 'assets/star.png');
         
+        // Load player sprite atlas
+        this.load.atlas('player', 'assets/TESTPLAYER1.png', 'assets/TESTPLAYER1.json');
+        
+        // Also load individual sprite frames as fallback
+        // This ensures we can load the individual frames if the atlas doesn't work
+        this.load.image('down1', 'assets/PLAYER1/down1.png');
+        this.load.image('down2', 'assets/PLAYER1/down2.png');
+        this.load.image('down3', 'assets/PLAYER1/down3.png');
+        this.load.image('down4', 'assets/PLAYER1/down4.png');
+        this.load.image('up1', 'assets/PLAYER1/up1.png');
+        this.load.image('up2', 'assets/PLAYER1/up2.png');
+        this.load.image('up3', 'assets/PLAYER1/up3.png');
+        this.load.image('up4', 'assets/PLAYER1/up4.png');
+        this.load.image('left1', 'assets/PLAYER1/left1.png');
+        this.load.image('left2', 'assets/PLAYER1/left2.png');
+        this.load.image('left3', 'assets/PLAYER1/left3.png');
+        this.load.image('left4', 'assets/PLAYER1/left4.png');
+        this.load.image('right1', 'assets/PLAYER1/right1.png');
+        this.load.image('right2', 'assets/PLAYER1/right2.png');
+        this.load.image('right3', 'assets/PLAYER1/right3.png');
+        this.load.image('right4', 'assets/PLAYER1/right4.png');
+        
+        // Also keep the legacy testplayer for compatibility
+        this.load.atlas('testplayer', 'assets/testplayer.png', 'assets/testplayer.json');
+        
         // Load all map assets
         this.loadMapAssets();
         

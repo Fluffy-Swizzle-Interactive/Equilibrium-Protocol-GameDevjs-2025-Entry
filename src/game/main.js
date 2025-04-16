@@ -17,9 +17,10 @@ const config = {
     fps: {
         target: 60,           // Target framerate
         forceSetTimeOut: false, // Use setTimeout instead of requestAnimationFrame
-        min: 30,              // Min framerate to throttle down to
+        min: 30,
+        max: 60,              // Min framerate to throttle down to
         deltaHistory: 10,     // Number of frames to calculate average
-        panicMax: 120         // FPS threshold to reset delta history if exceeded
+        panicMax: 60         // FPS threshold to reset delta history if exceeded
     },
     // Enable physics
     physics: {

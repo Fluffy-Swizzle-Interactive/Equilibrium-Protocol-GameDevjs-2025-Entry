@@ -414,7 +414,7 @@ export class Game extends Scene {
         this.updateDifficulty();
         
         // Uncomment the following line to visualize the spatial grid (for debugging)
-         this.debugDrawGrid();
+         //this.debugDrawGrid();
     }
 
     /**

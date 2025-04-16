@@ -211,19 +211,34 @@ export class Boss1 extends BaseEnemy {
             
             this.scene.enemyManager.spawnEnemyGroup('enemy1', x, y, count, 100);
             
-            // Visual effect for summoning
-            this.scene.add.circle(x, y, 100, 0xffff00, 0.3)
+            // Visual effect for summoning - create initial circle with alpha
+            const initialCircle = this.scene.add.circle(x, y, 100, 0xffff00, 0.3)
                 .setDepth(90)
                 .setAlpha(0.7);
             
-            // Animate the circle out
+            // Animate the initial circle to fade out
             this.scene.tweens.add({
-                targets: this.scene.add.circle(x, y, 10, 0xffff00, 0.1).setDepth(90),
+                targets: initialCircle,
+                alpha: 0,
+                radius: 140,
+                duration: 700,
+                ease: 'Cubic.Out',
+                onComplete: (tween, targets) => {
+                    // Clean up the initial circle when animation completes
+                    targets[0].destroy();
+                }
+            });
+            
+            // Create and animate a second expanding circle for additional effect
+            const expandingCircle = this.scene.add.circle(x, y, 10, 0xffff00, 0.1).setDepth(90);
+            this.scene.tweens.add({
+                targets: expandingCircle,
                 radius: 120,
                 alpha: 0,
                 duration: 500,
                 ease: 'Cubic.Out',
                 onComplete: (tween, targets) => {
+                    // Clean up the expanding circle when animation completes
                     targets[0].destroy();
                 }
             });

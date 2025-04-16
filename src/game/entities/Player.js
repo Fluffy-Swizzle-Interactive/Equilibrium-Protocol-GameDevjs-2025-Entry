@@ -9,9 +9,11 @@ export class Player {
         this.initWeaponProperties(scene.gameMode || 'minigun');
         this.initGraphics(x, y);
         this.initSounds();
+        this.createAnimations();
         
         // Timing properties
         this.lastFireTime = 0;
+        this.lastMovementTime = 0;
     }
     
     /**
@@ -23,12 +25,27 @@ export class Player {
         this.velY = 0;
         this.friction = 0.9;
         this.acceleration = 0.3;
-        this.radius = 20;
+        this.radius = 20; // Still need this for collision detection
         
         // Aiming properties
         this.maxMouseDistance = 300;
         this.targetX = null;
         this.targetY = null;
+
+        // Direction enum for 4-way sprite animation
+        this.directions = {
+            DOWN: 'down',
+            RIGHT: 'right',
+            UP: 'up',
+            LEFT: 'left'
+        };
+        
+        // Current direction (default: DOWN)
+        this.currentDirection = this.directions.DOWN;
+        
+        // Track movement status for animation control
+        this.isMoving = false;
+        this.animationSpeed = 8; // Frames per second for walk animation
     }
     
     /**
@@ -63,9 +80,27 @@ export class Player {
      * @param {number} y - Initial y position
      */
     initGraphics(x, y) {
-        // Create the player circle
-        this.graphics = this.scene.add.circle(x, y, this.radius, 0xff0000);
+        // First check if the texture atlas exists
+        if (!this.scene.textures.exists('player')) {
+            console.warn('Player atlas texture not found. Will attempt to use individual sprites.');
+            this.useAtlas = false;
+        } else {
+            this.useAtlas = true;
+        }
+        
+        // Create the player sprite using the best available option
+        if (this.useAtlas) {
+            // Use the atlas
+            this.graphics = this.scene.add.sprite(x, y, 'player');
+        } else {
+            // Fall back to individual images
+            this.graphics = this.scene.add.sprite(x, y, 'down1');
+        }
+        
         this.graphics.setDepth(DEPTHS.PLAYER);
+        
+        // Calculate appropriate scale based on collision radius
+        this.adjustSpriteScale();
         
         // Create line and cursor for aiming
         this.line = this.scene.add.graphics();
@@ -77,6 +112,119 @@ export class Player {
         // Make these graphics follow the camera
         this.line.setScrollFactor(1);
         this.cursorCircle.setScrollFactor(1);
+    }
+    
+    /**
+     * Adjust sprite scale based on available textures and collision radius
+     */
+    adjustSpriteScale() {
+        let baseWidth, baseHeight;
+        
+        if (this.useAtlas) {
+            const baseFrame = this.scene.textures.getFrame('player', 'down1.png');
+            if (baseFrame) {
+                baseWidth = baseFrame.width;
+                baseHeight = baseFrame.height;
+            }
+        } else if (this.scene.textures.exists('down1')) {
+            const baseFrame = this.scene.textures.getFrame('down1');
+            if (baseFrame) {
+                baseWidth = baseFrame.width;
+                baseHeight = baseFrame.height;
+            }
+        }
+        
+        if (baseWidth && baseHeight) {
+            // Scale to match collision radius, with some adjustment for visual size
+            const scaleValue = (this.radius * 2.5) / Math.min(baseWidth, baseHeight);
+            this.graphics.setScale(scaleValue);
+        } else {
+            // Fallback scale if we can't get frame dimensions
+            this.graphics.setScale(0.25);
+        }
+    }
+
+    /**
+     * Create player animations from the sprite atlas or individual frames
+     */
+    createAnimations() {
+        const anims = this.scene.anims;
+        const frameRate = this.animationSpeed;
+
+        // Helper function to check if we can create an animation
+        const canCreateAnimation = (key, frames) => {
+            if (anims.exists(key)) return false;
+            
+            // Check if all frames are available
+            if (this.useAtlas) {
+                return frames.every(frame => 
+                    this.scene.textures.getFrame('player', frame.frame || frame) !== null
+                );
+            } else {
+                return frames.every(key => this.scene.textures.exists(key));
+            }
+        };
+        
+        // Helper function to create animation with proper frame references
+        const createAnimation = (key, frameNames, options = {}) => {
+            try {
+                if (this.useAtlas) {
+                    // Using the atlas
+                    anims.create({
+                        key,
+                        frames: frameNames.map(frame => ({ key: 'player', frame })),
+                        frameRate: options.frameRate || frameRate,
+                        repeat: options.repeat !== undefined ? options.repeat : -1
+                    });
+                } else {
+                    // Using individual images
+                    anims.create({
+                        key,
+                        frames: frameNames.map(frame => ({ key: frame.replace('.png', '') })),
+                        frameRate: options.frameRate || frameRate,
+                        repeat: options.repeat !== undefined ? options.repeat : -1
+                    });
+                }
+                
+                if (this.scene.isDev) {
+                    console.debug(`Created animation: ${key}`);
+                }
+            } catch (error) {
+                console.warn(`Failed to create animation ${key}:`, error);
+            }
+        };
+
+        // Define all frame sequences
+        const animations = {
+            'player-walk-down': ['down1.png', 'down2.png', 'down3.png', 'down4.png'],
+            'player-walk-up': ['up1.png', 'up2.png', 'up3.png', 'up4.png'],
+            'player-walk-left': ['left1.png', 'left2.png', 'left3.png', 'left4.png'],
+            'player-walk-right': ['right1.png', 'right2.png', 'right3.png', 'right4.png'],
+            
+            // Idle animations (single frame)
+            'player-idle-down': ['down1.png'],
+            'player-idle-up': ['up1.png'],
+            'player-idle-left': ['left1.png'],
+            'player-idle-right': ['right1.png']
+        };
+        
+        // Create all animations
+        Object.entries(animations).forEach(([key, frames]) => {
+            // Check if the animation can be created (frames exist)
+            if (canCreateAnimation(key, frames)) {
+                // Create with appropriate options (idle animations don't repeat)
+                const isIdle = key.includes('idle');
+                createAnimation(key, frames, { 
+                    frameRate: isIdle ? 1 : frameRate,
+                    repeat: isIdle ? 0 : -1
+                });
+            } else if (!anims.exists(key)) {
+                console.warn(`Cannot create animation ${key}: frames not available`);
+            }
+        });
+
+        // Start with idle animation
+        this.graphics.play('player-idle-down');
     }
     
     /**
@@ -100,11 +248,16 @@ export class Player {
     update() {
         this.updateMovement();
         this.updateAiming();
+        this.updateAnimation();
     }
     
     updateMovement() {
         // Get keyboard references from scene
         const keys = this.scene.wasd;
+        
+        // Track previous velocity to detect if we just started/stopped moving
+        const prevVelX = this.velX;
+        const prevVelY = this.velY;
         
         // Apply acceleration based on keys
         if (keys.up.isDown) {
@@ -144,6 +297,12 @@ export class Player {
         // Apply new position
         this.graphics.x = newX;
         this.graphics.y = newY;
+        
+        // Update movement state for animation purposes
+        const isMovingNow = Math.abs(this.velX) > 0.1 || Math.abs(this.velY) > 0.1;
+        if (isMovingNow !== this.isMoving) {
+            this.isMoving = isMovingNow;
+        }
     }
     
     updateAiming() {
@@ -179,6 +338,9 @@ export class Player {
         const startX = this.graphics.x + Math.cos(angle) * this.radius;
         const startY = this.graphics.y + Math.sin(angle) * this.radius;
         
+        // Update sprite direction based on angle
+        this.updateSpriteDirection(angle);
+        
         // Clear previous graphics
         this.line.clear();
         this.cursorCircle.clear();
@@ -193,6 +355,78 @@ export class Player {
         // Draw hollow circle at limited mouse position
         this.cursorCircle.lineStyle(2, 0xFFFFFF);
         this.cursorCircle.strokeCircle(targetX, targetY, 10);
+    }
+
+    /**
+     * Update sprite direction based on the angle to target
+     * @param {number} angle - Angle in radians from player to target
+     */
+    updateSpriteDirection(angle) {
+        // Convert angle to degrees
+        const degrees = Phaser.Math.RadToDeg(angle);
+        
+        // Determine direction based on angle
+        let newDirection;
+        
+        // Right quadrant (315° to 45°)
+        if (degrees >= -45 && degrees < 45) {
+            newDirection = this.directions.RIGHT;
+        } 
+        // Down quadrant (45° to 135°)
+        else if (degrees >= 45 && degrees < 135) {
+            newDirection = this.directions.DOWN;
+        } 
+        // Left quadrant (135° to 225°)
+        else if ((degrees >= 135 && degrees <= 180) || (degrees >= -180 && degrees < -135)) {
+            newDirection = this.directions.LEFT;
+        } 
+        // Up quadrant (225° to 315°)
+        else {
+            newDirection = this.directions.UP;
+        }
+        
+        // Update the direction if it has changed
+        if (newDirection !== this.currentDirection) {
+            this.currentDirection = newDirection;
+            // Animation will be updated in updateAnimation()
+        }
+    }
+    
+    /**
+     * Update player animation based on movement and direction
+     */
+    updateAnimation() {
+        // Check if animations are available in the scene
+        if (!this.scene.anims || Object.keys(this.scene.anims.anims.entries).length === 0) {
+            return;
+        }
+        
+        let animKey;
+        
+        // Choose animation based on movement state and direction
+        if (this.isMoving) {
+            animKey = `player-walk-${this.currentDirection}`;
+        } else {
+            animKey = `player-idle-${this.currentDirection}`;
+        }
+        
+        // Make sure the animation exists before trying to play it
+        if (this.scene.anims.exists(animKey) && this.graphics.anims.currentAnim?.key !== animKey) {
+            this.graphics.play(animKey);
+        } else if (!this.scene.anims.exists(animKey)) {
+            // If animation doesn't exist, try to use a fallback frame instead
+            if (this.useAtlas) {
+                const frameName = `${this.currentDirection}1.png`;
+                if (this.scene.textures.getFrame('player', frameName)) {
+                    this.graphics.setTexture('player', frameName);
+                }
+            } else {
+                const frameKey = `${this.currentDirection}1`;
+                if (this.scene.textures.exists(frameKey)) {
+                    this.graphics.setTexture(frameKey);
+                }
+            }
+        }
     }
     
     createBullet(spawnX, spawnY, dirX, dirY) {
@@ -389,9 +623,6 @@ export class Player {
         if (this.scene && this.scene.tweens) {
             this.scene.tweens.killTweensOf(this.graphics);
         }
-        
-        // Clean up any timers or events if needed
-        // Note: We don't need to clean up scene-level timers as they're managed by the scene
         
         // Reset properties to avoid memory leaks
         this.velX = 0;

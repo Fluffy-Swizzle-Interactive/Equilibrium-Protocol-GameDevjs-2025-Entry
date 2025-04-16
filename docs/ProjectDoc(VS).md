@@ -128,28 +128,68 @@ Communication system between React components and Phaser scenes using Phaser's b
 
 ### `Player` Class (`Player.js`)
 
-Manages the player character, including movement, weapons, and shooting.
+Manages the player character, including movement, weapons, shooting, and sprite animations.
 
 #### Properties
 - `speed: 3` - Movement speed
 - `radius: 20` - Player collision radius
 - `health: 100` - Player health
 - `gameMode` - Current weapon type ('minigun' or 'shotgun')
+- `isMoving` - Whether the player is currently moving
+- `currentDirection` - Current facing direction ('up', 'down', 'left', 'right')
+- `animationSpeed` - Frames per second for walking animation
 
 #### Methods
 - `constructor(scene, x, y)` - Creates player at specified position
 - `initPhysicsProperties()` - Sets up movement-related properties
 - `initWeaponProperties(gameMode)` - Configures weapon based on game mode
-- `initGraphics(x, y)` - Creates visual elements
+- `initGraphics(x, y)` - Creates visual elements with sprite
+- `createAnimations()` - Sets up animation sequences for the player
 - `update()` - Called each frame to update player state
 - `updateMovement()` - Handles player movement
 - `updateAiming()` - Updates aim direction based on mouse
+- `updateSpriteDirection(angle)` - Changes sprite direction based on aim angle
+- `updateAnimation()` - Updates sprite animation based on movement and direction
 - `shoot()` - Fires weapon based on current mode
 - `createBullet(spawnX, spawnY, dirX, dirY)` - Creates appropriate bullet type
 - `createMinigunBullet(spawnX, spawnY, dirX, dirY)` - Creates single bullet
 - `createShotgunBullets(spawnX, spawnY, dirX, dirY)` - Creates spread of bullets
 - `calculateDirectionVector()` - Gets normalized direction to target
 - `getPosition()` - Returns current coordinates
+
+#### Animations
+The player has the following animation states:
+- **Walking animations** - Four-directional movement animations
+  - `player-walk-up` - Plays when moving upwards
+  - `player-walk-down` - Plays when moving downwards
+  - `player-walk-left` - Plays when moving left
+  - `player-walk-right` - Plays when moving right
+- **Idle animations** - Four-directional idle animations
+  - `player-idle-up` - Played when standing still facing up
+  - `player-idle-down` - Played when standing still facing down
+  - `player-idle-left` - Played when standing still facing left
+  - `player-idle-right` - Played when standing still facing right
+
+#### Sprite Direction Logic
+The player's sprite direction updates based on the angle to the mouse cursor, dividing 360 degrees into four quadrants:
+```javascript
+// Right quadrant (315° to 45°)
+if (degrees >= -45 && degrees < 45) {
+    newDirection = this.directions.RIGHT;
+} 
+// Down quadrant (45° to 135°)
+else if (degrees >= 45 && degrees < 135) {
+    newDirection = this.directions.DOWN;
+} 
+// Left quadrant (135° to 225°)
+else if ((degrees >= 135 && degrees <= 180) || (degrees >= -180 && degrees < -135)) {
+    newDirection = this.directions.LEFT;
+} 
+// Up quadrant (225° to 315°)
+else {
+    newDirection = this.directions.UP;
+}
+```
 
 #### Weapon Types
 - **Minigun**
@@ -202,137 +242,6 @@ playWeaponSound() {
     }
 }
 ```
-
-This approach follows the best practice of centralized audio management through the SoundManager.
-
-### `EnemyManager` System (`managers/EnemyManager.js`)
-
-A comprehensive system for managing all enemy types, spawning behavior, pooling, and lifecycle management.
-
-#### Properties
-- `enemies` - Array of active enemy instances
-- `enemyPools` - Object mapping enemy type keys to pool instances
-- `projectiles` - Array of active projectiles
-
-#### Methods
-- `constructor(scene, options = {})` - Initializes the EnemyManager with optional configuration
-- `initializePools(options)` - Creates object pools for each enemy type
-- `createEnemyPool(poolKey, EnemyClass, options)` - Creates a reusable pool for a specific enemy type
-- `createProjectilePool(options)` - Creates a pool for enemy projectiles
-- `spawnEnemy(type, x, y, options = {})` - Spawns a specific enemy type at given position
-- `spawnProjectile(x, y, directionX, directionY, speed, damage)` - Creates a projectile
-- `spawnEnemyGroup(type, baseX, baseY, groupSize, spreadRadius, options)` - Creates a group of enemies
-- `spawnEnemiesAtEdges(type, count)` - Spawns enemies at the edges of the screen
-- `spawnBoss(bossType = 'boss1')` - Spawns a boss enemy at strategic location
-- `releaseEnemy(enemy)` - Returns an enemy to its pool
-- `releaseProjectile(projectile)` - Returns a projectile to its pool
-- `update()` - Updates all active enemies and projectiles
-- `getEnemyCount(type)` - Returns count of active enemies of specified type
-- `getStats()` - Returns statistics about enemy pools
-
-#### Enemy Types
-The EnemyManager handles three main enemy types:
-
-1. **Regular Enemies**
-   - `Enemy1`: Basic enemy with slight zigzag movement
-   - `Enemy2`: Faster enemy with dash attacks
-
-2. **Boss Enemies**
-   - `Boss1`: Large boss with health bar and special attack patterns
-   
-3. **Projectiles**
-   - Created by boss attacks
-   - Damage player on contact
-
-#### Enemy Hierarchy
-
-The system uses a class hierarchy for enemies:
-
-```
-BaseEnemy
-├── Enemy1
-├── Enemy2
-└── Boss1
-```
-
-- `BaseEnemy`: Provides core functionality such as health management, collision detection, and death handling
-- Enemy subclasses: Implement specific movement patterns and attack behaviors
-
-#### Spawn Logic
-
-The EnemyManager implements several strategic spawn behaviors:
-
-1. **Edge Spawning (80% chance)**:
-   - Enemies appear from outside the player's view
-   - Randomly distributed around screen edges
-   - Gradually increases in frequency as game progresses
-
-2. **Corner Spawning (20% chance)**:
-   - Enemies spawn in clusters from screen corners
-   - Typically further away than edge spawns
-
-3. **Group Spawning**:
-   - Groups of 3-6 enemies spawn together
-   - Triggered after every 10 regular enemy kills (50% chance)
-
-4. **Boss Spawning**:
-   - Triggered after every 25 regular enemy kills
-   - Announces with "BOSS INCOMING!" warning
-   - Spawns far from player with dramatic entrance
-
-#### Enemy Death Management
-
-When an enemy dies, the system:
-1. Reports death to the Game scene via `onEnemyKilled(isBoss, x, y, enemyType)`
-2. Creates appropriate death effects using particle systems
-3. Returns the enemy instance to its object pool
-4. Tracks statistics for different enemy types
-
-#### Code Example: Boss Spawning
-
-```javascript
-spawnBoss(bossType = 'boss1') {
-    const cam = this.scene.cameras.main;
-    const playerPos = this.scene.player.getPosition();
-    const mapDimensions = this.scene.mapDimensions;
-    
-    // Make the boss spawn very far from the player, but visible
-    const bossMargin = 600; // Very far away
-    const angle = Math.random() * Math.PI * 2;
-    
-    // Calculate spawn position in random direction
-    let x = playerPos.x + Math.cos(angle) * bossMargin;
-    let y = playerPos.y + Math.sin(angle) * bossMargin;
-    
-    // Ensure spawn is within map bounds
-    x = Math.max(50, Math.min(mapDimensions.width - 50, x));
-    y = Math.max(50, Math.min(mapDimensions.height - 50, y));
-    
-    // Spawn the boss
-    const boss = this.spawnEnemy(bossType, x, y);
-    
-    // Show boss warning message
-    if (this.scene.showBossWarning) {
-        this.scene.showBossWarning();
-    } else {
-        // Fallback warning if scene method not available
-        this.showBossWarning();
-    }
-    
-    return boss;
-}
-```
-
-#### Integration with Object Pooling
-
-The EnemyManager leverages the GameObjectManager pooling system for optimal performance:
-
-- Pre-allocates sets of enemies to avoid runtime allocation
-- Reuses inactive enemies instead of creating new ones
-- Properly resets enemy state when recycling from the pool
-- Manages projectiles using the same pooling principles
-
-This integration significantly reduces memory churn and improves frame rate during intense gameplay.
 
 ---
 
@@ -894,7 +803,37 @@ Preliminary testing shows significant performance improvements:
 - 60% reduction in garbage collection pauses
 - Up to 30% improvement in frame rate during heavy combat
 - Stable memory usage even with thousands of objects created over time
-=======
+
+---
+
+## Mapping System
+
+### `TileMapManager` Class (`mapping/TileMapManager.js`)
+
+A centralized manager for handling tilemaps, including loading, switching, and procedural generation.
+
+#### Properties
+- `scene` - Reference to the Phaser scene
+- `mapConfigs` - Configuration for all available maps
+- `currentMap` - Reference to the active tilemap
+- `layers` - Object storing references to all map layers
+- `dimensions` - Dimensions of the current map
+- `tileset` - Reference to the active tileset
+
+#### Methods
+- `constructor(scene)` - Initializes the manager for a specific scene
+- `preloadMaps()` - Preloads all configured maps
+- `createMapFromTiled(key, options)` - Creates a map from Tiled JSON data
+- `createMapFromArray(data, tilesetKey, options)` - Creates a map from a 2D array
+- `generateSequentialMap(width, height)` - Generates a sequential map for testing
+- `switchMap(key, options)` - Switches to a new map
+- `getAvailableMaps()` - Returns a list of all available maps
+- `getMapDimensions()` - Returns dimensions of the current map
+- `destroy()` - Cleans up all map resources
+
+#### Usage Example
+
+```javascript
 // In Preloader scene
 preload() {
     // Initialize manager
