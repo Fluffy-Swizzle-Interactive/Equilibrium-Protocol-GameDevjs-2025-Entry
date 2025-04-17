@@ -269,14 +269,20 @@ export class BaseEnemy {
      * Handle enemy death
      */
     die() {
+        // Skip if already marked inactive to prevent double-counting
+        if (!this.active) return;
+        
         // Make inactive
         this.active = false;
+        
+        // Determine if this is a boss enemy
+        const isBoss = this.isBossEnemy();
         
         // Call the central kill handling method in the Game scene
         if (this.scene.onEnemyKilled) {
             // Pass enemy type and position for effects
             this.scene.onEnemyKilled(
-                this.isBossEnemy(), 
+                isBoss, 
                 this.graphics.x, 
                 this.graphics.y,
                 this.type

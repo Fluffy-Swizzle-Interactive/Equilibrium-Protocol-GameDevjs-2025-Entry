@@ -1,4 +1,5 @@
 import { DEPTHS } from '../constants';
+import { PlayerHealth } from './PlayerHealth';
 
 export class Player {
     constructor(scene, x, y) {
@@ -11,9 +12,28 @@ export class Player {
         this.initSounds();
         this.createAnimations();
         
+        // Initialize health system
+        this.healthSystem = new PlayerHealth(scene, {
+            maxHealth: 100,
+            invulnerabilityTime: 1000
+        });
+        
         // Timing properties
         this.lastFireTime = 0;
         this.lastMovementTime = 0;
+    }
+
+    // Add a takeDamage method that delegates to the health system
+    /**
+     * Apply damage to the player
+     * @param {number} amount - Amount of damage to take
+     * @returns {boolean} Whether the player died from this damage
+     */
+    takeDamage(amount) {
+        if (this.healthSystem) {
+            return this.healthSystem.takeDamage(amount);
+        }
+        return false;
     }
     
     /**

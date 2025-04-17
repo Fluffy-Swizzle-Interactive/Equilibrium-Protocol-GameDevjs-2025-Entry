@@ -29,8 +29,8 @@ export class Boss1 extends BaseEnemy {
         this.speed = 0.3; // Slower
         this.size = 50;   // Much larger
         this.color = 0xff0000; // Red color
-        this.health = 10000;
-        this.baseHealth = 10000;
+        this.health = 100000;
+        this.baseHealth = 100000;
         this.damage = 5;
         this.scoreValue = 500;
         
