@@ -139,7 +139,7 @@ export class WaveGame extends Scene {
         // Initialize the enemy manager with pools for different enemy types
         this.enemyManager = new EnemyManager(this, {
             initialSize: 20,
-            maxSize: 200,
+            maxSize: 500,
             growSize: 5
         });
     }
@@ -163,7 +163,7 @@ export class WaveGame extends Scene {
             // For non-zero starting waves, configure the wave manager to start at that wave
             this.waveManager = new WaveManager(this, {
                 maxWaves: 40,
-                baseEnemyCount: 5,
+                baseEnemyCount: 50,
                 enemyCountGrowth: 1.2,
                 bossWaveInterval: 10
             });
@@ -182,7 +182,7 @@ export class WaveGame extends Scene {
             // Default case - start from wave 0
             this.waveManager = new WaveManager(this, {
                 maxWaves: 40,
-                baseEnemyCount: 5,
+                baseEnemyCount: 50,
                 enemyCountGrowth: 1.2,
                 bossWaveInterval: 10
             });
@@ -777,7 +777,7 @@ export class WaveGame extends Scene {
         // Create a large explosion effect
         for (let i = 0; i < 5; i++) {
             // Stagger the explosions for dramatic effect
-            this.time.delayedCall(i * 200, () => {
+            this.time.delayedCall(i * 100, () => {
                 // Randomize positions slightly for each explosion
                 const offsetX = Phaser.Math.Between(-30, 30);
                 const offsetY = Phaser.Math.Between(-30, 30);
@@ -787,7 +787,7 @@ export class WaveGame extends Scene {
                     speed: { min: 100, max: 300 },
                     scale: { start: 0.4, end: 0 },
                     alpha: { start: 1, end: 0 },
-                    lifespan: 800,
+                    lifespan: 600,
                     blendMode: 'ADD',
                     quantity: 30,
                     angle: { min: 0, max: 360 }

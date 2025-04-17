@@ -32,8 +32,8 @@ export class WaveManager {
         this.uiManager = null;
 
         // Spawn configuration
-        this.baseSpawnDelay = options.baseSpawnDelay || 1500;
-        this.minSpawnDelay = options.minSpawnDelay || 500;
+        this.baseSpawnDelay = options.baseSpawnDelay || 150;
+        this.minSpawnDelay = options.minSpawnDelay || 50;
         this.spawnDelayReduction = options.spawnDelayReduction || 50;
         this.lastBossWave = 0;
         
@@ -396,12 +396,23 @@ export class WaveManager {
      * @param {string} enemyType - The type of enemy that was killed
      */
     onEnemyKilled(isBoss, enemyType) {
-        // Decrease active enemy count
-        this.activeEnemies--;
+        // Ensure counts never go below zero to prevent the bug
+        if (this.activeEnemies > 0) {
+            this.activeEnemies--;
+        } else {
+            // Log issue but correct the counter
+            console.warn('WaveManager: Attempted to decrease activeEnemies below zero');
+            this.activeEnemies = 0;
+        }
         
         // If it was a boss, also decrease boss count
         if (isBoss) {
-            this.activeBosses--;
+            if (this.activeBosses > 0) {
+                this.activeBosses--;
+            } else {
+                console.warn('WaveManager: Attempted to decrease activeBosses below zero');
+                this.activeBosses = 0;
+            }
         }
         
         // Check if wave is complete:
@@ -508,5 +519,48 @@ export class WaveManager {
      */
     isInPausePhase() {
         return !this.isWaveActive && this.isPaused;
+    }
+    
+    /**
+     * Reset the wave manager state
+     */
+    reset() {
+        this.currentWave = 0;
+        this.isPaused = false;
+        this.isWaveActive = false;
+        this.activeEnemies = 0; // Reset to 0
+        this.activeBosses = 0;  // Reset to 0
+        this.enemiesSpawned = 0;
+        this.enemiesToSpawn = 0;
+        this.hasBoss = false;
+        this.lastBossWave = 0;
+        
+        if (this.spawnTimer) {
+            this.spawnTimer.destroy();
+            this.spawnTimer = null;
+        }
+        
+        // Update UI with initial wave information
+        if (this.uiManager) {
+            this.uiManager.updateWaveUI(this.currentWave, this.maxWaves);
+        }
+    }
+    
+    /**
+     * Debug the current state of wave tracking
+     * @returns {Object} Current state of enemy tracking
+     */
+    debugState() {
+        return {
+            wave: this.currentWave,
+            isActive: this.isWaveActive,
+            isPaused: this.isPaused,
+            enemiesSpawned: this.enemiesSpawned,
+            enemiesToSpawn: this.enemiesToSpawn,
+            activeEnemies: this.activeEnemies, 
+            activeBosses: this.activeBosses,
+            hasBoss: this.hasBoss,
+            lastBossWave: this.lastBossWave
+        };
     }
 }

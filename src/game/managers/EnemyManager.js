@@ -524,8 +524,18 @@ export class EnemyManager {
             );
             
             if (distance < (5 + this.scene.player.radius)) {
-                // Hit player
-                this.playerHealth.takeDamage();
+                // Hit player - access the player's health system properly
+                if (this.scene.player.healthSystem) {
+                    // Direct reference to PlayerHealth instance
+                    this.scene.player.healthSystem.takeDamage(projectile.damage);
+                } else {
+                    // Fallback to direct takeDamage method if it exists on player
+                    if (this.scene.player.takeDamage) {
+                        this.scene.player.takeDamage(projectile.damage);
+                    } else {
+                        console.warn('Player health system not found, damage not applied');
+                    }
+                }
                 this.releaseProjectile(projectile);
             }
         }
