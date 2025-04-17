@@ -13,6 +13,7 @@
 - [Object Pooling System](#object-pooling-system)
 - [Wave-Based Game Mode](#wave-based-game-mode)
 - [Mapping System](#mapping-system)
+- [Enemy Registry System](#enemy-registry-system)
 - [Development Guidelines](#development-guidelines)
 - [Asset Management](#asset-management)
 - [Troubleshooting](#troubleshooting)
@@ -1235,6 +1236,187 @@ Here's a complete example workflow for adding a new desert-themed map:
 3. **"This.groundLayer is null" error**:
    - Ensure the primaryLayerName matches exactly what's in your Tiled map
    - Check the Game.jsx code to ensure it properly handles layer name lookup
+
+---
+
+## Enemy Registry System
+
+### `EnemyRegistry` Class (`managers/EnemyRegistry.js`)
+
+A centralized registry for all enemy types in the game that provides a single source of truth for enemy configurations and factory methods.
+
+#### Properties
+- `scene` - Reference to the Phaser scene
+- `enemyConstructors` - Map of enemy type IDs to their constructor classes
+- `enemyConfigs` - Map of enemy type IDs to their default configurations
+- `poolOptions` - Map of enemy type IDs to their pooling options
+
+#### Methods
+- `constructor(scene)` - Creates a new enemy registry for a scene
+- `registerDefaultEnemies()` - Registers all built-in enemy types
+- `registerEnemyType(typeId, Constructor, config, poolOptions)` - Registers a new enemy type
+- `getConstructor(typeId)` - Gets the constructor for a specific enemy type
+- `getConfig(typeId)` - Gets the configuration for a specific enemy type
+- `getPoolOptions(typeId)` - Gets pooling options for a specific enemy type
+- `createEnemy(typeId, x, y, fromPool, overrideConfig)` - Creates an enemy instance
+- `getRegisteredTypes()` - Gets all registered enemy type IDs
+- `getEnemyTypeSummary()` - Gets summary information about all enemy types
+
+#### Usage Example
+
+```javascript
+// Access the enemy registry from the EnemyManager
+const registry = this.scene.enemyManager.enemyRegistry;
+
+// Get all available enemy types
+const enemyTypes = registry.getRegisteredTypes(); // ['enemy1', 'enemy2', 'enemy3', 'boss1']
+
+// Get configuration for a specific enemy type
+const enemy2Config = registry.getConfig('enemy2');
+console.log(`Enemy2 health: ${enemy2Config.health}`); // "Enemy2 health: 20"
+
+// Create an enemy instance directly (without pooling)
+const boss = registry.createEnemy('boss1', 500, 300, false);
+
+// Register a custom enemy type
+class CustomEnemy extends BaseEnemy {
+    // Custom enemy implementation
+}
+
+registry.registerEnemyType('custom_enemy', CustomEnemy, {
+    speed: 1.0,
+    size: 25,
+    color: 0xff00ff,
+    health: 50
+}, {
+    initialSize: 5,
+    maxSize: 20
+});
+```
+
+### Integration with `EnemyManager`
+
+The EnemyRegistry is integrated with the EnemyManager, which handles the creation and management of enemy instances using object pooling.
+
+#### Updated EnemyManager Methods
+- `constructor(scene, options)` - Now creates an EnemyRegistry instance
+- `initializePools(options)` - Uses the registry to set up pools for all enemy types
+- `registerEnemyType(typeId, Constructor, config, poolOptions)` - Registers a new enemy type with both registry and pool
+- `spawnEnemy(type, x, y, options)` - Spawns an enemy of the specified type
+- `hasEnemyType(typeId)` - Checks if an enemy type is registered
+- `getEnemyTypeInfo(typeId)` - Gets information about a specific enemy type
+- `getAvailableEnemyTypes()` - Gets all available enemy type IDs
+
+### Enemy Types
+
+The game includes several enemy types with distinct behaviors:
+
+#### Enemy1 (Green)
+- **Behavior**: Fast but weak enemies that chase the player with zigzag movement
+- **Stats**:
+  - Speed: 0.7
+  - Health: 10
+  - Damage: 30
+  - Score Value: 10
+
+#### Enemy2 (Blue)
+- **Behavior**: Slower but tougher enemies with a dash attack
+- **Stats**: 
+  - Speed: 0.4
+  - Health: 20
+  - Damage: 40
+  - Score Value: 25
+  - Dash Speed: 2.0
+  - Dash Cooldown: 5000ms
+
+#### Enemy3 (Orange)
+- **Behavior**: Ranged enemies that maintain distance and shoot projectiles
+- **Stats**:
+  - Speed: 0.3
+  - Health: 15
+  - Damage: 20
+  - Score Value: 20
+  - Attack Range: 350
+  - Preferred Range: 250
+  - Attack Cooldown: 2000ms
+
+#### Boss1 (Red)
+- **Behavior**: Powerful boss with multiple attack patterns and health bar
+- **Stats**:
+  - Speed: 0.3
+  - Health: 10000
+  - Damage: 5
+  - Score Value: 500
+  - Attack Patterns: Orbit, Charge, Summon
+
+### Adding New Enemy Types
+
+To add a new enemy type:
+
+1. Create a new enemy class extending BaseEnemy
+```javascript
+// src/game/entities/NewEnemy.js
+import { BaseEnemy } from './BaseEnemy';
+
+export class NewEnemy extends BaseEnemy {
+    constructor(scene, x, y, fromPool = false) {
+        super(scene, x, y, fromPool);
+        this.type = 'new_enemy';
+    }
+    
+    initProperties() {
+        // Define enemy properties
+        this.speed = 0.6;
+        this.size = 16;
+        this.color = 0xff00ff;
+        this.health = 25;
+        this.baseHealth = 25;
+        this.damage = 35;
+        this.scoreValue = 30;
+    }
+    
+    // Override movement or add custom behavior
+    moveTowardsPlayer(playerPos) {
+        // Custom movement implementation
+    }
+}
+```
+
+2. Register the enemy type with the EnemyRegistry
+```javascript
+// In src/game/managers/EnemyRegistry.js
+import { NewEnemy } from '../entities/NewEnemy';
+
+// In registerDefaultEnemies() method, add:
+this.registerEnemyType('new_enemy', NewEnemy, {
+    speed: 0.6,
+    size: 16,
+    color: 0xff00ff,
+    health: 25,
+    damage: 35,
+    scoreValue: 30
+}, {
+    initialSize: 10,
+    maxSize: 50,
+    growSize: 3
+});
+```
+
+3. Use the enemy in your game
+```javascript
+// In game scene
+const enemyPosition = this.getRandomSpawnPosition();
+this.enemyManager.spawnEnemy('new_enemy', enemyPosition.x, enemyPosition.y);
+```
+
+### Benefits of the EnemyRegistry
+
+1. **Centralized Management**: All enemy types are defined in one place
+2. **Type Safety**: Prevents typos in enemy type strings
+3. **Configuration**: Easy adjustment of enemy properties
+4. **Documentation**: Self-documenting system for enemy types
+5. **Extensibility**: Simple process for adding new enemy types
+6. **Integration**: Works seamlessly with the object pooling system
 
 ---
 

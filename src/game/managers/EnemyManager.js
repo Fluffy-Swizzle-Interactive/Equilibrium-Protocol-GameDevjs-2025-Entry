@@ -1,8 +1,6 @@
 import { GameObjectManager } from './GameObjectManager';
 import { BaseEnemy } from '../entities/BaseEnemy';
-import { Enemy1 } from '../entities/Enemy1';
-import { Enemy2 } from '../entities/Enemy2';
-import { Boss1 } from '../entities/Boss1';
+import { EnemyRegistry } from './EnemyRegistry';
 
 /**
  * EnemyManager class
@@ -20,6 +18,9 @@ export class EnemyManager {
         this.enemies = [];
         this.enemyPools = {};
         this.projectiles = [];
+        
+        // Create the enemy registry
+        this.enemyRegistry = new EnemyRegistry(scene);
         
         // Register this manager with the scene for easy access
         scene.enemyManager = this;
@@ -44,25 +45,19 @@ export class EnemyManager {
         // Merge provided options with defaults
         const poolOptions = { ...defaultOptions, ...options };
         
-        // Create pool for Enemy1
-        this.createEnemyPool('enemy1', Enemy1, {
-            initialSize: poolOptions.initialSize,
-            maxSize: poolOptions.maxSize,
-            growSize: poolOptions.growSize
-        });
+        // Get all registered enemy types
+        const enemyTypes = this.enemyRegistry.getRegisteredTypes();
         
-        // Create pool for Enemy2
-        this.createEnemyPool('enemy2', Enemy2, {
-            initialSize: Math.ceil(poolOptions.initialSize / 2),
-            maxSize: Math.ceil(poolOptions.maxSize / 2),
-            growSize: Math.ceil(poolOptions.growSize / 2)
-        });
-        
-        // Create pool for Boss1 (smaller pool since bosses are rare)
-        this.createEnemyPool('boss1', Boss1, {
-            initialSize: 2,
-            maxSize: 5,
-            growSize: 1
+        // Create a pool for each registered enemy type
+        enemyTypes.forEach(typeId => {
+            const Constructor = this.enemyRegistry.getConstructor(typeId);
+            const typeConfig = this.enemyRegistry.getConfig(typeId);
+            const typePoolOptions = this.enemyRegistry.getPoolOptions(typeId);
+            
+            // Merge default poolOptions with type-specific ones
+            const mergedPoolOptions = { ...poolOptions, ...typePoolOptions };
+            
+            this.createEnemyPool(typeId, Constructor, mergedPoolOptions);
         });
         
         // Create pool for projectiles
@@ -179,6 +174,48 @@ export class EnemyManager {
         
         // Get enemy from pool
         return this.gameObjectManager.get(type, x, y, options);
+    }
+    
+    /**
+     * Register a new enemy type
+     * @param {string} typeId - Unique identifier for this enemy type
+     * @param {class} Constructor - Enemy class constructor
+     * @param {object} config - Default configuration for this enemy type
+     * @param {object} poolOptions - Object pooling options for this enemy type
+     */
+    registerEnemyType(typeId, Constructor, config = {}, poolOptions = {}) {
+        // Register in the registry first
+        this.enemyRegistry.registerEnemyType(typeId, Constructor, config, poolOptions);
+        
+        // Create a pool for the new enemy type
+        this.createEnemyPool(typeId, Constructor, poolOptions);
+        
+        return this;
+    }
+    
+    /**
+     * Check if enemy type is registered
+     * @param {string} typeId - Enemy type to check
+     * @returns {boolean} True if the enemy type exists
+     */
+    hasEnemyType(typeId) {
+        return this.enemyPools[typeId] === true;
+    }
+    
+    /**
+     * Get information about a specific enemy type
+     * @param {string} typeId - Enemy type to get info for
+     * @returns {object|null} Enemy type information or null if not found
+     */
+    getEnemyTypeInfo(typeId) {
+        if (!this.enemyRegistry.getConstructor(typeId)) {
+            return null;
+        }
+        
+        return {
+            config: this.enemyRegistry.getConfig(typeId),
+            poolOptions: this.enemyRegistry.getPoolOptions(typeId)
+        };
     }
     
     /**
@@ -524,6 +561,14 @@ export class EnemyManager {
         }
         
         return stats;
+    }
+    
+    /**
+     * Get a list of all available enemy types
+     * @returns {Array<string>} Array of enemy type IDs
+     */
+    getAvailableEnemyTypes() {
+        return this.enemyRegistry.getRegisteredTypes();
     }
     
     /**
