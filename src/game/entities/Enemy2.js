@@ -30,7 +30,7 @@ export class Enemy2 extends BaseEnemy {
         this.color = 0x0000ff; // Blue color
         this.health = 20;  // More health
         this.baseHealth = 20;
-        this.damage = 2;
+        this.damage = 40;
         this.scoreValue = 25;
         this.dashSpeed = 2.0; // Speed during dash
         this.chargeTime = 1500; // Increased time to prepare dash

@@ -11,7 +11,9 @@
 - [Sound System](#sound-system)
 - [Game Mechanics](#game-mechanics)
 - [Object Pooling System](#object-pooling-system)
+- [Wave-Based Game Mode](#wave-based-game-mode)
 - [Mapping System](#mapping-system)
+- [Enemy Registry System](#enemy-registry-system)
 - [Development Guidelines](#development-guidelines)
 - [Asset Management](#asset-management)
 - [Troubleshooting](#troubleshooting)
@@ -27,6 +29,7 @@ A top-down shooter game built with Phaser 3 and React. Players can choose betwee
 
 ### Key Game Features
 - Two distinct weapon systems
+- Two game modes - Endless Survival and Wave-based Survival
 - Enemy wave management with increasing difficulty
 - Boss enemy encounters
 - Debug panel for development
@@ -49,29 +52,23 @@ src/
     │   └── DebugPanel.jsx # In-game debug panel
     ├── entities/          # Game objects
     │   ├── Enemy.js       # Enemy entity
-    │   └── Player.js      # Player entity
-    ├── managers/          # Object pooling system
+    │   ├── Player.js      # Player entity
+    │   ├── BulletPool.js  # Bullet pool implementation
+    │   └── SpritePool.js  # Sprite object pool (effects, pickups)
+    ├── managers/          # Game system managers
     │   ├── GameObjectManager.js # Centralized object manager
-        └── SoundManager.js # Centralized audio system
+    │   ├── SoundManager.js # Centralized audio system
+    │   ├── UIManager.js   # UI components manager
+    │   └── WaveManager.js # Wave-based gameplay manager
+    ├── mapping/           # Tile map handling
+    │   └── TileMapManager.js # Map creation and handling
     └── scenes/            # Game screens
         ├── Boot.js        # Initial loading
-        ├── Game.jsx       # Main gameplay
+        ├── Game.jsx       # Main gameplay (Endless mode)
         ├── GameOver.js    # End screen
         ├── MainMenu.js    # Menu screen
-        └── Preloader.js   # Asset loading
-```
-
-### Data Flow
-
-```mermaid
-graph TD
-    A[App.jsx] --> B[PhaserGame.jsx]
-    B --> C[Phaser Game Instance]
-    C --> D[Scene Manager]
-    D --> E[Active Scene]
-    E --> F[Player/Enemies/Bullets]
-    B <--> G[EventBus]
-    H[DebugPanel] <--> G
+        ├── Preloader.js   # Asset loading
+        └── WaveGame.jsx   # Wave-based gameplay mode
 ```
 
 ---
@@ -108,6 +105,7 @@ Initializes the Phaser game with appropriate configuration.
 - `MainMenu` - Game menu
 - `Game` - Main gameplay
 - `GameOver` - End screen
+- `WaveGame` - Wave-based gameplay mode
 
 ### `EventBus.js`
 
@@ -483,11 +481,6 @@ This implementation ensures that background music properly stops during game pau
 4. **Error handling**: Provides graceful fallbacks if tracks can't be found
 5. **Tween cleanup**: Prevents volume tween conflicts when rapidly pausing/resuming
 
-### Sound Assets
-- `ambient_music`: Looping background music for atmosphere
-- `shoot_minigun`: Sound played when firing the minigun weapon
-- `shoot_shotgun`: Sound played when firing the shotgun weapon
-
 ### Audio Implementation
 
 #### Main Menu
@@ -585,46 +578,34 @@ These implementation details ensure that sounds play reliably across different b
 
 #### Minigun
 - Fast firing rate (100 shots/sec)
-- Lower damage per shot
+- Lower damage per shot (30 damage)
 - Good for consistent damage output
 - Yellow projectiles
+- Sound effect: rapid fire sound with slight pitch variation
 
 #### Shotgun
-- Slow firing rate (25 shots/sec)
-- Multiple projectiles per shot
-- High burst damage
+- Slower firing rate (25 shots/sec)
+- 10 projectiles per shot
+- 30-degree spread pattern
+- Higher burst damage (each pellet deals 20 damage)
 - Good for close encounters
 - Orange projectiles
+- Sound effect: powerful blast with bass emphasis
 
 ### Enemy Spawning
 
 Enemies spawn at increasing rates as the game progresses:
 
-- Initial spawn rate: 2000ms
-- Minimum spawn rate: 500ms
-- Decrease: 50ms every 10 seconds
+- **Endless Mode**:
+  - Initial spawn rate: 2000ms
+  - Minimum spawn rate: 500ms
+  - Decrease: 50ms every 10 seconds
 
-#### Spawn Types
-- **Regular Edge Spawn (80% chance)**: Enemies spawn from the edges of the screen
-- **Corner Spawn (15% chance)**: Enemies spawn from the corners of the screen
-- **Group Spawn (5% chance)**: Groups of 3-6 enemies spawn together
-
-### Boss Encounters
-
-Boss enemies appear after every 1000 regular enemies killed:
-- 10x larger health pool
-- Larger size
-- Red color
-- Health bar displayed
-- Special death effects
-
-### Difficulty Progression
-
-Difficulty increases over time through:
-- Increasing enemy spawn rates
-- More frequent group spawns
-- Boss encounters
-- No hard time limit (survive as long as possible)
+- **Wave-Based Mode**:
+  - Calculated based on wave number: `baseEnemyCount * Math.pow(enemyCountGrowth, waveNumber - 1)`
+  - Base enemy count: 5 enemies in wave 1
+  - Growth factor: 1.2 (20% increase per wave)
+  - Boss waves (every 10th wave) reduce regular enemy count by 40% to compensate for boss difficulty
 
 ### Collision System
 
@@ -689,30 +670,6 @@ const bullet = this.gameObjectManager.get('bullet', x, y, dirX, dirY, speed);
 // Release a bullet back to the pool when done
 this.gameObjectManager.release('bullet', bullet);
 ```
-
-### `BulletPool` Class (`entities/BulletPool.js`)
-
-A specialized wrapper around GameObjectManager for managing bullets. Provides bullet-specific methods for creating and managing bullets with different properties.
-
-#### Methods
-- `constructor(scene, options)` - Creates a new bullet pool with the specified options
-- `createMinigunBullet(x, y, dirX, dirY, speed, health, color, size)` - Creates a single bullet
-- `createShotgunBullets(x, y, dirX, dirY, speed, health, color, size, count, spreadAngle)` - Creates multiple bullets with spread
-- `releaseBullet(bullet)` - Returns a bullet to the pool
-- `updateBullets(updateFunc, cullFunc)` - Updates all active bullets and culls as needed
-- `getStats()` - Gets statistics about bullet usage
-
-### `EnemyPool` Class (`entities/EnemyPool.js`)
-
-A specialized wrapper around GameObjectManager for managing enemies. Provides enemy-specific methods for spawning and managing enemies.
-
-#### Methods
-- `constructor(scene, options)` - Creates a new enemy pool with the specified options
-- `spawnEnemy(x, y, options)` - Spawns a single enemy at the given position
-- `spawnEnemyGroup(baseX, baseY, groupSize, spreadRadius, options)` - Spawns a group of enemies
-- `releaseEnemy(enemy)` - Returns an enemy to the pool
-- `updateEnemies(updateFunc)` - Updates all active enemies
-- `getStats()` - Gets statistics about enemy usage
 
 ### `SpritePool` Class (`entities/SpritePool.js`)
 
@@ -785,24 +742,237 @@ this.scene.spritePool.checkCollision(
 
 ---
 
-### Performance Benefits
+## Wave-Based Game Mode
 
-The object pooling system provides several key benefits:
+### Overview
 
-1. **Reduced Memory Churn**: By reusing objects instead of creating and destroying them, we significantly reduce garbage collection pauses that can cause frame rate drops.
+The Wave-Based Game Mode is a structured survival mode with 40 progressively difficult waves. Each wave spawns a growing number of enemies, with every 10th wave featuring a boss enemy. Players must manually trigger each new wave after a short pause. If the player dies, the game resets to wave 1.
 
-2. **Consistent Performance**: Even during intense gameplay with many objects on screen (500+ bullets and 200+ enemies), the game maintains stable frame rates.
+### Key Classes
 
-3. **Centralized Management**: All game objects are managed through a single system, making it easier to track, debug, and optimize.
+#### `WaveManager` Class (`managers/WaveManager.js`)
 
-4. **Extensibility**: The system can be extended to handle any type of game object, not just bullets and enemies.
+Manages wave progression, enemy spawning, and wave state transitions.
 
-### Performance Metrics
+##### Properties
+- `currentWave` - Current wave number (1-40)
+- `maxWaves` - Total number of waves (40)
+- `isPaused` - Whether the game is in pause phase between waves
+- `isWaveActive` - Whether a wave is currently active
+- `activeEnemies` - Array of currently active enemies
+- `waveConfig` - Configuration for wave difficulty scaling
+- `enemyTypeRegistry` - Registry of enemy types available per wave
 
-Preliminary testing shows significant performance improvements:
-- 60% reduction in garbage collection pauses
-- Up to 30% improvement in frame rate during heavy combat
-- Stable memory usage even with thousands of objects created over time
+##### Methods
+- `constructor(scene, options)` - Creates wave manager with custom options
+- `init(uiManager)` - Initializes manager with UI reference
+- `reset()` - Resets to initial state (wave 0)
+- `startNextWave()` - Starts the next wave
+- `spawnWaveEnemies(enemyCount, isBossWave)` - Spawns enemies for current wave
+- `spawnEnemy()` - Spawns a single enemy
+- `spawnBoss()` - Spawns a boss enemy
+- `update()` - Updates wave state each frame
+- `onWaveCompleted()` - Handles wave completion 
+- `onFinalWaveCompleted()` - Handles completion of all waves
+- `registerEnemy(enemy)` - Registers an enemy for tracking
+- `unregisterEnemy(enemy)` - Unregisters an enemy from tracking
+- `clearRemainingEnemies()` - Clears all active enemies
+- `getCurrentWave()` - Returns the current wave number
+- `isBossWave()` - Returns whether current wave is a boss wave
+- `isInPausePhase()` - Returns whether in pause phase between waves
+- `getActiveEnemyCount()` - Returns number of active enemies
+- `calculateEnemyCountForWave(waveNumber)` - Calculates enemies for a specific wave
+
+##### Wave Structure
+- **Waves 1-9**: Mild exponential growth in enemy count
+- **Wave 10**: First boss wave with mini-boss and minions
+- **Waves 11-19**: Higher difficulty curve with more enemy types
+- **Wave 20**: Second boss wave with tougher mini-boss
+- **Waves 21-29**: Sharp exponential growth in enemy count
+- **Wave 30**: Third boss wave with mini-boss and more minions
+- **Waves 31-39**: Maximum difficulty scaling with floods of enemies
+- **Wave 40**: Final boss wave with endgame challenge
+
+#### `UIManager` Class (`managers/UIManager.js`)
+
+Manages all UI elements for the game, including wave information and player controls.
+
+##### Properties
+- `elements` - Object containing all UI element references
+- `width/height` - Screen dimensions for UI positioning
+- `scene` - Reference to the Phaser scene
+
+##### Methods
+- `constructor(scene)` - Creates UI manager for a specific scene
+- `init(options)` - Initializes all UI elements
+- `createWaveInfo()` - Creates wave counter display
+- `createPlayerHealth()` - Creates health bar display
+- `createScoreDisplay()` - Creates score display
+- `createNextWaveButton()` - Creates button to trigger next wave
+- `createWaveBanner()` - Creates banner for wave notifications
+- `showNextWaveButton()` - Shows the next wave button
+- `hideNextWaveButton()` - Hides the next wave button
+- `updateWaveUI(currentWave, maxWaves)` - Updates wave information display
+- `updateHealthUI(current, max)` - Updates health bar display
+- `updateScoreUI(score)` - Updates score display
+- `showWaveStartBanner(waveNumber, isBossWave)` - Shows wave start notification
+- `showWaveCompleteUI()` - Shows wave complete notification
+- `showVictoryUI()` - Shows victory screen when all waves complete
+- `showGameOverUI()` - Shows game over screen when player dies
+- `onNextWaveButtonClicked()` - Handles next wave button click
+- `update()` - Updates UI elements each frame
+
+#### `PlayerHealth` Class (`entities/PlayerHealth.js`)
+
+Manages player's health, damage, and death handling.
+
+##### Properties
+- `maxHealth` - Maximum player health points
+- `currentHealth` - Current player health points
+- `hitDamage` - Standard damage from enemy hits
+- `isInvulnerable` - Whether player is temporarily invulnerable
+- `invulnerabilityTime` - Duration of invulnerability after hit
+
+##### Methods
+- `constructor(scene, options)` - Creates health manager for player
+- `takeDamage(amount)` - Applies damage to player
+- `setInvulnerable()` - Makes player temporarily invulnerable
+- `showDamageEffect()` - Shows visual feedback when damaged
+- `onDeath()` - Handles player death
+- `showDeathAnimation()` - Shows death animation effect
+- `heal(amount)` - Heals the player
+- `reset()` - Resets health to maximum
+- `getHealthPercent()` - Returns health as percentage
+- `getInvulnerable()` - Returns invulnerability state
+
+#### `WaveGame` Scene (`scenes/WaveGame.jsx`)
+
+Main scene for the wave-based game mode that integrates all components.
+
+##### Properties
+- `gameTime` - Tracks game time for difficulty scaling
+- `killCount` - Number of enemies defeated
+- `regularKillCount` - Number of regular enemies killed
+- `bossesKilled` - Number of boss enemies killed
+- `weaponType` - Selected weapon type
+- `isPaused` - Whether game is paused
+- `isGameOver` - Whether game is over
+
+##### Methods
+- `constructor()` - Initializes wave game scene
+- `init(data)` - Sets up initial game state
+- `resetGameState()` - Resets game variables for new game
+- `create()` - Sets up all game systems
+- `setupMap()` - Creates and configures the game map
+- `setupSoundManager()` - Sets up sound system
+- `setupObjectManager()` - Sets up object pooling system
+- `setupUIManager()` - Sets up UI elements
+- `setupWaveManager()` - Sets up wave management system
+- `setupGameObjects()` - Creates player and other entities
+- `setupCamera()` - Configures camera to follow player
+- `setupInput()` - Sets up keyboard and mouse input
+- `onWaveStart(data)` - Handles wave start event
+- `onWaveComplete(data)` - Handles wave completion event
+- `onVictory()` - Handles completion of all waves
+- `setPauseState(isPaused, reason)` - Manages game pause state
+- `update(time, delta)` - Main update loop
+- `updateGameTimers(delta)` - Updates time-based metrics
+- `updateGameObjects()` - Updates player, bullets, enemies
+- `checkCollisions()` - Detects and handles collisions
+- `playerDeath()` - Handles player death
+
+### Game Flow
+
+The wave-based game follows this flow:
+
+1. **Game Start**
+   - Player selects Wave Mode from main menu
+   - WaveGame scene loads with wave 0
+   - Player must press "Start Next Wave" button to begin
+
+2. **Wave Active Phase**
+   - WaveManager spawns enemies according to wave number
+   - Player fights enemies until all are defeated
+   - Wave ends when all enemies are eliminated
+
+3. **Pause Phase**
+   - Between waves, game enters pause phase
+   - Player can catch breath and prepare
+   - "Next Wave" button appears for player to trigger next wave
+
+4. **Boss Waves**
+   - Every 10th wave (10, 20, 30, 40) is a boss wave
+   - Boss waves feature a stronger boss enemy plus regular enemies
+   - Special banner appears with warning message
+
+5. **Victory**
+   - If player defeats all 40 waves, victory screen appears
+   - Shows total score and kill count
+   - Player can replay from main menu
+
+6. **Game Over**
+   - If player dies, game over screen appears
+   - Shows wave reached and kill count
+   - Player can restart from main menu
+
+### Enemy Difficulty Scaling
+
+Enemy count per wave increases exponentially:
+```javascript
+enemyCount = Math.floor(baseEnemyCount * Math.pow(enemyCountGrowth, waveNumber - 1));
+```
+
+- Base enemy count starts at 5
+- Default growth factor is 1.2 (20% increase per wave)
+- Boss waves reduce regular enemy count by 40%
+
+### Player Health System
+
+The player health system is balanced for the wave mode:
+- Default health is 100 points
+- Default damage from enemies is 34 points per hit
+- This results in player death after 3 hits
+- Player flashes red when damaged
+- Brief invulnerability period after taking damage
+
+### UI Elements
+
+The wave mode includes specialized UI elements:
+
+1. **Wave Counter** - Shows current wave and total waves
+2. **Player Health Bar** - Shows current health percentage
+3. **Score Display** - Shows total kill count
+4. **Wave Banner** - Displays wave start/complete messages
+5. **Next Wave Button** - Allows player to start next wave
+6. **Game Over Screen** - Shows final statistics when player dies
+7. **Victory Screen** - Shows completion statistics when all waves defeated
+
+### Integration with Existing Systems
+
+The wave mode integrates with existing game systems:
+
+1. **ObjectPooling** - Reuses EnemyManager and BulletPool for efficient object management
+2. **Sound System** - Uses SoundManager for ambient music and sound effects
+3. **Mapping** - Leverages the MapManager for map generation and management
+4. **Player Control** - Uses the same Player class and controls as the regular mode
+
+### Configurable Options
+
+The wave system is highly configurable:
+
+```javascript
+this.waveManager = new WaveManager(this, {
+    maxWaves: 40,
+    baseEnemyCount: 5,
+    enemyCountGrowth: 1.2,
+    minSpawnDelay: 500,
+    maxSpawnDelay: 3000,
+    spawnDelayReduction: 50,
+    bossWaveInterval: 10
+});
+```
+
+These options can be easily adjusted for balance tweaking or to create alternative wave modes with different difficulty curves.
 
 ---
 
@@ -1066,6 +1236,187 @@ Here's a complete example workflow for adding a new desert-themed map:
 3. **"This.groundLayer is null" error**:
    - Ensure the primaryLayerName matches exactly what's in your Tiled map
    - Check the Game.jsx code to ensure it properly handles layer name lookup
+
+---
+
+## Enemy Registry System
+
+### `EnemyRegistry` Class (`managers/EnemyRegistry.js`)
+
+A centralized registry for all enemy types in the game that provides a single source of truth for enemy configurations and factory methods.
+
+#### Properties
+- `scene` - Reference to the Phaser scene
+- `enemyConstructors` - Map of enemy type IDs to their constructor classes
+- `enemyConfigs` - Map of enemy type IDs to their default configurations
+- `poolOptions` - Map of enemy type IDs to their pooling options
+
+#### Methods
+- `constructor(scene)` - Creates a new enemy registry for a scene
+- `registerDefaultEnemies()` - Registers all built-in enemy types
+- `registerEnemyType(typeId, Constructor, config, poolOptions)` - Registers a new enemy type
+- `getConstructor(typeId)` - Gets the constructor for a specific enemy type
+- `getConfig(typeId)` - Gets the configuration for a specific enemy type
+- `getPoolOptions(typeId)` - Gets pooling options for a specific enemy type
+- `createEnemy(typeId, x, y, fromPool, overrideConfig)` - Creates an enemy instance
+- `getRegisteredTypes()` - Gets all registered enemy type IDs
+- `getEnemyTypeSummary()` - Gets summary information about all enemy types
+
+#### Usage Example
+
+```javascript
+// Access the enemy registry from the EnemyManager
+const registry = this.scene.enemyManager.enemyRegistry;
+
+// Get all available enemy types
+const enemyTypes = registry.getRegisteredTypes(); // ['enemy1', 'enemy2', 'enemy3', 'boss1']
+
+// Get configuration for a specific enemy type
+const enemy2Config = registry.getConfig('enemy2');
+console.log(`Enemy2 health: ${enemy2Config.health}`); // "Enemy2 health: 20"
+
+// Create an enemy instance directly (without pooling)
+const boss = registry.createEnemy('boss1', 500, 300, false);
+
+// Register a custom enemy type
+class CustomEnemy extends BaseEnemy {
+    // Custom enemy implementation
+}
+
+registry.registerEnemyType('custom_enemy', CustomEnemy, {
+    speed: 1.0,
+    size: 25,
+    color: 0xff00ff,
+    health: 50
+}, {
+    initialSize: 5,
+    maxSize: 20
+});
+```
+
+### Integration with `EnemyManager`
+
+The EnemyRegistry is integrated with the EnemyManager, which handles the creation and management of enemy instances using object pooling.
+
+#### Updated EnemyManager Methods
+- `constructor(scene, options)` - Now creates an EnemyRegistry instance
+- `initializePools(options)` - Uses the registry to set up pools for all enemy types
+- `registerEnemyType(typeId, Constructor, config, poolOptions)` - Registers a new enemy type with both registry and pool
+- `spawnEnemy(type, x, y, options)` - Spawns an enemy of the specified type
+- `hasEnemyType(typeId)` - Checks if an enemy type is registered
+- `getEnemyTypeInfo(typeId)` - Gets information about a specific enemy type
+- `getAvailableEnemyTypes()` - Gets all available enemy type IDs
+
+### Enemy Types
+
+The game includes several enemy types with distinct behaviors:
+
+#### Enemy1 (Green)
+- **Behavior**: Fast but weak enemies that chase the player with zigzag movement
+- **Stats**:
+  - Speed: 0.7
+  - Health: 10
+  - Damage: 30
+  - Score Value: 10
+
+#### Enemy2 (Blue)
+- **Behavior**: Slower but tougher enemies with a dash attack
+- **Stats**: 
+  - Speed: 0.4
+  - Health: 20
+  - Damage: 40
+  - Score Value: 25
+  - Dash Speed: 2.0
+  - Dash Cooldown: 5000ms
+
+#### Enemy3 (Orange)
+- **Behavior**: Ranged enemies that maintain distance and shoot projectiles
+- **Stats**:
+  - Speed: 0.3
+  - Health: 15
+  - Damage: 20
+  - Score Value: 20
+  - Attack Range: 350
+  - Preferred Range: 250
+  - Attack Cooldown: 2000ms
+
+#### Boss1 (Red)
+- **Behavior**: Powerful boss with multiple attack patterns and health bar
+- **Stats**:
+  - Speed: 0.3
+  - Health: 10000
+  - Damage: 5
+  - Score Value: 500
+  - Attack Patterns: Orbit, Charge, Summon
+
+### Adding New Enemy Types
+
+To add a new enemy type:
+
+1. Create a new enemy class extending BaseEnemy
+```javascript
+// src/game/entities/NewEnemy.js
+import { BaseEnemy } from './BaseEnemy';
+
+export class NewEnemy extends BaseEnemy {
+    constructor(scene, x, y, fromPool = false) {
+        super(scene, x, y, fromPool);
+        this.type = 'new_enemy';
+    }
+    
+    initProperties() {
+        // Define enemy properties
+        this.speed = 0.6;
+        this.size = 16;
+        this.color = 0xff00ff;
+        this.health = 25;
+        this.baseHealth = 25;
+        this.damage = 35;
+        this.scoreValue = 30;
+    }
+    
+    // Override movement or add custom behavior
+    moveTowardsPlayer(playerPos) {
+        // Custom movement implementation
+    }
+}
+```
+
+2. Register the enemy type with the EnemyRegistry
+```javascript
+// In src/game/managers/EnemyRegistry.js
+import { NewEnemy } from '../entities/NewEnemy';
+
+// In registerDefaultEnemies() method, add:
+this.registerEnemyType('new_enemy', NewEnemy, {
+    speed: 0.6,
+    size: 16,
+    color: 0xff00ff,
+    health: 25,
+    damage: 35,
+    scoreValue: 30
+}, {
+    initialSize: 10,
+    maxSize: 50,
+    growSize: 3
+});
+```
+
+3. Use the enemy in your game
+```javascript
+// In game scene
+const enemyPosition = this.getRandomSpawnPosition();
+this.enemyManager.spawnEnemy('new_enemy', enemyPosition.x, enemyPosition.y);
+```
+
+### Benefits of the EnemyRegistry
+
+1. **Centralized Management**: All enemy types are defined in one place
+2. **Type Safety**: Prevents typos in enemy type strings
+3. **Configuration**: Easy adjustment of enemy properties
+4. **Documentation**: Self-documenting system for enemy types
+5. **Extensibility**: Simple process for adding new enemy types
+6. **Integration**: Works seamlessly with the object pooling system
 
 ---
 
