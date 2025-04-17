@@ -39,10 +39,59 @@ export class Preloader extends Scene
 
         this.load.image('logo', 'assets/logo.png');
         this.load.image('background', 'assets/bg.png');
+        this.load.image('particle_texture', 'assets/star.png');
         
-        // Load tilemap and tileset
-        this.load.image('scifi_tiles', 'assets/scifi_tiles.png');
-        this.load.tilemapTiledJSON('map', 'assets/map.json');
+        // Load player sprite atlas
+        this.load.atlas('player', 'assets/TESTPLAYER1.png', 'assets/TESTPLAYER1.json');
+        
+        // Also load individual sprite frames as fallback
+        // This ensures we can load the individual frames if the atlas doesn't work
+        this.load.image('down1', 'assets/PLAYER1/down1.png');
+        this.load.image('down2', 'assets/PLAYER1/down2.png');
+        this.load.image('down3', 'assets/PLAYER1/down3.png');
+        this.load.image('down4', 'assets/PLAYER1/down4.png');
+        this.load.image('up1', 'assets/PLAYER1/up1.png');
+        this.load.image('up2', 'assets/PLAYER1/up2.png');
+        this.load.image('up3', 'assets/PLAYER1/up3.png');
+        this.load.image('up4', 'assets/PLAYER1/up4.png');
+        this.load.image('left1', 'assets/PLAYER1/left1.png');
+        this.load.image('left2', 'assets/PLAYER1/left2.png');
+        this.load.image('left3', 'assets/PLAYER1/left3.png');
+        this.load.image('left4', 'assets/PLAYER1/left4.png');
+        this.load.image('right1', 'assets/PLAYER1/right1.png');
+        this.load.image('right2', 'assets/PLAYER1/right2.png');
+        this.load.image('right3', 'assets/PLAYER1/right3.png');
+        this.load.image('right4', 'assets/PLAYER1/right4.png');
+        
+        // Also keep the legacy testplayer for compatibility
+        this.load.atlas('testplayer', 'assets/testplayer.png', 'assets/testplayer.json');
+        
+        // Load all map assets
+        this.loadMapAssets();
+        
+        // Load sound effects
+        this.load.audio('shoot_minigun', 'assets/audio/laserShoot.wav');
+        this.load.audio('shoot_shotgun', 'assets/audio/laserShoot.wav');
+        
+        // Load ambient background music
+        this.load.audio('ambient_music', 'assets/audio/ambient_loop.mp3');
+    }
+
+    /**
+     * Load all map-related assets
+     * This keeps map loading organized and centralized
+     */
+    loadMapAssets() {
+        // Load tilemap for level 1
+        this.load.image('level1', 'assets/level1.png');
+        this.load.tilemapTiledJSON('map', 'assets/level1.json');
+        
+        // Load the Dark Cave Net tilemap 
+        this.load.image('darkcavenet', 'assets/darkcavenet.png');
+        this.load.tilemapTiledJSON('darkcavemap', 'assets/darkcavenet.json');
+        
+        // Load any other tilemap assets needed for additional maps
+        // Example: this.load.tilemapTiledJSON('level3', 'assets/level3.json');
     }
 
     create ()

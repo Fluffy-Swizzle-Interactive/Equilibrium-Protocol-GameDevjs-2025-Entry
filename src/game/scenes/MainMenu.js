@@ -1,13 +1,20 @@
 import { EventBus } from '../EventBus';
 import { Scene } from 'phaser';
+import { SoundManager } from '../managers/SoundManager';
+import { DEPTHS } from '../constants';
 
+/**
+ * MainMenu scene
+ * Handles the main menu display and game mode options
+ */
 export class MainMenu extends Scene
 {
     logoTween;
-
+    
     constructor ()
     {
         super('MainMenu');
+        this.selectedWeapon = 'minigun'; // Default weapon
     }
 
     create ()
@@ -15,31 +22,88 @@ export class MainMenu extends Scene
         this.add.image(512, 384, 'background');
 
         this.logo = this.add.image(512, 300, 'logo').setDepth(100);
-
-        this.add.text(512, 460, 'Minigun', {
-            fontFamily: 'Arial Black', fontSize: 38, color: '#ffffff',
+        
+        // Add Wave Mode button with a special highlight
+        const waveButton = this.add.text(512, 440, 'START GAME', {
+            fontFamily: 'Arial Black', fontSize: 38, color: '#ffff00',
             stroke: '#000000', strokeThickness: 8,
             align: 'center'
-        }).setDepth(100).setOrigin(0.5).setInteractive().on('pointerdown', () => this.changeScene('minigun'), this);
-
-        this.add.text(512, 550, 'Minigun Shotgun', {
-            fontFamily: 'Arial Black', fontSize: 38, color: '#ffffff',
-            stroke: '#000000', strokeThickness: 8,
-            align: 'center'
-        }).setDepth(100).setOrigin(0.5).setInteractive().on('pointerdown', () => this.changeScene('shotgun'), this);
+        }).setDepth(100).setOrigin(0.5).setInteractive().on('pointerdown', () => this.startGame('wave'), this);
+        
+        // Add a glow effect to the wave mode button to attract attention
+        this.tweens.add({
+            targets: waveButton,
+            alpha: 0.8,
+            yoyo: true,
+            repeat: -1,
+            duration: 1000
+        });
+        
+        // Setup sound manager and start ambient music
+        this.setupSoundManager();
         
         EventBus.emit('current-scene-ready', this);
     }
 
-    changeScene (gameMode)
-    {
-        if (this.logoTween)
-        {
-            this.logoTween.stop();
-            this.logoTween = null;
-        }
+    /**
+     * Set up the sound manager and start ambient music
+     */
+    setupSoundManager() {
+        // Create sound manager
+        this.soundManager = new SoundManager(this);
+        
+        // Initialize ambient music
+        this.soundManager.initBackgroundMusic('ambient_music', {
+            volume: 0.3,  // Slightly lower volume for menu
+            loop: true
+        });
+        
+        // Start playing ambient music with fade in
+        this.soundManager.playMusic('ambient_music', {
+            fadeIn: 3000  // 3 second fade in for menu (longer for atmosphere)
+        });
+    }
 
-        this.scene.start('Game', { mode: gameMode });
+    /**
+     * Start the selected game mode
+     * @param {string} mode - Game mode to start (wave or adventure)
+     */
+    startGame(mode) {
+        // Transition effect
+        this.cameras.main.fadeOut(500, 0, 0, 0);
+        
+        this.cameras.main.once('camerafadeoutcomplete', () => {
+            if (this.logoTween) {
+                this.logoTween.stop();
+                this.logoTween = null;
+            }
+            
+            // Start the selected game mode
+            if (mode === 'wave') {
+                // Start the wave-based game mode with specified weapon type
+                this.scene.start('WaveGame', { 
+                    weaponType: this.selectedWeapon,
+                    startWave: 0 // Default to wave 0 in regular mode
+                });
+            } else {
+                // Start the classic game mode
+                this.scene.start('Game', { weaponType: this.selectedWeapon });
+            }
+        });
+    }
+
+    /**
+     * Legacy method for backward compatibility
+     */
+    changeScene(sceneKey, gameMode) {
+        // Map to the new startGame method
+        if (sceneKey === 'WaveGame') {
+            this.selectedWeapon = gameMode;
+            this.startGame('wave');
+        } else {
+            this.selectedWeapon = gameMode;
+            this.startGame('adventure');
+        }
     }
 
     moveLogo (reactCallback)

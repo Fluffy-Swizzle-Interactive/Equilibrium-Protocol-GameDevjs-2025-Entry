@@ -1,10 +1,24 @@
-export class Enemy {
-    constructor(scene, x, y, isBoss = false, fromPool = false) {
+import { DEPTHS } from '../constants';
+
+/**
+ * Base class for all enemy types in the game
+ * Provides common functionality that all enemy types will inherit
+ */
+export class BaseEnemy {
+    /**
+     * Create a new enemy
+     * @param {Phaser.Scene} scene - The scene this enemy belongs to
+     * @param {number} x - Initial x coordinate
+     * @param {number} y - Initial y coordinate
+     * @param {boolean} fromPool - Whether this enemy is from an object pool
+     */
+    constructor(scene, x, y, fromPool = false) {
         this.scene = scene;
-        this.isBoss = isBoss;
         this.active = true;
+        this.type = 'base'; // Base type identifier
+        this.hasHealthBar = false; // Whether this enemy has a health bar
         
-        // Initialize enemy properties based on type
+        // Initialize enemy properties
         this.initProperties();
         
         // Create visual representation if not using pooling
@@ -17,8 +31,8 @@ export class Enemy {
             // Connect enemy object to its graphics object
             this.graphics.parentEnemy = this;
             
-            // Create health bar for bosses
-            if (isBoss) {
+            // Create health bar if needed
+            if (this.hasHealthBar) {
                 this.createHealthBar();
             }
         }
@@ -34,10 +48,8 @@ export class Enemy {
         // Set active state
         this.active = true;
         
-        // Apply options
-        if (options.isBoss !== undefined) {
-            this.isBoss = options.isBoss;
-        }
+        // Apply options if needed
+        this.applyOptions(options);
         
         // Reinitialize properties
         this.initProperties();
@@ -61,19 +73,50 @@ export class Enemy {
             this.graphics.setVisible(true);
         }
         
-        // Create or update health bar for bosses
-        if (this.isBoss) {
-            // Always destroy old health bars if they exist to prevent duplicates
+        // Create or update health bar if needed
+        if (this.hasHealthBar) {
             this.cleanupHealthBar();
-            
-            // Now create a fresh health bar
             this.createHealthBar();
         }
     }
     
     /**
+     * Apply options to enemy (to be overridden by subclasses)
+     * @param {object} options - Configuration options 
+     */
+    applyOptions(options) {
+        // Base implementation does nothing - override in subclasses
+    }
+    
+    /**
+     * Initialize enemy properties (to be overridden by subclasses)
+     */
+    initProperties() {
+        // Default properties
+        this.speed = 0.5;
+        this.size = 15;
+        this.color = 0x999999; // Gray for base enemy
+        this.health = 10;
+        this.baseHealth = 10;
+        this.damage = 1;
+        this.scoreValue = 10;
+    }
+    
+    /**
+     * Create the visual representation of the enemy
+     * @param {number} x - Initial x position
+     * @param {number} y - Initial y position
+     */
+    createVisuals(x, y) {
+        // Create the visual representation (square by default)
+        this.graphics = this.scene.add.rectangle(x, y, this.size, this.size, this.color);
+        
+        // Set consistent depth to ensure proper layering
+        this.graphics.setDepth(DEPTHS.ENEMIES);
+    }
+    
+    /**
      * Clean up any existing health bar elements
-     * Used when resetting a boss from the pool or when a boss dies
      */
     cleanupHealthBar() {
         if (this.healthBar) {
@@ -87,85 +130,50 @@ export class Enemy {
     }
     
     /**
-     * Initialize enemy properties based on type (boss or regular)
+     * Create health bar for enemies that need one
      */
-    initProperties() {
-        if (this.isBoss) {
-            // Boss properties
-            this.speed = 0.3; // Slower but more powerful
-            this.size = 50; // Larger size
-            this.color = 0xff0000; // Red color
-            this.health = 10000; // Boss health
-            this.baseHealth = 10000; // For health bar calculations
-        } else {
-            // Regular enemy properties
-            this.speed = 0.5; // Movement speed
-            this.size = 15; // Size of the enemy square
-            this.color = 0x00ff00; // Green color
-            this.health = 10; // Standard health
-            this.baseHealth = 10; // For health bar calculations
-        }
-    }
-    
-    /**
-     * Create the visual representation of the enemy
-     * @param {number} x - Initial x position
-     * @param {number} y - Initial y position
-     */
-    createVisuals(x, y) {
-        // Create the visual representation (square)
-        this.graphics = this.scene.add.rectangle(x, y, this.size, this.size, this.color);
-    }
-    
-    /**
-     * Manage the health bar for boss enemies
-     * @param {boolean} create - Whether to create a new health bar or update an existing one
-     */
-    manageHealthBar(create = false) {
-        if (!this.isBoss) return;
-        
-        if (create) {
-            const barWidth = this.size * 2;
-            const barHeight = 5;
-            const barY = this.graphics.y - this.size - 10;
-            
-            // Background bar (black)
-            this.healthBarBg = this.scene.add.rectangle(
-                this.graphics.x, 
-                barY, 
-                barWidth, 
-                barHeight, 
-                0x000000
-            ).setDepth(100);
-            
-            // Health bar (red)
-            this.healthBar = this.scene.add.rectangle(
-                this.graphics.x - barWidth/2, 
-                barY, 
-                barWidth, 
-                barHeight, 
-                0xff0000
-            ).setOrigin(0, 0.5).setDepth(101);
-        } else {
-            // Update health bar position
-            this.healthBarBg.x = this.graphics.x;
-            this.healthBarBg.y = this.graphics.y - this.size - 10;
-            
-            // Update health bar width based on remaining health percentage
-            const healthPercent = this.health / this.baseHealth;
-            const barWidth = this.size * 2;
-            this.healthBar.width = barWidth * healthPercent;
-            this.healthBar.x = this.graphics.x - barWidth/2;
-            this.healthBar.y = this.graphics.y - this.size - 10;
-        }
-    }
-    
     createHealthBar() {
-        this.manageHealthBar(true);
+        if (!this.hasHealthBar) return;
+        
+        const barWidth = this.size * 2;
+        const barHeight = 5;
+        const barY = this.graphics.y - this.size - 10;
+        
+        // Background bar (black)
+        this.healthBarBg = this.scene.add.rectangle(
+            this.graphics.x, 
+            barY, 
+            barWidth, 
+            barHeight, 
+            0x000000
+        ).setDepth(DEPTHS.ENEMY_HEALTH_BAR_BG);
+        
+        // Health bar (red)
+        this.healthBar = this.scene.add.rectangle(
+            this.graphics.x - barWidth/2, 
+            barY, 
+            barWidth, 
+            barHeight, 
+            0xff0000
+        ).setOrigin(0, 0.5).setDepth(DEPTHS.ENEMY_HEALTH_BAR_FG);
     }
     
+    /**
+     * Update the health bar position and width
+     */
     updateHealthBar() {
-        this.manageHealthBar(false);
+        if (!this.hasHealthBar || !this.healthBar || !this.healthBarBg) return;
+        
+        // Update health bar position
+        this.healthBarBg.x = this.graphics.x;
+        this.healthBarBg.y = this.graphics.y - this.size - 10;
+        
+        // Update health bar width based on remaining health percentage
+        const healthPercent = this.health / this.baseHealth;
+        const barWidth = this.size * 2;
+        this.healthBar.width = barWidth * healthPercent;
+        this.healthBar.x = this.graphics.x - barWidth/2;
+        this.healthBar.y = this.graphics.y - this.size - 10;
     }
     
     /**
@@ -179,11 +187,16 @@ export class Enemy {
         
         const playerPos = this.scene.player.getPosition();
         
-        // Move towards player
+        // Move towards player (default behavior)
         this.moveTowardsPlayer(playerPos);
         
         // Check collision with player
         this.checkPlayerCollision(playerPos);
+        
+        // Update health bar if needed
+        if (this.hasHealthBar) {
+            this.updateHealthBar();
+        }
     }
     
     /**
@@ -206,11 +219,6 @@ export class Enemy {
             // Move toward player
             this.graphics.x += dirX * this.speed;
             this.graphics.y += dirY * this.speed;
-            
-            // Update health bar for boss
-            if (this.isBoss) {
-                this.updateHealthBar();
-            }
         }
     }
     
@@ -226,9 +234,9 @@ export class Enemy {
         
         // If enemy touches player (sum of radii), player dies
         const playerRadius = this.scene.player.radius;
-        if (playerDistance < (this.size/2 + playerRadius)) {
-            this.scene.playerDeath();
-        }
+  //      if (playerDistance < (this.size/2 + playerRadius)) {
+   //         this.scene.playerDeath();
+  //      }
     }
     
     /**
@@ -254,9 +262,6 @@ export class Enemy {
         // If health depleted, die
         if (this.health <= 0) {
             this.die();
-        } else if (this.isBoss) {
-            // Update health bar if this is a boss
-            this.updateHealthBar();
         }
     }
     
@@ -264,21 +269,29 @@ export class Enemy {
      * Handle enemy death
      */
     die() {
+        // Skip if already marked inactive to prevent double-counting
+        if (!this.active) return;
+        
         // Make inactive
         this.active = false;
         
+        // Determine if this is a boss enemy
+        const isBoss = this.isBossEnemy();
+        
         // Call the central kill handling method in the Game scene
         if (this.scene.onEnemyKilled) {
-            this.scene.onEnemyKilled(this.isBoss);
+            // Pass enemy type and position for effects
+            this.scene.onEnemyKilled(
+                isBoss, 
+                this.graphics.x, 
+                this.graphics.y,
+                this.type
+            );
         }
         
-        // Check if boss defeated
-        if (this.isBoss) {
-            // Clean up health bar properly so it can be recreated when reused
+        // Cleanup health bar if exists
+        if (this.hasHealthBar) {
             this.cleanupHealthBar();
-            
-            // Add special effects for boss defeat
-            this.scene.createBossDeathEffect(this.graphics.x, this.graphics.y);
         }
         
         // When using object pooling, we don't destroy the graphics
@@ -287,5 +300,29 @@ export class Enemy {
             this.graphics.setActive(false);
             this.graphics.setVisible(false);
         }
+    }
+    
+    /**
+     * Get the score value for this enemy
+     * @returns {number} The score value
+     */
+    getScoreValue() {
+        return this.scoreValue;
+    }
+    
+    /**
+     * Get the enemy type
+     * @returns {string} The enemy type
+     */
+    getType() {
+        return this.type;
+    }
+    
+    /**
+     * Check if this enemy is a boss
+     * @returns {boolean} True if this is a boss enemy
+     */
+    isBossEnemy() {
+        return this.type.includes('boss');
     }
 }

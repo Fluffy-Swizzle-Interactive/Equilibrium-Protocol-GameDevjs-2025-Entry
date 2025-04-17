@@ -2,11 +2,16 @@ import { Boot } from './scenes/Boot';
 import { Game } from './scenes/Game.jsx';
 import { GameOver } from './scenes/GameOver';
 import { MainMenu } from './scenes/MainMenu';
+import { MainMenu_DEV } from './scenes/MainMenu_DEV';
+import { WaveGame } from './scenes/WaveGame.jsx';
 import Phaser from 'phaser';
 import { Preloader } from './scenes/Preloader';
 
 // Find out more information about the Game Config at:
 // https://newdocs.phaser.io/docs/3.70.0/Phaser.Types.Core.GameConfig
+const isDev = import.meta.env.DEV;
+const menuComponent = isDev ? MainMenu_DEV : MainMenu;
+
 const config = {
     type: Phaser.AUTO,
     width: 1024,
@@ -17,9 +22,10 @@ const config = {
     fps: {
         target: 60,           // Target framerate
         forceSetTimeOut: false, // Use setTimeout instead of requestAnimationFrame
-        min: 30,              // Min framerate to throttle down to
+        min: 30,
+        max: 60,              // Min framerate to throttle down to
         deltaHistory: 10,     // Number of frames to calculate average
-        panicMax: 120         // FPS threshold to reset delta history if exceeded
+        panicMax: 60         // FPS threshold to reset delta history if exceeded
     },
     // Enable physics
     physics: {
@@ -32,8 +38,9 @@ const config = {
     scene: [
         Boot,
         Preloader,
-        MainMenu,
+        menuComponent,
         Game,
+        WaveGame,
         GameOver
     ]
 };
