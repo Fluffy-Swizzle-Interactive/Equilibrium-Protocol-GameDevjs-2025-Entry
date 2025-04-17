@@ -28,7 +28,7 @@ export class Enemy1 extends BaseEnemy {
         this.color = 0x00ff00; // Green color
         this.health = 10;  // Less health
         this.baseHealth = 10;
-        this.damage = 1;
+        this.damage = 30;
         this.scoreValue = 10;
     }
     

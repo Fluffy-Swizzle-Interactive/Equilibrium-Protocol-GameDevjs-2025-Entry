@@ -234,9 +234,9 @@ export class BaseEnemy {
         
         // If enemy touches player (sum of radii), player dies
         const playerRadius = this.scene.player.radius;
-        if (playerDistance < (this.size/2 + playerRadius)) {
-            this.scene.playerDeath();
-        }
+  //      if (playerDistance < (this.size/2 + playerRadius)) {
+   //         this.scene.playerDeath();
+  //      }
     }
     
     /**

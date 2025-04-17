@@ -488,7 +488,7 @@ export class EnemyManager {
             
             if (distance < (5 + this.scene.player.radius)) {
                 // Hit player
-                this.scene.playerDeath();
+                this.playerHealth.takeDamage();
                 this.releaseProjectile(projectile);
             }
         }

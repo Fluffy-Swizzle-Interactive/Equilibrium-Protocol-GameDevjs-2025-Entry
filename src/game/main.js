@@ -2,11 +2,16 @@ import { Boot } from './scenes/Boot';
 import { Game } from './scenes/Game.jsx';
 import { GameOver } from './scenes/GameOver';
 import { MainMenu } from './scenes/MainMenu';
+import { MainMenu_DEV } from './scenes/MainMenu_DEV';
+import { WaveGame } from './scenes/WaveGame.jsx';
 import Phaser from 'phaser';
 import { Preloader } from './scenes/Preloader';
 
 // Find out more information about the Game Config at:
 // https://newdocs.phaser.io/docs/3.70.0/Phaser.Types.Core.GameConfig
+const isDev = import.meta.env.DEV;
+const menuComponent = isDev ? MainMenu_DEV : MainMenu;
+
 const config = {
     type: Phaser.AUTO,
     width: 1024,
@@ -33,8 +38,9 @@ const config = {
     scene: [
         Boot,
         Preloader,
-        MainMenu,
+        menuComponent,
         Game,
+        WaveGame,
         GameOver
     ]
 };
