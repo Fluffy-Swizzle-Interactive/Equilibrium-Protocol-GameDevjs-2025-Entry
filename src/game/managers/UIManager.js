@@ -44,6 +44,9 @@ export class UIManager {
         // Create health UI
         this.createHealthUI();
         
+        // Create XP UI
+        this.createXPUI();
+        
         // Create wave banner
         this.createWaveBanner();
         
@@ -130,10 +133,46 @@ export class UIManager {
             { fontFamily: 'Arial', fontSize: 14, color: '#ffffff' }
         ).setOrigin(0.5, 0.5).setScrollFactor(0).setDepth(102);
         
+        // Create level circle to the right of health bar
+        this.elements.levelCircle = this.scene.add.circle(
+            width - 30, 35, 22,
+            0x000000, 0.8
+        ).setScrollFactor(0).setDepth(101);
+        
+        // Create level circle border
+        this.elements.levelBorder = this.scene.add.circle(
+            width - 30, 35, 22
+        ).setScrollFactor(0).setDepth(102)
+        .setStrokeStyle(2, 0x00ff99);
+        
+        // Create level progress arc (empty initially)
+        this.elements.levelArc = this.scene.add.graphics()
+            .setScrollFactor(0)
+            .setDepth(101);
+        
+        // Create level text
+        this.elements.levelText = this.scene.add.text(
+            width - 30, 35, '1',
+            { fontFamily: 'Arial', fontSize: 18, color: '#ffffff' }
+        ).setOrigin(0.5, 0.5).setScrollFactor(0).setDepth(103);
+        
         // Add to container
         this.elements.container.add(this.elements.healthBackground);
         this.elements.container.add(this.elements.healthBar);
         this.elements.container.add(this.elements.healthText);
+        this.elements.container.add(this.elements.levelCircle);
+        this.elements.container.add(this.elements.levelBorder);
+        this.elements.container.add(this.elements.levelArc);
+        this.elements.container.add(this.elements.levelText);
+    }
+    
+    /**
+     * Create XP bar and level display
+     */
+    createXPUI() {
+        // No longer creating the XP bar at the bottom of the screen
+        // We're using only the circular level indicator next to the health bar
+        // which was implemented in the createHealthUI method
     }
     
     /**
@@ -496,6 +535,186 @@ export class UIManager {
         } else {
             this.elements.healthBar.setFillStyle(0x00ff00); // Green
         }
+    }
+    
+    /**
+     * Update XP UI with current XP and level data
+     * @param {Object} data - XP data object containing level, xp, and xpToNext values
+     */
+    updateXPUI(data) {
+        if (!this.elements.levelText) return;
+        
+        const { level, xp, xpToNext } = data;
+        
+        // Update level text
+        this.elements.levelText.setText(level.toString());
+        
+        // Draw the circular progress arc around the level circle
+        if (this.elements.levelArc) {
+            // Clear previous arc
+            this.elements.levelArc.clear();
+            
+            // Get the position of the level circle
+            const width = this.scene.cameras.main.width;
+            const x = width - 30; // Same as the level circle x position
+            const y = 35;         // Same as the level circle y position
+            const radius = 22;    // Same as the level circle radius
+            
+            // Set arc style
+            this.elements.levelArc.lineStyle(4, 0x00ff99, 1);
+            
+            // Calculate the sweep angle based on XP progress
+            const progress = (xp / xpToNext) || 0;
+            const startAngle = -Math.PI / 2; // Start from top (270 degrees)
+            const endAngle = startAngle + (Math.PI * 2 * progress); // Full circle is 2*PI
+            
+            // Draw the arc
+            this.elements.levelArc.beginPath();
+            this.elements.levelArc.arc(x, y, radius, startAngle, endAngle, false);
+            this.elements.levelArc.strokePath();
+        }
+    }
+    
+    /**
+     * Display level up animation
+     * @param {number} level - New level reached
+     */
+    showLevelUpAnimation(level) {
+        const width = this.scene.cameras.main.width;
+        const height = this.scene.cameras.main.height;
+        
+        // Create level up text
+        const levelUpText = this.scene.add.text(
+            width / 2, height / 2, `LEVEL UP!\nLevel ${level}`,
+            { 
+                fontFamily: 'Arial', 
+                fontSize: 48, 
+                color: '#00ff99',
+                align: 'center',
+                stroke: '#000000',
+                strokeThickness: 4
+            }
+        ).setOrigin(0.5).setScrollFactor(0).setDepth(150).setAlpha(0);
+        
+        // Create particles for level up effect
+        const particles = this.scene.add.particles(width / 2, height / 2, 'particle_texture', {
+            speed: { min: 100, max: 200 },
+            scale: { start: 0.5, end: 0 },
+            alpha: { start: 1, end: 0 },
+            lifespan: 1000,
+            blendMode: 'ADD',
+            quantity: 30,
+            tint: 0x00ff99,
+            angle: { min: 0, max: 360 }
+        });
+        
+        particles.setDepth(149);
+        
+        // Create particles around level circle
+        if (this.elements.levelCircle) {
+            // Get the position of the level circle
+            const circleX = this.elements.levelCircle.x;
+            const circleY = this.elements.levelCircle.y;
+            
+            // Create particle effect at the level circle position
+            const circleParticles = this.scene.add.particles(circleX, circleY, 'particle_texture', {
+                speed: { min: 50, max: 100 },
+                scale: { start: 0.3, end: 0 },
+                alpha: { start: 1, end: 0 },
+                lifespan: 1000,
+                blendMode: 'ADD',
+                quantity: 20,
+                tint: 0x00ff99,
+                angle: { min: 0, max: 360 }
+            });
+            
+            circleParticles.setDepth(104);
+            
+            // Clean up particles after animation
+            this.scene.time.delayedCall(2000, () => {
+                circleParticles.destroy();
+            });
+        }
+        
+        // Play level up sound effect if available
+        if (this.scene.soundManager) {
+            // Use the dedicated levelUp sound effect
+            if (this.scene.soundManager.hasSound('levelUp')) {
+                this.scene.soundManager.playSoundEffect('levelUp', {
+                    volume: 0.7
+                });
+            } else {
+                // Fall back to modified weapon sound if levelUp sound is not available
+                this.scene.soundManager.playSoundEffect('shoot_minigun', {
+                    detune: 1200, // Higher pitch
+                    volume: 0.6,
+                    rate: 0.5 // Slower rate
+                });
+            }
+        }
+        
+        // Animate level up text
+        this.scene.tweens.add({
+            targets: levelUpText,
+            alpha: { from: 0, to: 1 },
+            scale: { from: 2, to: 1 },
+            duration: 500,
+            ease: 'Back.easeOut',
+            onComplete: () => {
+                // Add short pause before fading out
+                this.scene.time.delayedCall(1000, () => {
+                    // Fade out text
+                    this.scene.tweens.add({
+                        targets: levelUpText,
+                        alpha: 0,
+                        y: height * 0.4,
+                        duration: 500,
+                        ease: 'Power2',
+                        onComplete: () => {
+                            levelUpText.destroy();
+                            particles.destroy();
+                        }
+                    });
+                });
+            }
+        });
+        
+        // Pulse the level indicator and make it spin
+        this.scene.tweens.add({
+            targets: [this.elements.levelCircle, this.elements.levelBorder],
+            scale: { from: 1.5, to: 1 },
+            duration: 500,
+            ease: 'Bounce.easeOut'
+        });
+        
+        // Make the level progress arc flash briefly
+        if (this.elements.levelArc) {
+            // Save the original level arc properties
+            this.elements.levelArc.clear();
+            
+            // Create a full circle flash effect
+            this.elements.levelArc.lineStyle(4, 0xffffff, 1);
+            const x = width - 30;
+            const y = 35;
+            const radius = 22;
+            this.elements.levelArc.beginPath();
+            this.elements.levelArc.arc(x, y, radius, 0, Math.PI * 2);
+            this.elements.levelArc.strokePath();
+            
+            // Revert to normal after a short delay (will be updated by updateXPUI)
+            this.scene.time.delayedCall(300, () => {
+                this.elements.levelArc.clear();
+                // The next updateXPUI call will draw the correct arc again
+            });
+        }
+        
+        // Make the level text pop
+        this.scene.tweens.add({
+            targets: this.elements.levelText,
+            scale: { from: 1.5, to: 1 },
+            duration: 500,
+            ease: 'Bounce.easeOut'
+        });
     }
     
     /**
@@ -909,9 +1128,12 @@ export class UIManager {
     update() {
         // Update player health if health system exists
         if (this.scene.playerHealth) {
-           // const health = this.scene.playerHealth.getCurrentHealth();
-            //const maxHealth = this.scene.playerHealth.getMaxHealth();
-            //this.updateHealthUI(health, maxHealth);
+           // The PlayerHealth class doesn't have getCurrentHealth(), it directly uses currentHealth
+           // and has getHealthPercent() method
+           const healthPercent = this.scene.playerHealth.getHealthPercent() * 100;
+           const maxHealth = this.scene.playerHealth.maxHealth;
+           const currentHealth = this.scene.playerHealth.currentHealth;
+           this.updateHealthUI(currentHealth, maxHealth);
         }
 
         // Update debug info if enabled

@@ -10,6 +10,7 @@
 - [UI Components](#ui-components)
 - [Sound System](#sound-system)
 - [Game Mechanics](#game-mechanics)
+- [XP System](#xp-system)
 - [Object Pooling System](#object-pooling-system)
 - [Wave-Based Game Mode](#wave-based-game-mode)
 - [Mapping System](#mapping-system)
@@ -369,30 +370,96 @@ End screen showing game results and offering restart option.
 
 ## UI Components
 
-### `DebugPanel` Component (`DebugPanel.jsx`)
+### `UIManager` Class (`managers/UIManager.js`)
 
-React component displaying real-time game metrics for development.
+Centralized manager for all UI elements in the game including health bar, XP display, wave information, and game state notifications.
 
-#### Props
-- `gameRef` - Reference to the PhaserGame component
+#### Properties
+- `scene` - Reference to the Phaser scene
+- `elements` - Object storing all UI element references
+- `groups` - Object storing UI element groups
+- `options` - Configuration options
+- `initialized` - Whether the UI has been initialized
 
-#### State
-- `debugInfo` - Object containing current game metrics
+#### Key Methods
+- `init(options)` - Initializes all UI elements
+- `createHealthUI()` - Creates health bar with level indicator
+- `createXPUI()` - Creates XP bar at screen bottom
+- `createWaveUI()` - Creates wave counter display
+- `createWaveBanner()` - Creates banner for wave notifications
+- `createNextWaveButton()` - Creates button to start next wave
+- `updateHealthUI(currentHealth, maxHealth)` - Updates health display
+- `updateXPUI(data)` - Updates XP bar and circular level progress
+- `showLevelUpAnimation(level)` - Displays level-up effects
+- `showWaveStartBanner(waveNumber, isBossWave)` - Shows wave start notification
+- `showWaveCompleteUI()` - Shows wave completion notification
+- `showVictoryUI()` - Shows victory screen
+- `showGameOverUI()` - Shows game over screen
 
-#### Methods
-- `updateDebugInfo()` - Updates displayed metrics
-- `renderSection(title, children)` - Helper to render UI sections
-- `renderInfoItem(label, value)` - Helper to render individual metrics
+#### UI Layout
 
-#### Displayed Information
-- FPS
-- Enemy count
-- Bullet count
-- Player position
-- Mouse position
-- Kill count
-- Game mode
-- Survival time
+The UI is arranged in a clean layout optimized for gameplay visibility:
+
+1. **Top Left**: Wave counter showing current/maximum wave
+2. **Top Right**: Health bar and level indicator
+3. **Center (as needed)**: Wave banners, level-up notifications
+4. **Bottom Center (when applicable)**: Next Wave button
+
+#### Level Display UI
+
+The level indicator uses a streamlined circular progress design:
+
+- Located next to the health bar in the top-right corner
+- Shows current player level as a number in the center
+- Displays XP progress as a circular arc around the level number
+- Color-coded with a teal (#00ff99) progress indicator
+- Animates during level-up with particle effects
+
+```javascript
+// Example of level arc creation
+this.elements.levelArc = this.scene.add.graphics()
+    .setScrollFactor(0)
+    .setDepth(101);
+
+// Example of drawing the level progress arc
+this.elements.levelArc.clear();
+this.elements.levelArc.lineStyle(4, 0x00ff99, 1);
+this.elements.levelArc.beginPath();
+this.elements.levelArc.arc(x, y, radius, startAngle, startAngle + (Math.PI * 2 * progress), false);
+this.elements.levelArc.strokePath();
+```
+
+#### Animations and Visual Feedback
+
+The UI system includes several animations for better user experience:
+
+1. **Health Bar Color Changes**:
+   - Green (>75%)
+   - Yellow (50-75%)
+   - Orange (25-50%)
+   - Red (<25%)
+
+2. **Level-Up Sequence**:
+   - Centered text announcement
+   - Particle effects at both the center and level indicator
+   - Flash effect on the circular level progress
+   - Scale animation on the level number
+
+3. **Wave Transitions**:
+   - Smooth fade-in/out for wave banners
+   - Color-coding (blue for normal waves, red for boss waves)
+
+#### Implementation Notes
+
+The UI manager uses Phaser's container system for organized grouping of elements and proper depth sorting:
+
+```javascript
+this.elements.container = this.scene.add.container(0, 0)
+    .setScrollFactor(0) // Don't move with camera
+    .setDepth(100);     // Always on top
+```
+
+All UI elements are added to this container, ensuring they stay fixed on screen regardless of camera movement.
 
 ---
 
@@ -426,6 +493,7 @@ Centralized audio system that manages both background music and sound effects.
 - `setEffectsVolume(volume)` - Sets volume level for sound effects
 - `initSoundEffect(key, options)` - Registers a sound effect with options
 - `playSoundEffect(key, options)` - Plays a sound effect with options
+- `hasSound(key)` - Checks if a sound effect exists in the manager
 - `destroy()` - Cleans up all audio resources
 
 #### Usage Example
@@ -451,10 +519,13 @@ this.soundManager.initSoundEffect('explosion', {
     rate: 1.2
 });
 
-// Play sound effect with options
-this.soundManager.playSoundEffect('explosion', {
-    detune: Math.random() * 200 - 100
-});
+// Check if a sound exists before playing
+if (this.soundManager.hasSound('explosion')) {
+    // Play sound effect with options
+    this.soundManager.playSoundEffect('explosion', {
+        detune: Math.random() * 200 - 100
+    });
+}
 ```
 
 ### Audio Pause Handling
@@ -566,7 +637,6 @@ The `MainMenu` scene initializes the ambient music that continues throughout the
        
        // Handle audio context locking
        if (this.sound.locked) {
-           console.debug('Audio system is locked. Attempting to unlock...');
            this.sound.once('unlocked', () => {
                this.soundManager.playMusic('ambient_music', {
                    fadeIn: 2000
@@ -661,6 +731,159 @@ The game uses simple circular collision detection:
 Score is determined by:
 - Survival time (in seconds)
 - Kill count
+
+---
+
+## XP System
+
+The XP (experience points) system manages player progression through levels, with enemies directly awarding XP when defeated.
+
+### `XPManager` Class (`managers/XPManager.js`)
+
+Manages the player's experience points, level, and level-up progression.
+
+#### Properties
+- `scene` - Reference to the Phaser scene
+- `currentXP` - Current XP amount
+- `currentLevel` - Current player level
+- `baseXPRequirement` - Base XP required for the first level-up
+- `levelMultiplier` - Multiplier for XP requirements per level
+- `xpToNextLevel` - XP required to reach the next level
+
+#### Methods
+- `constructor(scene, initialXP, initialLevel, baseXPRequirement, levelMultiplier)` - Creates a new XP manager
+- `calculateXPForLevel(level)` - Calculates XP required for a specific level
+- `addXP(amount)` - Adds XP and handles level-up if threshold reached
+- `levelUp()` - Increases level and recalculates XP requirements
+- `emitXPUpdate()` - Emits event with current XP status
+- `getXPProgress()` - Returns progress percentage towards next level (0-1)
+- `getCurrentLevel()` - Returns current level
+- `getCurrentXP()` - Returns current XP amount
+- `getXPToNextLevel()` - Returns XP required for next level
+
+#### XP Calculation Formula
+
+The XP required for each level uses an exponential growth formula:
+```javascript
+xpRequired = baseXP * Math.pow(multiplier, level - 1)
+```
+
+For example, with default values (`baseXP = 100`, `multiplier = 1.2`):
+- Level 1 to 2: 100 XP
+- Level 2 to 3: 120 XP
+- Level 3 to 4: 144 XP
+- ...and so on with 20% increase per level
+
+#### Events Emitted
+- `xp-updated` - Emitted when XP changes, includes level, current XP, and XP required for next level
+- `level-up` - Emitted when player levels up, includes new level and XP details
+
+#### Usage Example
+```javascript
+// Initialize XP manager
+this.xpManager = new XPManager(this);
+
+// Add XP when enemy is defeated
+this.xpManager.addXP(enemy.scoreValue);
+
+// Listen for level-up events
+EventBus.on('level-up', (data) => {
+    console.log(`Player reached level ${data.level}!`);
+    // Apply level-up rewards here
+});
+```
+
+### XP Reward System
+
+XP is awarded instantly when enemies are defeated, with the amount based on the enemy's score value.
+
+#### XP Award Implementation
+When an enemy is killed, XP is directly added to the player's total:
+```javascript
+// In onEnemyKilled method
+if (this.xpManager && enemy && enemy.scoreValue) {
+    // Calculate XP value based on enemy type and score
+    const xpValue = enemy.scoreValue * this.xpMultiplier;
+    
+    // Award XP directly to the player
+    this.xpManager.addXP(xpValue);
+    
+    // Play XP gain sound effect
+    if (this.soundManager) {
+        this.soundManager.playSoundEffect('xp_collect', {
+            detune: 1200, // Higher pitch for XP collection
+            volume: 0.3
+        });
+    }
+}
+```
+
+#### Boss XP Rewards
+Boss enemies award extra XP as a bonus when defeated:
+```javascript
+// Bosses give extra XP as a bonus
+if (isBoss && this.xpManager && enemy && enemy.scoreValue) {
+    const bonusXP = enemy.scoreValue * 0.8 * this.xpMultiplier;
+    this.xpManager.addXP(bonusXP);
+}
+```
+
+### UI Integration
+
+The XP system integrates with the UI to show player progression:
+
+#### Level-Up Animation
+When the player levels up, an animation is displayed:
+```javascript
+// In UIManager's showLevelUpAnimation method
+showLevelUpAnimation(level) {
+    // Create level-up text
+    const levelUpText = this.scene.add.text(
+        width / 2, height / 2, `LEVEL UP!\nLevel ${level}`,
+        { 
+            fontFamily: 'Arial', 
+            fontSize: 48, 
+            color: '#00ff99',
+            align: 'center',
+            stroke: '#000000',
+            strokeThickness: 4
+        }
+    ).setOrigin(0.5).setScrollFactor(0).setDepth(150);
+    
+    // Create particle effect
+    // ...
+    
+    // Animate text appearance and fade out
+    // ...
+}
+```
+
+### XP Balancing
+
+The XP system is balanced with the following considerations:
+
+1. **XP Values**: Enemy XP values are tied to their score values, with more difficult enemies giving more XP
+2. **Boss Rewards**: Boss enemies provide substantial XP rewards with an additional bonus (80% of their base value)
+3. **Level Scaling**: XP requirements increase by 20% per level, creating a smooth progression curve
+4. **XP Multiplier**: A global XP multiplier (`xpMultiplier`) can be adjusted for balancing
+
+### Integration with Other Systems
+
+The XP system integrates with several other game systems:
+
+1. **Enemy Death**: The `onEnemyKilled` method directly awards XP when enemies are defeated
+2. **Event System**: The EventBus is used to communicate XP updates and level-up events
+3. **UI System**: The UIManager displays XP progress and level-up animations
+4. **Sound System**: Sound effects play when gaining XP and leveling up
+
+### Future Expansion
+
+The XP system provides a foundation for additional progression features:
+
+1. **Skill Points**: Awarding skill points on level-up for player upgrades
+2. **Abilities**: Unlocking new abilities at specific level thresholds
+3. **Player Stats**: Automatically increasing player stats (health, damage) with levels
+4. **Equipment**: Unlocking better equipment options at higher levels
 
 ---
 

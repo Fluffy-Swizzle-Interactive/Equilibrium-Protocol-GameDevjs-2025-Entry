@@ -18,6 +18,11 @@ export class Player {
             invulnerabilityTime: 1000
         });
         
+        // XP collection properties
+        this.xpCollectionRadius = 40;
+        this.lastXpCollectionTime = 0;
+        this.xpCollectionInterval = 100; // Check for XP pickups every 100ms
+        
         // Timing properties
         this.lastFireTime = 0;
         this.lastMovementTime = 0;
@@ -269,6 +274,56 @@ export class Player {
         this.updateMovement();
         this.updateAiming();
         this.updateAnimation();
+        this.checkXPCollection();
+    }
+    
+    /**
+     * Check for and collect nearby XP pickups
+     */
+    checkXPCollection() {
+        const currentTime = this.scene.time.now;
+        
+        // Only check for XP pickups at the specified interval
+        if (currentTime - this.lastXpCollectionTime < this.xpCollectionInterval) {
+            return;
+        }
+        
+        this.lastXpCollectionTime = currentTime;
+        
+        // Make sure we have access to required objects
+        if (!this.scene.spritePool || !this.scene.xpManager) {
+            return;
+        }
+        
+        // Check for XP pickups within collection radius
+        this.scene.spritePool.checkCollision(
+            this.graphics.x, 
+            this.graphics.y, 
+            this.xpCollectionRadius, 
+            (xpSprite) => {
+                if (xpSprite && xpSprite.customData && xpSprite.customData.value) {
+                    // Add XP to player
+                    this.scene.xpManager.addXP(xpSprite.customData.value);
+                    
+                    // Play XP collection sound
+                    if (this.scene.soundManager) {
+                        // Use existing sound effect if available, otherwise use a fallback
+                        const soundKey = this.scene.soundManager.hasSound('xp_collect') 
+                            ? 'xp_collect' 
+                            : 'shoot_minigun'; // Fallback to an existing sound
+
+                        this.scene.soundManager.playSoundEffect(soundKey, {
+                            detune: 1200, // Higher pitch for XP collection
+                            volume: 0.3
+                        });
+                    }
+                }
+                
+                // Return true to confirm this pickup should be removed
+                return true;
+            },
+            'xp_pickup' // Type of sprite to check for
+        );
     }
     
     updateMovement() {
