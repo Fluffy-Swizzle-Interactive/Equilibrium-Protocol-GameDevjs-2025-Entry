@@ -386,13 +386,12 @@ export class BaseEnemy {
         
         // Call the central kill handling method in the Game scene
         if (this.scene.onEnemyKilled) {
-            // Pass enemy type, position, and the enemy object itself for XP calculation
+            // Pass enemy type and position for effects
             this.scene.onEnemyKilled(
                 isBoss, 
                 this.graphics.x, 
                 this.graphics.y,
-                this.type,
-                this // Pass 'this' enemy object as the fifth parameter
+                this.type
             );
         }
         
