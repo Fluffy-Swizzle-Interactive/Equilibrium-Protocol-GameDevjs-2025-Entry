@@ -1,3 +1,5 @@
+import { DEPTHS, GroupId } from '../constants';
+
 /**
  * UIManager class
  * Centralized manager for all UI elements in the game including
@@ -11,7 +13,12 @@ export class UIManager {
     constructor(scene) {
         this.scene = scene;
         this.elements = {}; // Store all UI elements
+        this.groups = {}; // Store UI element groups
         this.isDebugShown = false;
+        this.initialized = false;
+
+        // Register with scene for easier access
+        scene.uiManager = this;
     }
     
     /**
@@ -19,9 +26,13 @@ export class UIManager {
      * @param {Object} options - Configuration options
      */
     init(options = {}) {
+        // Skip if already initialized
+        if (this.initialized) return;
+
         // Store configuration options
         this.options = {
-            showDebug: options.showDebug !== undefined ? options.showDebug : false
+            showDebug: options.showDebug !== undefined ? options.showDebug : false,
+            ...options
         };
         
         // Create UI container
@@ -50,6 +61,14 @@ export class UIManager {
             this.createDebugInfo();
             this.isDebugShown = true;
         }
+
+        // Add group stats display for enemy factions
+        this.setupGroupDisplay();
+        
+        // Add chaos meter display
+        this.setupChaosMeter();
+
+        this.initialized = true;
     }
     
     /**
@@ -371,6 +390,75 @@ export class UIManager {
     }
     
     /**
+     * Set up group display showing enemy faction counts
+     */
+    setupGroupDisplay() {
+        const centerX = this.scene.cameras.main.width / 2;
+        
+        // Create container for group info
+        this.groups.groupContainer = this.scene.add.container(centerX, 40).setScrollFactor(0).setDepth(DEPTHS.UI_ELEMENTS);
+        
+        // Background for group counter
+        this.elements.groupBg = this.scene.add.rectangle(0, 0, 240, 60, 0x000000, 0.6)
+            .setOrigin(0.5, 0.5);
+        
+        // Text for group counts
+        this.elements.groupText = this.scene.add.text(0, 0, 'Factions: AI: 0 | CODER: 0 | NEUTRAL: 0', {
+            fontFamily: 'Arial',
+            fontSize: '14px',
+            color: '#ffffff',
+            align: 'center'
+        }).setOrigin(0.5, 0.5);
+        
+        // Add elements to container
+        this.groups.groupContainer.add([this.elements.groupBg, this.elements.groupText]);
+    }
+    
+    /**
+     * Set up chaos meter to display chaos level
+     */
+    setupChaosMeter() {
+        const width = this.scene.cameras.main.width;
+        
+        // Create container for chaos meter
+        this.groups.chaosContainer = this.scene.add.container(width - 100, 40).setScrollFactor(0).setDepth(DEPTHS.UI_ELEMENTS);
+        
+        // Background for chaos meter
+        this.elements.chaosBg = this.scene.add.rectangle(0, 0, 180, 25, 0x000000, 0.6)
+            .setOrigin(0.5, 0.5);
+        
+        // Border for chaos meter
+        this.elements.chaosBorder = this.scene.add.rectangle(0, 0, 150, 15, 0xffffff, 0.8)
+            .setOrigin(0.5, 0.5)
+            .setStrokeStyle(1, 0xffffff);
+        
+        // Empty bar (background)
+        this.elements.chaosBarBg = this.scene.add.rectangle(0, 0, 146, 11, 0x222222)
+            .setOrigin(0.5, 0.5);
+        
+        // Chaos meter fill bar
+        this.elements.chaosBar = this.scene.add.rectangle(-73, 0, 0, 11, 0xff0000)
+            .setOrigin(0, 0.5);
+        
+        // Chaos label text
+        this.elements.chaosText = this.scene.add.text(0, -25, 'CHAOS: 50%', {
+            fontFamily: 'Arial',
+            fontSize: '12px',
+            color: '#ffffff',
+            align: 'center'
+        }).setOrigin(0.5, 0.5);
+        
+        // Add elements to container
+        this.groups.chaosContainer.add([
+            this.elements.chaosBg,
+            this.elements.chaosBorder,
+            this.elements.chaosBarBg,
+            this.elements.chaosBar,
+            this.elements.chaosText
+        ]);
+    }
+    
+    /**
      * Update the wave UI with current wave number
      * @param {number} currentWave - Current wave number
      * @param {number} maxWaves - Maximum number of waves
@@ -673,6 +761,80 @@ export class UIManager {
     }
     
     /**
+     * Update group display with current counts
+     */
+    updateGroupDisplay() {
+        if (!this.scene.groupManager || !this.elements.groupText) return;
+        
+        const counts = this.scene.groupManager.getAllGroupCounts();
+        
+        // Format the group counts text
+        const aiCount = counts[GroupId.AI] || 0;
+        const coderCount = counts[GroupId.CODER] || 0;
+        const neutralCount = counts[GroupId.NEUTRAL] || 0;
+        
+        // Create colored text for each faction
+        let groupText = 'Factions: ';
+        groupText += `[color=#ff3333]AI: ${aiCount}[/color] | `;
+        groupText += `[color=#33aaff]CODER: ${coderCount}[/color] | `;
+        groupText += `[color=#55ff55]NEUTRAL: ${neutralCount}[/color]`;
+        
+        // Use setHTML to support colored text
+        this.elements.groupText.setText(groupText.replace(/\[color=#([0-9a-fA-F]{6})\]/g, '')
+                                               .replace(/\[\/color\]/g, ''));
+    }
+    
+    /**
+     * Update chaos meter with current level
+     */
+    updateChaosMeter() {
+        if (!this.scene.chaosManager || !this.elements.chaosBar) return;
+        
+        const chaosValue = this.scene.chaosManager.getChaos();
+        const normalizedChaos = this.scene.chaosManager.getNormalizedChaos();
+        const polarity = this.scene.chaosManager.getPolarity();
+        const absoluteValue = this.scene.chaosManager.getAbsoluteChaos();
+        
+        // Update bar width based on absolute chaos level (0-146 pixels)
+        const maxBarWidth = 146;
+        const barWidth = Math.round(maxBarWidth * (absoluteValue / 100));
+        this.elements.chaosBar.width = barWidth;
+        
+        // Position bar differently based on polarity:
+        // For positive values: align left (origin 0, 0.5)
+        // For negative values: align right (origin 1, 0.5)
+        if (polarity >= 0) {
+            // Positive or zero
+            this.elements.chaosBar.setOrigin(0, 0.5);
+            this.elements.chaosBar.x = -73; // Left side of container
+        } else {
+            // Negative
+            this.elements.chaosBar.setOrigin(1, 0.5);
+            this.elements.chaosBar.x = 73; // Right side of container
+        }
+        
+        // Update color gradient based on polarity
+        let rgbColor;
+        if (polarity > 0) {
+            // Positive chaos (red)
+            const intensity = Math.min(255, Math.round(255 * (absoluteValue / 100)));
+            rgbColor = Phaser.Display.Color.GetColor(intensity, 50, 50);
+        } else if (polarity < 0) {
+            // Negative chaos (blue)
+            const intensity = Math.min(255, Math.round(255 * (absoluteValue / 100)));
+            rgbColor = Phaser.Display.Color.GetColor(50, 50, intensity);
+        } else {
+            // Neutral (green)
+            rgbColor = Phaser.Display.Color.GetColor(50, 150, 50);
+        }
+        this.elements.chaosBar.fillColor = rgbColor;
+        
+        // Update percentage text with sign
+        const chaosPercentage = this.scene.chaosManager.getChaosPercentage();
+        this.elements.chaosText.setText(`CHAOS: ${chaosPercentage}`);
+    }
+    
+    /**
      * Update debug information display
      */
     updateDebugInfo() {
@@ -712,6 +874,20 @@ export class UIManager {
         // Kill count
         debugText += `Kills: ${scene.killCount}\n`;
         
+        // Add group counts if available
+        if (scene.groupManager) {
+            const counts = scene.groupManager.getAllGroupCounts();
+            debugText += `Groups: AI=${counts[GroupId.AI] || 0}, `;
+            debugText += `CODER=${counts[GroupId.CODER] || 0}, `;
+            debugText += `NEUTRAL=${counts[GroupId.NEUTRAL] || 0}\n`;
+        }
+        
+        // Add chaos level if available
+        if (scene.chaosManager) {
+            const chaosValue = Math.round(scene.chaosManager.getChaos());
+            debugText += `Chaos: ${chaosValue}%\n`;
+        }
+        
         // Update the debug text
         this.elements.debugText.setText(debugText);
     }
@@ -737,5 +913,16 @@ export class UIManager {
             //const maxHealth = this.scene.playerHealth.getMaxHealth();
             //this.updateHealthUI(health, maxHealth);
         }
+
+        // Update debug info if enabled
+        if (this.options.showDebug && this.elements.debugText) {
+            this.updateDebugInfo();
+        }
+        
+        // Update group display
+        this.updateGroupDisplay();
+        
+        // Update chaos meter
+        this.updateChaosMeter();
     }
 }

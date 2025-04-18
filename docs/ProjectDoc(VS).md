@@ -14,6 +14,7 @@
 - [Wave-Based Game Mode](#wave-based-game-mode)
 - [Mapping System](#mapping-system)
 - [Enemy Registry System](#enemy-registry-system)
+- [Enemy Grouping & Chaos System](#enemy-grouping--chaos-system)
 - [Development Guidelines](#development-guidelines)
 - [Asset Management](#asset-management)
 - [Troubleshooting](#troubleshooting)
@@ -240,6 +241,48 @@ playWeaponSound() {
     }
 }
 ```
+
+---
+
+### BaseEnemy Class
+
+The base class for all enemy types in the game.
+
+```javascript
+class BaseEnemy {
+  constructor(scene, x, y, fromPool);
+  reset(x, y, options);                // Reset enemy for reuse from the pool
+  initProperties();                    // Initialize enemy properties (override in subclasses)
+  createVisuals(x, y);                 // Create visual representation
+  setGroup(groupId);                   // Set enemy's group and apply modifiers
+  setNeutral();                        // Convert enemy to neutral group, disabling AI and collisions
+  update();                            // Update enemy position and behavior each frame
+  moveTowardsPlayer(playerPos);        // Move the enemy towards the player
+  takeDamage(damage);                  // Apply damage to the enemy
+  die();                               // Handle enemy death
+  
+  // Player Collision Handling
+  checkPlayerCollision(playerPos);     // Check for collisions with player and apply damage
+                                       // Compatible with various health system implementations:
+                                       // - scene.playerHealth.takeDamage()
+                                       // - player.healthSystem.takeDamage()
+                                       // - player.takeDamage()
+  
+  getScoreValue();                     // Get the score value for this enemy
+  getType();                           // Get the enemy type
+  getGroup();                          // Get the enemy group
+  isBossEnemy();                       // Check if this is a boss enemy
+}
+```
+
+BaseEnemy provides shared functionality for all enemy types, including:
+
+- Health management
+- Movement toward player
+- Group assignment and modifiers
+- Health bar display
+- Player collision detection and damage application
+- Death handling and event emission
 
 ---
 
@@ -1417,6 +1460,137 @@ this.enemyManager.spawnEnemy('new_enemy', enemyPosition.x, enemyPosition.y);
 4. **Documentation**: Self-documenting system for enemy types
 5. **Extensibility**: Simple process for adding new enemy types
 6. **Integration**: Works seamlessly with the object pooling system
+
+---
+
+## Enemy Grouping & Chaos System
+
+The Enemy Grouping system organizes enemies into logical factions with different behaviors and statistics, while the Chaos system provides a global game state that affects gameplay dynamics.
+
+### GroupManager Class (`managers/GroupManager.js`)
+
+Manages enemy groups, tracking counts and applying modifiers based on faction.
+
+#### Properties
+- `scene` - Reference to the Phaser scene
+- `counts` - Object tracking enemy counts by group
+- `enemiesByGroup` - Object containing arrays of enemies by group
+- `modifiers` - Group-specific stat modifiers
+
+#### Methods
+- `constructor(scene)` - Initializes the group manager for a scene
+- `register(enemy, groupId)` - Register an enemy with a specific group
+- `deregister(enemy, groupId)` - Deregister an enemy from its group
+- `getGroupCount(groupId)` - Get count of enemies in a specific group
+- `getAllGroupCounts()` - Get all group counts
+- `applyModifiers(enemy, groupId)` - Apply group-specific modifiers to an enemy
+- `getNextSpawnGroup()` - Get the next group that should spawn (maintains balance)
+- `getTotalCount()` - Get total count of all enemies across groups
+- `getGroupPercentage(groupId)` - Get percentage of enemies in a specific group
+- `getGroupColor(groupId)` - Get color associated with a group
+
+#### Group Types (GroupId Enum)
+- `AI` - Artificial Intelligence faction (red)
+- `CODER` - Programmer faction (blue)
+- `NEUTRAL` - Neutralized enemies (green)
+
+#### Usage Example
+```javascript
+// Register an enemy with the AI group
+this.scene.groupManager.register(enemy, GroupId.AI);
+
+// Get the next group to spawn (for balanced spawning)
+const nextGroup = this.scene.groupManager.getNextSpawnGroup();
+
+// Apply group modifiers to an enemy
+const modifiers = this.scene.groupManager.applyModifiers(enemy, GroupId.CODER);
+```
+
+### ChaosManager Class (`managers/ChaosManager.js`)
+
+Manages a global chaos value that affects gameplay and represents the balance between factions.
+
+#### Properties
+- `scene` - Reference to the Phaser scene
+- `chaos` - Current chaos value (-100 to 100)
+- `defaultChaos` - Starting chaos value
+- `autoAdjust` - Whether chaos auto-adjusts based on group balance
+- `options` - Configuration options
+
+#### Methods
+- `constructor(scene, options)` - Creates a new chaos manager
+- `getChaos()` - Get current chaos value (-100 to 100)
+- `getNormalizedChaos()` - Get normalized chaos value (0-1)
+- `getPolarity()` - Get chaos polarity (-1, 0, or 1)
+- `getAbsoluteChaos()` - Get absolute chaos value (0-100)
+- `getChaosPercentage()` - Get chaos as percentage with sign (+/-%)
+- `setChaos(value, emitEvent)` - Set chaos to specific value
+- `adjustChaos(amount, emitEvent)` - Adjust chaos by relative amount
+- `setAutoAdjust(enabled)` - Enable/disable auto-adjustment of chaos
+- `update(time, delta)` - Update chaos based on group balance
+- `reset()` - Reset chaos to default value
+
+#### Usage Example
+```javascript
+// Get current chaos value
+const chaosValue = this.scene.chaosManager.getChaos();
+
+// Adjust chaos when an AI enemy is defeated
+this.scene.chaosManager.adjustChaos(-5);
+
+// Check if chaos is heavily favoring CODER faction
+if (this.scene.chaosManager.getPolarity() < -0.5) {
+    // Spawn more AI enemies to balance
+}
+```
+
+### BaseEnemy Integration
+
+The `BaseEnemy` class has been updated with group-related properties and methods:
+
+#### New Properties
+- `groupId` - Current group ID (AI, CODER, or NEUTRAL)
+- `_targetingDisabled` - Whether AI targeting is disabled
+- `_collisionDisabled` - Whether player collision is disabled
+
+#### New Methods
+- `setGroup(groupId)` - Set enemy's group and apply modifiers
+- `getGroup()` - Get enemy's current group
+- `setNeutral()` - Set enemy to neutral group and modify behavior
+
+#### Neutralization System
+
+The `setNeutral()` method provides a complete neutralization API:
+- Sets enemy to the NEUTRAL group
+- Disables AI targeting of the player
+- Disables collision with the player
+- Applies visual indicator (transparency)
+- Emits event for other systems to react
+
+### Game Flow Integration
+
+The grouping and chaos systems integrate with other game systems:
+
+1. **Enemy Creation**: When an enemy is created, it's assigned to either AI or CODER group
+2. **Wave Spawning**: The `WaveManager` uses `GroupManager.getNextSpawnGroup()` to maintain balance
+3. **Enemy Death**: When an enemy dies, chaos is adjusted based on its group
+4. **UI Display**: Group counts and chaos level are displayed in the game UI
+5. **Game Balance**: Chaos affects gameplay mechanics like enemy speed, damage, and spawn rates
+
+### Chaos Effects on Gameplay
+
+The chaos value affects various gameplay elements:
+
+1. **Enemy Stats**: Enemies get stat bonuses based on chaos polarity
+2. **Spawn Rates**: Higher chaos values increase spawn rates for the dominant faction
+3. **Player Effects**: Extreme chaos values can affect player movement and weapon effectiveness
+4. **Visual Feedback**: UI elements change color based on chaos polarity
+5. **Special Events**: Extreme chaos can trigger special events or enemy behaviors
+
+The UI displays chaos polarity using color-coding:
+- Positive values: Red (increasing intensity with value)
+- Negative values: Blue (increasing intensity with absolute value)
+- Zero: Green (neutral)
 
 ---
 

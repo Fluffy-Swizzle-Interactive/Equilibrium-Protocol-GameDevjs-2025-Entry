@@ -1,4 +1,5 @@
-import { DEPTHS } from '../constants';
+import { DEPTHS, GroupId } from '../constants';
+import { EventBus } from '../EventBus';
 
 /**
  * Base class for all enemy types in the game
@@ -17,6 +18,10 @@ export class BaseEnemy {
         this.active = true;
         this.type = 'base'; // Base type identifier
         this.hasHealthBar = false; // Whether this enemy has a health bar
+        
+        // Initialize group properties
+        this.groupId = null; // Will be set when registered with GroupManager
+        this._originalStats = null; // Will store original stats when group modifiers are applied
         
         // Initialize enemy properties
         this.initProperties();
@@ -48,6 +53,10 @@ export class BaseEnemy {
         // Set active state
         this.active = true;
         
+        // Reset group and original stats
+        this.groupId = null;
+        this._originalStats = null;
+        
         // Apply options if needed
         this.applyOptions(options);
         
@@ -77,6 +86,11 @@ export class BaseEnemy {
         if (this.hasHealthBar) {
             this.cleanupHealthBar();
             this.createHealthBar();
+        }
+        
+        // Set group if provided in options
+        if (options.groupId) {
+            this.setGroup(options.groupId);
         }
     }
     
@@ -113,6 +127,73 @@ export class BaseEnemy {
         
         // Set consistent depth to ensure proper layering
         this.graphics.setDepth(DEPTHS.ENEMIES);
+    }
+    
+    /**
+     * Set the enemy's group and apply appropriate modifiers
+     * @param {string} groupId - The group ID from GroupId enum
+     * @returns {boolean} Whether the group was successfully set
+     */
+    setGroup(groupId) {
+        // Skip if this enemy already belongs to this group
+        if (this.groupId === groupId) {
+            return false;
+        }
+        
+        const oldGroupId = this.groupId;
+        this.groupId = groupId;
+        
+        // Register with GroupManager if it exists
+        if (this.scene.groupManager) {
+            this.scene.groupManager.register(this, groupId);
+        }
+        
+        // Emit group changed event
+        EventBus.emit('enemy-group-changed', {
+            enemy: this,
+            oldGroupId: oldGroupId,
+            newGroupId: groupId
+        });
+        
+        return true;
+    }
+    
+    /**
+     * Set enemy to neutral group and modify behavior
+     * This completely neutralizes the enemy by:
+     * - Setting it to the NEUTRAL group
+     * - Disabling AI targeting of the player
+     * - Disabling collision with the player
+     * @returns {boolean} Whether the enemy was successfully neutralized
+     */
+    setNeutral() {
+        // Set enemy to neutral group
+        const success = this.setGroup(GroupId.NEUTRAL);
+        
+        // Additional neutralization behavior
+        if (success) {
+            // Disable AI targeting
+            this._targetingDisabled = true;
+            
+            // Disable player collision
+            this._collisionDisabled = true;
+            
+            // Apply visual indicator of neutral state (slightly transparent)
+            if (this.graphics) {
+                this.graphics.setAlpha(0.7);
+            }
+            
+            // Emit neutralized event for game systems to react
+            EventBus.emit('enemy-neutralized', {
+                enemy: this,
+                position: {
+                    x: this.graphics ? this.graphics.x : 0,
+                    y: this.graphics ? this.graphics.y : 0
+                }
+            });
+        }
+        
+        return success;
     }
     
     /**
@@ -204,6 +285,9 @@ export class BaseEnemy {
      * @param {Object} playerPos - The player's position {x, y}
      */
     moveTowardsPlayer(playerPos) {
+        // Skip if targeting is disabled (neutralized enemy)
+        if (this._targetingDisabled) return;
+        
         // Calculate direction to player
         const dx = playerPos.x - this.graphics.x;
         const dy = playerPos.y - this.graphics.y;
@@ -227,16 +311,33 @@ export class BaseEnemy {
      * @param {Object} playerPos - The player's position {x, y}
      */
     checkPlayerCollision(playerPos) {
+        // Skip if collision is disabled (neutralized enemy)
+        if (this._collisionDisabled) return;
+        
         const playerDistance = Phaser.Math.Distance.Between(
             this.graphics.x, this.graphics.y,
             playerPos.x, playerPos.y
         );
         
-        // If enemy touches player (sum of radii), player dies
+        // If enemy touches player (sum of radii), apply damage
         const playerRadius = this.scene.player.radius;
-  //      if (playerDistance < (this.size/2 + playerRadius)) {
-   //         this.scene.playerDeath();
-  //      }
+        if (playerDistance < (this.size/2 + playerRadius)) {
+            // Apply damage using health system if available
+            if (this.scene.playerHealth) {
+                // Scene has centralized health system (typically in WaveGame)
+                this.scene.playerHealth.takeDamage(this.damage);
+            } else if (this.scene.player.healthSystem) {
+                // Player has attached health system
+                this.scene.player.healthSystem.takeDamage(this.damage);
+            } else if (this.scene.player.takeDamage) {
+                // Player has own damage method
+                this.scene.player.takeDamage(this.damage);
+            } else {
+                // Fallback to original behavior if no health system is found
+                console.warn('No player health system found in BaseEnemy collision, falling back to direct death');
+                this.scene.playerDeath();
+            }
+        }
     }
     
     /**
@@ -274,6 +375,11 @@ export class BaseEnemy {
         
         // Make inactive
         this.active = false;
+        
+        // Deregister from GroupManager if needed
+        if (this.scene.groupManager && this.groupId) {
+            this.scene.groupManager.deregister(this, this.groupId);
+        }
         
         // Determine if this is a boss enemy
         const isBoss = this.isBossEnemy();
@@ -316,6 +422,14 @@ export class BaseEnemy {
      */
     getType() {
         return this.type;
+    }
+    
+    /**
+     * Get the enemy group
+     * @returns {string|null} The enemy group ID
+     */
+    getGroup() {
+        return this.groupId;
     }
     
     /**
