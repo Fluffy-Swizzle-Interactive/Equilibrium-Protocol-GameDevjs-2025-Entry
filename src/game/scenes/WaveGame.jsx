@@ -12,6 +12,7 @@ import { UIManager } from '../managers/UIManager';
 import { PlayerHealth } from '../entities/PlayerHealth';
 import { GroupManager } from '../managers/GroupManager';
 import { ChaosManager } from '../managers/ChaosManager';
+import { XPManager } from '../managers/XPManager';
 import { DEPTHS, CHAOS } from '../constants';
 
 /**
@@ -41,6 +42,9 @@ export class WaveGame extends Scene {
         this.gridCache = new Map(); // Cache grid calculations
         this.lastGridUpdate = 0; // Time of last grid update
         this.gridUpdateInterval = 100; // ms between grid updates
+        
+        // XP multiplier for scaling XP drops
+        this.xpMultiplier = 1.0;
     }
 
     init(data) {
@@ -146,6 +150,12 @@ export class WaveGame extends Scene {
             maxSize: 500,
             growSize: 5
         });
+
+        // Initialize SpritePool for XP pickups if not already created
+        if (!this.spritePool) {
+            // Access the spritePool from the GameObjectManager
+            this.spritePool = this.gameObjectManager.spritePool;
+        }
     }
     
     /**
@@ -174,6 +184,22 @@ export class WaveGame extends Scene {
         this.uiManager = new UIManager(this);
         this.uiManager.init({
             showDebug: this.isDev // Only show debug info in development mode
+        });
+
+        // Initialize XP Manager
+        this.xpManager = new XPManager(this);
+        
+        // Subscribe to XP events to update UI
+        EventBus.on('xp-updated', (data) => {
+            if (this.uiManager) {
+                this.uiManager.updateXPUI(data);
+            }
+        });
+        
+        EventBus.on('level-up', (data) => {
+            if (this.uiManager) {
+                this.uiManager.showLevelUpAnimation(data.level);
+            }
         });
     }
 
@@ -661,12 +687,12 @@ export class WaveGame extends Scene {
                 
                 // Apply knockback
                 const knockbackDistance = 30;
-                const knockbackX = Math.cos(angle) * knockbackDistance;
-                const knockbackY = Math.sin(angle) * knockbackDistance;
+                const knockbackX = Math.cos(angle) * 0.2 * knockbackDistance;
+                const knockbackY = Math.sin(angle) * 0.2 * knockbackDistance;
                 
                 // Set player velocity
-                this.player.velX = knockbackX * 0.2;
-                this.player.velY = knockbackY * 0.2;
+                this.player.velX = knockbackX;
+                this.player.velY = knockbackY;
                 
                 break; // Process only one collision per frame
             }
@@ -737,8 +763,12 @@ export class WaveGame extends Scene {
     /**
      * Method called when an enemy is killed
      * @param {boolean} isBoss - Whether the killed enemy was a boss
+     * @param {number} x - X position of the killed enemy
+     * @param {number} y - Y position of the killed enemy
+     * @param {string} enemyType - Type of enemy killed
+     * @param {object} enemy - Reference to the enemy object
      */
-    onEnemyKilled(isBoss, x, y, enemyType) {
+    onEnemyKilled(isBoss, x, y, enemyType, enemy) {
         // Increment total kill count
         this.killCount++;
         
@@ -750,6 +780,28 @@ export class WaveGame extends Scene {
         // Create death effect at enemy position
         if (x !== undefined && y !== undefined) {
             this.createEnemyDeathEffect(x, y);
+            
+            // Award XP directly based on enemy score value instead of spawning pickups
+            if (this.xpManager && enemy && enemy.scoreValue) {
+                // Calculate XP value based on enemy type and score
+                const xpValue = enemy.scoreValue * this.xpMultiplier;
+                
+                // Award XP directly to the player
+                this.xpManager.addXP(xpValue);
+                
+                // Play XP gain sound effect
+                if (this.soundManager) {
+                    // Use existing sound with different parameters for XP collection
+                    const soundKey = this.soundManager.hasSound('xp_collect') 
+                        ? 'xp_collect' 
+                        : 'shoot_minigun'; // Fallback to an existing sound
+                    
+                    this.soundManager.playSoundEffect(soundKey, {
+                        detune: 1200, // Higher pitch for XP collection
+                        volume: 0.3
+                    });
+                }
+            }
         }
         
         if (isBoss) {
@@ -759,6 +811,13 @@ export class WaveGame extends Scene {
             // Create special effects for boss death
             if (x !== undefined && y !== undefined) {
                 this.createBossDeathEffect(x, y);
+                
+                // Award bonus XP for boss kills
+                if (this.xpManager && enemy && enemy.scoreValue) {
+                    // Bosses give extra XP as a bonus
+                    const bonusXP = enemy.scoreValue * 0.8 * this.xpMultiplier;
+                    this.xpManager.addXP(bonusXP);
+                }
             }
         } else {
             // If a regular enemy was killed, increment the regular kill counter

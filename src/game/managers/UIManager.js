@@ -44,6 +44,9 @@ export class UIManager {
         // Create health UI
         this.createHealthUI();
         
+        // Create XP UI
+        this.createXPUI();
+        
         // Create wave banner
         this.createWaveBanner();
         
@@ -134,6 +137,59 @@ export class UIManager {
         this.elements.container.add(this.elements.healthBackground);
         this.elements.container.add(this.elements.healthBar);
         this.elements.container.add(this.elements.healthText);
+    }
+    
+    /**
+     * Create XP bar and level display
+     */
+    createXPUI() {
+        const width = this.scene.cameras.main.width;
+        const height = this.scene.cameras.main.height;
+        
+        // Create XP background at bottom of screen - moved closer to bottom (height - 12 instead of height - 20)
+        // and made taller (24px instead of 16px)
+        this.elements.xpBackground = this.scene.add.rectangle(
+            width / 2, height - 12, width - 40, 24,
+            0x000000, 0.7
+        ).setOrigin(0.5, 0.5).setScrollFactor(0).setDepth(100);
+        
+        // Create XP bar - made taller (16px instead of 8px) and moved closer to bottom
+        this.elements.xpBar = this.scene.add.rectangle(
+            20, height - 12, 0, 16,
+            0x00ff99, 1
+        ).setOrigin(0, 0.5).setScrollFactor(0).setDepth(101);
+        
+        // Create level display circle - adjusted position to match new bar position
+        this.elements.levelCircle = this.scene.add.circle(
+            25, height - 40, 20,
+            0x000000, 0.8
+        ).setScrollFactor(0).setDepth(101);
+        
+        this.elements.levelBorder = this.scene.add.circle(
+            25, height - 40, 20
+        ).setScrollFactor(0).setDepth(102)
+        .setStrokeStyle(2, 0x00ff99);
+        
+        // Create level text - adjusted position to match new circle position
+        this.elements.levelText = this.scene.add.text(
+            25, height - 40, '1',
+            { fontFamily: 'Arial', fontSize: 18, color: '#ffffff' }
+        ).setOrigin(0.5, 0.5).setScrollFactor(0).setDepth(103);
+        
+        // Create XP text showing progress - increased font size from 12 to 14
+        // and adjusted position to match new bar position
+        this.elements.xpText = this.scene.add.text(
+            width / 2, height - 12, '0/100 XP',
+            { fontFamily: 'Arial', fontSize: 14, color: '#ffffff', stroke: '#000000', strokeThickness: 2 }
+        ).setOrigin(0.5, 0.5).setScrollFactor(0).setDepth(102);
+        
+        // Add to container
+        this.elements.container.add(this.elements.xpBackground);
+        this.elements.container.add(this.elements.xpBar);
+        this.elements.container.add(this.elements.levelCircle);
+        this.elements.container.add(this.elements.levelBorder);
+        this.elements.container.add(this.elements.levelText);
+        this.elements.container.add(this.elements.xpText);
     }
     
     /**
@@ -496,6 +552,116 @@ export class UIManager {
         } else {
             this.elements.healthBar.setFillStyle(0x00ff00); // Green
         }
+    }
+    
+    /**
+     * Update XP UI with current XP and level data
+     * @param {Object} data - XP data object containing level, xp, and xpToNext values
+     */
+    updateXPUI(data) {
+        if (!this.elements.xpBar || !this.elements.levelText || !this.elements.xpText) return;
+        
+        const { level, xp, xpToNext } = data;
+        
+        // Update level text
+        this.elements.levelText.setText(level.toString());
+        
+        // Update XP bar width
+        const maxWidth = this.scene.cameras.main.width - 40;
+        const progress = (xp / xpToNext) || 0;
+        this.elements.xpBar.width = Math.max(0, maxWidth * progress);
+        
+        // Update XP text
+        this.elements.xpText.setText(`${xp}/${xpToNext} XP`);
+        
+        // Add a pulse effect to the XP bar when it changes
+        this.scene.tweens.add({
+            targets: this.elements.xpBar,
+            scaleY: { from: 1.5, to: 1 },
+            duration: 200,
+            ease: 'Power2'
+        });
+    }
+    
+    /**
+     * Display level up animation
+     * @param {number} level - New level reached
+     */
+    showLevelUpAnimation(level) {
+        const width = this.scene.cameras.main.width;
+        const height = this.scene.cameras.main.height;
+        
+        // Create level up text
+        const levelUpText = this.scene.add.text(
+            width / 2, height / 2, `LEVEL UP!\nLevel ${level}`,
+            { 
+                fontFamily: 'Arial', 
+                fontSize: 48, 
+                color: '#00ff99',
+                align: 'center',
+                stroke: '#000000',
+                strokeThickness: 4
+            }
+        ).setOrigin(0.5).setScrollFactor(0).setDepth(150).setAlpha(0);
+        
+        // Create particles for level up effect
+        const particles = this.scene.add.particles(width / 2, height / 2, 'particle_texture', {
+            speed: { min: 100, max: 200 },
+            scale: { start: 0.5, end: 0 },
+            alpha: { start: 1, end: 0 },
+            lifespan: 1000,
+            blendMode: 'ADD',
+            quantity: 30,
+            tint: 0x00ff99,
+            angle: { min: 0, max: 360 }
+        });
+        
+        particles.setDepth(149);
+        
+        // Play sound effect if available
+        if (this.scene.soundManager) {
+            // Use existing sound with different parameters for level up
+            this.scene.soundManager.playSoundEffect('shoot_minigun', {
+                detune: 1200, // Higher pitch
+                volume: 0.6,
+                rate: 0.5 // Slower rate
+            });
+        }
+        
+        // Animate level up text
+        this.scene.tweens.add({
+            targets: levelUpText,
+            alpha: { from: 0, to: 1 },
+            scale: { from: 2, to: 1 },
+            duration: 500,
+            ease: 'Back.easeOut',
+            onComplete: () => {
+                // Add short pause before fading out
+                this.scene.time.delayedCall(1000, () => {
+                    // Fade out text
+                    this.scene.tweens.add({
+                        targets: levelUpText,
+                        alpha: 0,
+                        y: height * 0.4,
+                        duration: 500,
+                        ease: 'Power2',
+                        onComplete: () => {
+                            levelUpText.destroy();
+                            particles.destroy();
+                        }
+                    });
+                });
+            }
+        });
+        
+        // Pulse the level indicator
+        this.scene.tweens.add({
+            targets: [this.elements.levelCircle, this.elements.levelBorder],
+            scale: { from: 1.5, to: 1 },
+            duration: 500,
+            ease: 'Bounce.easeOut',
+            yoyo: true
+        });
     }
     
     /**
@@ -909,9 +1075,12 @@ export class UIManager {
     update() {
         // Update player health if health system exists
         if (this.scene.playerHealth) {
-           // const health = this.scene.playerHealth.getCurrentHealth();
-            //const maxHealth = this.scene.playerHealth.getMaxHealth();
-            //this.updateHealthUI(health, maxHealth);
+           // The PlayerHealth class doesn't have getCurrentHealth(), it directly uses currentHealth
+           // and has getHealthPercent() method
+           const healthPercent = this.scene.playerHealth.getHealthPercent() * 100;
+           const maxHealth = this.scene.playerHealth.maxHealth;
+           const currentHealth = this.scene.playerHealth.currentHealth;
+           this.updateHealthUI(currentHealth, maxHealth);
         }
 
         // Update debug info if enabled
