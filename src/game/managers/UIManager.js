@@ -690,7 +690,7 @@ export class UIManager {
         // Make the level progress arc flash briefly
         if (this.elements.levelArc) {
             // Save the original level arc properties
-            const originalArc = this.elements.levelArc.clear();
+            this.elements.levelArc.clear();
             
             // Create a full circle flash effect
             this.elements.levelArc.lineStyle(4, 0xffffff, 1);
