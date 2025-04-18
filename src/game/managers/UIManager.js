@@ -636,14 +636,21 @@ export class UIManager {
             });
         }
         
-        // Play sound effect if available
+        // Play level up sound effect if available
         if (this.scene.soundManager) {
-            // Use existing sound with different parameters for level up
-            this.scene.soundManager.playSoundEffect('shoot_minigun', {
-                detune: 1200, // Higher pitch
-                volume: 0.6,
-                rate: 0.5 // Slower rate
-            });
+            // Use the dedicated levelUp sound effect
+            if (this.scene.soundManager.hasSound('levelUp')) {
+                this.scene.soundManager.playSoundEffect('levelUp', {
+                    volume: 0.7
+                });
+            } else {
+                // Fall back to modified weapon sound if levelUp sound is not available
+                this.scene.soundManager.playSoundEffect('shoot_minigun', {
+                    detune: 1200, // Higher pitch
+                    volume: 0.6,
+                    rate: 0.5 // Slower rate
+                });
+            }
         }
         
         // Animate level up text

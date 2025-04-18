@@ -108,6 +108,11 @@ export class WaveGame extends Scene {
             rate: 0.9
         });
         
+        this.soundManager.initSoundEffect('levelUp', {
+            volume: 0.7,
+            rate: 1.0
+        });
+        
         // Try to unlock audio context as early as possible
         if (this.sound.locked) {
             console.debug('Audio system is locked. Attempting to unlock...');
