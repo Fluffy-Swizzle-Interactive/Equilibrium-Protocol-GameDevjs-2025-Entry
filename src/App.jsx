@@ -1,24 +1,43 @@
-import { useRef } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { PhaserGame } from './game/PhaserGame';
 import { DebugPanel } from './game/debug/DebugPanel';
+import { EventBus } from './game/EventBus';
 
 function App() {
-    //  Reference to the PhaserGame component (game and scene are exposed)
+    // Reference to the PhaserGame component (game and scene are exposed)
     const phaserRef = useRef();
+    
+    // Only show debug panel and control buttons in development mode
+    const isDev = import.meta.env.DEV;
+
+    // Listen for scene changes
+    useEffect(() => {
+        const handleSceneReady = (scene) => {
+            console.log(`Scene ready: ${scene ? scene.key : 'unknown'}`);
+        };
+        
+        // Subscribe to scene ready event
+        EventBus.on('current-scene-ready', handleSceneReady);
+        
+        // Cleanup on unmount
+        return () => {
+            EventBus.off('current-scene-ready', handleSceneReady);
+        };
+    }, []);
 
     const changeScene = () => {
         const scene = phaserRef.current.scene;
         if (scene) {
             scene.changeScene();
         }
-    }
-
-    // Only show debug panel and control buttons in development mode
-    const isDev = import.meta.env.DEV;
+    };
 
     return (
         <div id="app">
-            <PhaserGame ref={phaserRef} />
+            <div style={{ position: 'relative' }}>
+                <PhaserGame ref={phaserRef} />
+            </div>
+            
             {isDev && (
                 <div style={{
                     display: 'flex',
@@ -34,7 +53,8 @@ function App() {
                 </div>
             )}
         </div>
-    )
+    );
 }
 
-export default App
+export default App;
+
