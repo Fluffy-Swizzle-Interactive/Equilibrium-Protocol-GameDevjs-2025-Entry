@@ -163,6 +163,12 @@ export class WaveManager {
         // Determine enemy type based on wave number
         const enemyType = this.getEnemyTypeForWave();
         
+        // Determine which group this enemy should be from (using GroupManager)
+        let groupId = null;
+        if (this.scene.groupManager) {
+            groupId = this.scene.groupManager.getNextSpawnGroup();
+        }
+        
         // Determine spawn location
         const mapDimensions = this.scene.mapDimensions;
         if (!mapDimensions) return;
@@ -170,10 +176,17 @@ export class WaveManager {
         // Calculate spawn position (off-screen)
         const spawnPosition = this.getRandomSpawnPosition(mapDimensions);
         
-        // Spawn enemy using scene's enemy manager
+        // Spawn enemy using scene's enemy manager with group assignment
         if (this.scene.enemyManager) {
-            // Fix: changed order of parameters to match EnemyManager.spawnEnemy signature
-            const enemy = this.scene.enemyManager.spawnEnemy(enemyType, spawnPosition.x, spawnPosition.y);
+            const enemyOptions = groupId ? { groupId } : {};
+            
+            // Spawn the enemy with the determined group
+            const enemy = this.scene.enemyManager.spawnEnemy(
+                enemyType, 
+                spawnPosition.x, 
+                spawnPosition.y, 
+                enemyOptions
+            );
             
             // If enemy spawned successfully, increase counters
             if (enemy) {
@@ -184,7 +197,7 @@ export class WaveManager {
             // Occasionally spawn enemies in groups (higher chance in later waves)
             if (Math.random() < 0.05 + (this.currentWave / 100)) {
                 const groupSize = Math.min(3 + Math.floor(this.currentWave / 10), 8);
-                this.spawnEnemyGroup(spawnPosition.x, spawnPosition.y, groupSize, enemyType);
+                this.spawnEnemyGroup(spawnPosition.x, spawnPosition.y, groupSize, enemyType, groupId);
             }
         }
         
@@ -200,13 +213,16 @@ export class WaveManager {
      * @param {number} y - Y coordinate
      * @param {number} groupSize - Number of enemies in the group
      * @param {string} enemyType - Type of enemies to spawn
+     * @param {string} groupId - Optional group ID to assign to enemies
      */
-    spawnEnemyGroup(x, y, groupSize, enemyType) {
+    spawnEnemyGroup(x, y, groupSize, enemyType, groupId = null) {
         if (!this.scene.enemyManager) return;
         
         const spreadRadius = 100;
+        const enemyOptions = groupId ? { groupId } : {};
+        
         const enemies = this.scene.enemyManager.spawnEnemyGroup(
-            enemyType, x, y, groupSize, spreadRadius
+            enemyType, x, y, groupSize, spreadRadius, enemyOptions
         );
         
         // Update counters for each successfully spawned enemy
@@ -240,7 +256,7 @@ export class WaveManager {
         
         // Spawn boss using scene's enemy manager
         if (this.scene.enemyManager) {
-            // Fix: changed order of parameters to match EnemyManager.spawnEnemy signature
+            // Bosses don't get assigned to a group as they're special enemies
             const boss = this.scene.enemyManager.spawnEnemy(bossType, x, y);
             
             if (boss) {
@@ -538,6 +554,11 @@ export class WaveManager {
         if (this.spawnTimer) {
             this.spawnTimer.destroy();
             this.spawnTimer = null;
+        }
+        
+        // Reset GroupManager counts if it exists
+        if (this.scene.groupManager) {
+            this.scene.groupManager.reset();
         }
         
         // Update UI with initial wave information

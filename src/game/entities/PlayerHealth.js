@@ -152,7 +152,7 @@ export class PlayerHealth {
                     speed: { min: 100, max: 300 },
                     scale: { start: 0.4, end: 0 },
                     alpha: { start: 1, end: 0 },
-                    lifespan: 800,
+                    lifespan: 600,
                     blendMode: 'ADD',
                     quantity: 30,
                     angle: { min: 0, max: 360 }

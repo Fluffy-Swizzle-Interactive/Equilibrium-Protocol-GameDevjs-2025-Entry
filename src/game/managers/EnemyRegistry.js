@@ -3,6 +3,7 @@ import { Enemy1 } from '../entities/Enemy1';
 import { Enemy2 } from '../entities/Enemy2';
 import { Enemy3 } from '../entities/Enemy3';
 import { Boss1 } from '../entities/Boss1';
+import { GroupId } from '../constants';
 
 /**
  * EnemyRegistry - Centralized registry for all enemy types
@@ -168,6 +169,13 @@ export class EnemyRegistry {
         // Apply configuration overrides if needed
         if (Object.keys(overrideConfig).length > 0) {
             Object.assign(enemy, overrideConfig);
+        }
+        
+        // Assign enemy to a group if GroupManager exists
+        // If no group is specified, get the next group from the GroupManager
+        if (this.scene.groupManager) {
+            const groupId = overrideConfig.groupId || this.scene.groupManager.getNextSpawnGroup();
+            enemy.setGroup(groupId);
         }
         
         return enemy;
