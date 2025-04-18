@@ -395,6 +395,45 @@ React component displaying real-time game metrics for development.
 - Game mode
 - Survival time
 
+### `UIManager.js` - Phaser UI Manager
+
+The `UIManager` class manages all game UI components in Phaser, including:
+
+#### ChaosMeter UI Component
+
+A bi-directional meter implemented natively in Phaser that displays the balance between AI and Coder factions.
+
+- **Location**: Top center of screen, replacing the previous faction counter
+- **Visual Elements**:
+  - Background bar with central marker
+  - AI side (left/blue) - grows with negative chaos values
+  - Coder side (right/red) - grows with positive chaos values
+  - Numerical display showing current chaos value
+  - Faction count display below meter
+
+#### ChaosMeter Interaction Methods
+
+- `setupGroupDisplay()` - Creates and configures the ChaosMeter UI components
+- `updateChaosMeter()` - Updates the meter based on current chaos value
+- `handleChaosChanged(data)` - Handler for chaos-changed events
+- `handleMajorChaosEvent(data)` - Handler for major chaos events
+- `flashChaosMeter()` - Creates a visual flashing effect when significant chaos events occur
+- `createChaosParticleEffect(factionId)` - Generates particle effects for major chaos events
+- `updateGroupCountText()` - Updates faction count display beneath meter
+
+#### Visual Effects
+
+- Bar segments dynamically resize based on chaos level
+- Color coding: blue for AI, red for Coders
+- Flashing effect when passing major thresholds
+- Particle burst and screen shake on major chaos events
+
+#### Integration Points
+
+- Connects directly to ChaosManager via EventBus
+- Updates automatically in the game update loop
+- Displays both chaos level and faction counts in one UI element
+
 ---
 
 ## Sound System
