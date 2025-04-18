@@ -765,10 +765,53 @@ export class WaveGame extends Scene {
             this.regularKillCount++;
         }
         
+        // IMPORTANT: Register kill with ChaosManager
+        if (this.chaosManager) {
+            // Look up the enemy by position in the enemy manager, since we might not have the actual enemy object
+            const deadEnemy = this.findEnemyByPosition(x, y, enemyType);
+            
+            if (deadEnemy && deadEnemy.groupId) {
+                // If we found a reference to the enemy and it has a group, register the kill with that group
+                this.chaosManager.registerKill(deadEnemy.groupId);
+            } else {
+                // Fallback: Assign a random faction for the kill if we can't find the enemy
+                const randomGroup = Math.random() > 0.5 ? 'ai' : 'coder';
+                this.chaosManager.registerKill(randomGroup);
+            }
+        }
+        
         // IMPORTANT: Notify the WaveManager about the killed enemy
         if (this.waveManager) {
             this.waveManager.onEnemyKilled(isBoss, enemyType);
         }
+    }
+    
+    /**
+     * Find an enemy in the enemy list by approximate position
+     * Used when we only have position data but need the enemy reference
+     * @private
+     * @param {number} x - X position
+     * @param {number} y - Y position
+     * @param {string} enemyType - Type of enemy
+     * @returns {BaseEnemy|null} The enemy at that position, or null if not found
+     */
+    findEnemyByPosition(x, y, enemyType) {
+        if (!this.enemyManager || !this.enemyManager.enemies) {
+            return null;
+        }
+        
+        // Search for enemies near this position (within a small tolerance)
+        const tolerance = 5;
+        
+        for (const enemy of this.enemyManager.enemies) {
+            if (enemy && enemy.graphics && 
+                Math.abs(enemy.graphics.x - x) <= tolerance &&
+                Math.abs(enemy.graphics.y - y) <= tolerance) {
+                return enemy;
+            }
+        }
+        
+        return null;
     }
     
     /**

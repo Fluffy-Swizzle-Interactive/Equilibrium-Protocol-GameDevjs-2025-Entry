@@ -1,5 +1,6 @@
 import { DEPTHS, GroupId } from '../constants';
 import { EventBus } from '../EventBus';
+import { PanicFleeState } from './ai/PanicFleeState';
 
 /**
  * Base class for all enemy types in the game
@@ -266,6 +267,30 @@ export class BaseEnemy {
             return;
         }
         
+        // Check if we should be panicking
+        this.checkPanicState();
+        
+        // If currently in panic state, execute that behavior
+        if (this.panicState) {
+            if (this.panicState.execute()) {
+                // Panic state handling movement, skip usual movement
+                
+                // Still check player collision
+                const playerPos = this.scene.player.getPosition();
+                this.checkPlayerCollision(playerPos);
+                
+                // Update health bar if needed
+                if (this.hasHealthBar) {
+                    this.updateHealthBar();
+                }
+                
+                return;
+            } else {
+                // Panic state finished, exit it
+                this.exitPanicState();
+            }
+        }
+        
         const playerPos = this.scene.player.getPosition();
         
         // Move towards player (default behavior)
@@ -278,6 +303,72 @@ export class BaseEnemy {
         if (this.hasHealthBar) {
             this.updateHealthBar();
         }
+    }
+    
+    /**
+     * Check if this enemy should enter or exit panic state
+     * @private
+     */
+    checkPanicState() {
+        const shouldPanic = PanicFleeState.shouldPanic(this);
+        
+        // If already in panic state and should not be, exit it
+        if (this.panicState && !shouldPanic) {
+            this.exitPanicState();
+        }
+        // If not in panic state but should be, enter it
+        else if (!this.panicState && shouldPanic) {
+            this.enterPanicState();
+        }
+    }
+    
+    /**
+     * Enter panic state
+     * @private
+     */
+    enterPanicState() {
+        // Create new panic state
+        this.panicState = new PanicFleeState(this);
+        this.panicState.enter();
+        
+        // Emit panic started event
+        EventBus.emit('enemy-panic-started', {
+            enemy: this,
+            groupId: this.groupId,
+            position: {
+                x: this.graphics ? this.graphics.x : 0,
+                y: this.graphics ? this.graphics.y : 0
+            }
+        });
+    }
+    
+    /**
+     * Exit panic state
+     * @private
+     */
+    exitPanicState() {
+        if (this.panicState) {
+            this.panicState.exit();
+            this.panicState = null;
+            
+            // Emit panic ended event
+            EventBus.emit('enemy-panic-ended', {
+                enemy: this,
+                groupId: this.groupId,
+                position: {
+                    x: this.graphics ? this.graphics.x : 0,
+                    y: this.graphics ? this.graphics.y : 0
+                }
+            });
+        }
+    }
+    
+    /**
+     * Check if this enemy is currently panicking
+     * @returns {boolean} True if in panic state
+     */
+    isPanicking() {
+        return !!this.panicState;
     }
     
     /**
@@ -356,7 +447,10 @@ export class BaseEnemy {
         this.graphics.setFillStyle(0xffffff);
         this.scene.time.delayedCall(100, () => {
             if (this.active && this.graphics && this.graphics.active) {
-                this.graphics.setFillStyle(this.color);
+                // Only restore original color if not in panic state
+                if (!this.isPanicking()) {
+                    this.graphics.setFillStyle(this.color);
+                }
             }
         });
         
@@ -370,6 +464,11 @@ export class BaseEnemy {
      * Handle enemy death
      */
     die() {
+        // Exit panic state if active
+        if (this.panicState) {
+            this.exitPanicState();
+        }
+        
         // Skip if already marked inactive to prevent double-counting
         if (!this.active) return;
         

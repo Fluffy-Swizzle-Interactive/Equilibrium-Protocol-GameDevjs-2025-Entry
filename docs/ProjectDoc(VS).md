@@ -15,6 +15,7 @@
 - [Mapping System](#mapping-system)
 - [Enemy Registry System](#enemy-registry-system)
 - [Enemy Grouping & Chaos System](#enemy-grouping--chaos-system)
+- [ChaosMeter System](#chaosmeter-system)
 - [Development Guidelines](#development-guidelines)
 - [Asset Management](#asset-management)
 - [Troubleshooting](#troubleshooting)
@@ -1591,6 +1592,149 @@ The UI displays chaos polarity using color-coding:
 - Positive values: Red (increasing intensity with value)
 - Negative values: Blue (increasing intensity with absolute value)
 - Zero: Green (neutral)
+
+---
+
+## ChaosMeter System
+
+The ChaosMeter is a dynamic gameplay mechanic that tracks the balance between enemy factions and influences gameplay accordingly.
+
+### Core Concept
+
+The ChaosMeter represents a balance between the AI and Coder factions. It ranges from -100 (AI dominance) to +100 (Coder dominance), with 0 being perfect balance. The meter shifts based on the player's kill choices, moving in the opposite direction of the killed faction:
+
+- Killing AI enemies shifts the meter toward Coder (+)
+- Killing Coder enemies shifts the meter toward AI (-)
+
+This creates a strategic gameplay element where players must decide which enemies to prioritize to manipulate the chaos level to their advantage.
+
+### `ChaosManager` Class (`managers/ChaosManager.js`)
+
+Manages the chaos meter mechanics, tracking faction dominance and applying gameplay effects.
+
+#### Properties
+- `chaosValue` - Current chaos value (-100 to 100)
+- `minValue` - Minimum chaos value (-100)
+- `maxValue` - Maximum chaos value (100)
+- `killWeight` - Amount chaos changes per kill (1)
+- `panicThreshold` - Threshold at which factions panic (85)
+- `majorEventFired` - Tracks if major events have been triggered
+- `multiplierCache` - Cached multipliers for each faction
+
+#### Methods
+- `constructor(scene, options)` - Creates a chaos manager with custom options
+- `handleEnemyKilled(data)` - Handles enemy killed events
+- `registerKill(groupId)` - Updates chaos when an enemy is killed
+- `getMultipliers(groupId)` - Gets stat multipliers for a faction
+- `calculateMultipliers(groupId)` - Calculates multipliers based on current chaos
+- `isPanicking(groupId)` - Determines if a faction should panic
+- `getChaos()` - Gets the current chaos value
+- `getNormalizedChaos()` - Gets chaos as a normalized value (0-1)
+- `getPolarity()` - Gets the chaos polarity (-1, 0, or 1)
+- `getAbsoluteChaos()` - Gets the absolute chaos value (0-100)
+- `getChaosPercentage()` - Gets chaos as a percentage with sign (+/-%)
+- `setChaos(value, emitEvent)` - Sets chaos to a specific value
+- `adjustChaos(amount, emitEvent)` - Adjusts chaos by a relative amount
+- `checkMajorChaosEvents(oldValue, newValue)` - Checks for major chaos events
+- `triggerMajorChaosEvent(factionId)` - Triggers faction dominance events
+- `reset()` - Resets chaos to default value
+- `destroy()` - Cleans up resources
+
+#### Gameplay Effects
+
+The ChaosMeter influences several gameplay factors:
+
+1. **Stats Multipliers**: The dominant faction gets stat boosts based on chaos level:
+   - HP: Health boost (scales with chaos level)
+   - Damage: Attack damage boost
+   - Fire Rate: Shooting frequency boost
+   - Dodge: Evasion capability boost
+
+2. **Panic Behavior**: When chaos exceeds a threshold (85), the disadvantaged faction enters a panic state:
+   - Enemies flee from opposing faction instead of pursuing the player
+   - Visual indicator shows which enemies are panicking (fast blinking)
+   - Creates tactical opportunities for the player
+
+3. **Major Events**: When chaos reaches extreme values (±100), special events trigger:
+   - Screen shake effect
+   - Particle effects
+   - Event notifications
+   - Potential for additional gameplay changes
+
+### `PanicFleeState` Class (`entities/ai/PanicFleeState.js`)
+
+Implements panic behavior for enemies when their faction is at a disadvantage.
+
+#### Properties
+- `enemy` - Reference to the enemy being controlled
+- `scene` - Reference to the Phaser scene
+- `fleeTarget` - The enemy they're fleeing from
+- `opposingGroupId` - The opposing faction's group ID
+
+#### Methods
+- `constructor(enemy)` - Creates a new panic state for an enemy
+- `enter()` - Initiates panic behavior (visual effects)
+- `execute(delta)` - Executes flee behavior each frame
+- `fleeFromTarget()` - Moves away from threat
+- `exit()` - Ends panic state and restores normal appearance
+- `static shouldPanic(enemy)` - Determines if an enemy should enter panic state
+
+#### Panic Behavior Flow
+1. Enemy faction reaches disadvantage threshold in chaos meter
+2. `BaseEnemy.checkPanicState()` detects this condition
+3. Enemy enters panic state with `enterPanicState()`
+4. `PanicFleeState` takes control of movement
+5. Enemy flees from nearest opposing faction enemy
+6. When chaos returns below threshold, exits panic state
+
+### `ChaosBar` Component (`components/ChaosBar.jsx`)
+
+React component that visualizes the current chaos meter state.
+
+#### Properties
+- `chaosValue` - Current chaos value from state
+- `flashing` - Whether the bar is in flashing state
+
+#### Methods
+- `handleChaosChanged(data)` - Updates display when chaos changes
+- `handleMajorChaos(data)` - Handles major chaos events
+- `handleChaosReset()` - Handles chaos reset events
+- `hexToColor(hex)` - Converts hex color to CSS format
+
+#### Visual Elements
+- Bi-directional bar showing faction balance
+- Color coding (blue for AI, red for Coders)
+- Neutral center marker
+- Numerical value display
+- Animation effects for significant changes
+- Flashing effect for major events
+
+#### EventBus Integration
+The ChaosBar component subscribes to these events:
+- `chaos-changed`: Updates when chaos value changes
+- `MAJOR_CHAOS`: Handles major chaos events
+- `chaos-reset`: Resets display when chaos is reset
+
+### Integration Points
+
+The ChaosMeter system integrates with several game systems:
+
+1. **Enemy Manager**: Enemies register with groups when spawned
+2. **EventBus**: Death events are broadcast when enemies are killed
+3. **UI System**: The ChaosBar component visualizes the current state
+4. **Enemy AI**: Panic behavior triggers based on chaos threshold
+5. **React UI Layer**: React components display the chaos meter outside the Phaser canvas
+
+### Strategic Gameplay
+
+The ChaosMeter creates strategic choices for players:
+
+1. **Balance Strategy**: Maintain neutral chaos to keep all enemies equal
+2. **Dominance Strategy**: Push chaos toward one faction to weaken the other
+3. **Panic Strategy**: Force one faction into panic to make them flee instead of attack
+4. **Switching Strategy**: Alternate between factions to control battlefield dynamics
+
+This adds depth to the gameplay beyond simple "kill everything" mechanics, rewarding strategic thinking and awareness of the game state.
 
 ---
 

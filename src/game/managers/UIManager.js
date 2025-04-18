@@ -1,4 +1,5 @@
 import { DEPTHS, GroupId } from '../constants';
+import { EventBus } from '../EventBus';
 
 /**
  * UIManager class
@@ -415,47 +416,36 @@ export class UIManager {
     }
     
     /**
-     * Set up chaos meter to display chaos level
+     * Set up chaos meter to emit events for React-based UI
      */
     setupChaosMeter() {
-        const width = this.scene.cameras.main.width;
+        // We'll use the React ChaosBar component for visual display
+        // This method now just sets up event emission when chaos changes
         
-        // Create container for chaos meter
-        this.groups.chaosContainer = this.scene.add.container(width - 100, 40).setScrollFactor(0).setDepth(DEPTHS.UI_ELEMENTS);
+        if (!this.scene.chaosManager) return;
         
-        // Background for chaos meter
-        this.elements.chaosBg = this.scene.add.rectangle(0, 0, 180, 25, 0x000000, 0.6)
-            .setOrigin(0.5, 0.5);
-        
-        // Border for chaos meter
-        this.elements.chaosBorder = this.scene.add.rectangle(0, 0, 150, 15, 0xffffff, 0.8)
-            .setOrigin(0.5, 0.5)
-            .setStrokeStyle(1, 0xffffff);
-        
-        // Empty bar (background)
-        this.elements.chaosBarBg = this.scene.add.rectangle(0, 0, 146, 11, 0x222222)
-            .setOrigin(0.5, 0.5);
-        
-        // Chaos meter fill bar
-        this.elements.chaosBar = this.scene.add.rectangle(-73, 0, 0, 11, 0xff0000)
-            .setOrigin(0, 0.5);
-        
-        // Chaos label text
-        this.elements.chaosText = this.scene.add.text(0, -25, 'CHAOS: 50%', {
-            fontFamily: 'Arial',
-            fontSize: '12px',
-            color: '#ffffff',
-            align: 'center'
-        }).setOrigin(0.5, 0.5);
-        
-        // Add elements to container
-        this.groups.chaosContainer.add([
-            this.elements.chaosBg,
-            this.elements.chaosBorder,
-            this.elements.chaosBarBg,
-            this.elements.chaosBar,
-            this.elements.chaosText
-        ]);
+        // Set up an event listener to emit the current chaos level periodically
+        // This helps ensure the React component has updated data even if it misses some events
+        this.chaosSyncTimer = this.scene.time.addEvent({
+            delay: 1000, // Sync every second
+            callback: () => {
+                if (this.scene.chaosManager) {
+                    const chaosValue = this.scene.chaosManager.getChaos();
+                    const chaosData = {
+                        value: chaosValue,
+                        normalized: this.scene.chaosManager.getNormalizedChaos(),
+                        polarity: this.scene.chaosManager.getPolarity(),
+                        absoluteValue: this.scene.chaosManager.getAbsoluteChaos(),
+                        percentage: this.scene.chaosManager.getChaosPercentage()
+                    };
+                    
+                    // Emit the current chaos data to EventBus
+                    EventBus.emit('chaos-sync', chaosData);
+                }
+            },
+            callbackScope: this,
+            loop: true
+        });
     }
     
     /**
@@ -788,50 +778,7 @@ export class UIManager {
      * Update chaos meter with current level
      */
     updateChaosMeter() {
-        if (!this.scene.chaosManager || !this.elements.chaosBar) return;
-        
-        const chaosValue = this.scene.chaosManager.getChaos();
-        const normalizedChaos = this.scene.chaosManager.getNormalizedChaos();
-        const polarity = this.scene.chaosManager.getPolarity();
-        const absoluteValue = this.scene.chaosManager.getAbsoluteChaos();
-        
-        // Update bar width based on absolute chaos level (0-146 pixels)
-        const maxBarWidth = 146;
-        const barWidth = Math.round(maxBarWidth * (absoluteValue / 100));
-        this.elements.chaosBar.width = barWidth;
-        
-        // Position bar differently based on polarity:
-        // For positive values: align left (origin 0, 0.5)
-        // For negative values: align right (origin 1, 0.5)
-        if (polarity >= 0) {
-            // Positive or zero
-            this.elements.chaosBar.setOrigin(0, 0.5);
-            this.elements.chaosBar.x = -73; // Left side of container
-        } else {
-            // Negative
-            this.elements.chaosBar.setOrigin(1, 0.5);
-            this.elements.chaosBar.x = 73; // Right side of container
-        }
-        
-        // Update color gradient based on polarity
-        let rgbColor;
-        if (polarity > 0) {
-            // Positive chaos (red)
-            const intensity = Math.min(255, Math.round(255 * (absoluteValue / 100)));
-            rgbColor = Phaser.Display.Color.GetColor(intensity, 50, 50);
-        } else if (polarity < 0) {
-            // Negative chaos (blue)
-            const intensity = Math.min(255, Math.round(255 * (absoluteValue / 100)));
-            rgbColor = Phaser.Display.Color.GetColor(50, 50, intensity);
-        } else {
-            // Neutral (green)
-            rgbColor = Phaser.Display.Color.GetColor(50, 150, 50);
-        }
-        this.elements.chaosBar.fillColor = rgbColor;
-        
-        // Update percentage text with sign
-        const chaosPercentage = this.scene.chaosManager.getChaosPercentage();
-        this.elements.chaosText.setText(`CHAOS: ${chaosPercentage}`);
+        // Chaos meter is now handled by React component, no need to update here
     }
     
     /**
@@ -921,8 +868,28 @@ export class UIManager {
         
         // Update group display
         this.updateGroupDisplay();
+    }
+    
+    /**
+     * Clean up resources when scene is destroyed
+     */
+    destroy() {
+        // Clean up timers
+        if (this.chaosSyncTimer) {
+            this.chaosSyncTimer.destroy();
+            this.chaosSyncTimer = null;
+        }
         
-        // Update chaos meter
-        this.updateChaosMeter();
+        // Clean up elements
+        for (const key in this.elements) {
+            if (this.elements[key] && this.elements[key].destroy) {
+                this.elements[key].destroy();
+            }
+        }
+        
+        // Clear references
+        this.elements = {};
+        this.groups = {};
+        this.scene = null;
     }
 }
