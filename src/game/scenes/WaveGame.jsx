@@ -13,6 +13,8 @@ import { PlayerHealth } from '../entities/PlayerHealth';
 import { GroupManager } from '../managers/GroupManager';
 import { ChaosManager } from '../managers/ChaosManager';
 import { XPManager } from '../managers/XPManager';
+import { CashManager } from '../managers/CashManager';
+import { SpritePool } from '../entities/SpritePool';
 import { DEPTHS, CHAOS } from '../constants';
 
 /**
@@ -156,11 +158,12 @@ export class WaveGame extends Scene {
             growSize: 5
         });
 
-        // Initialize SpritePool for XP pickups if not already created
-        if (!this.spritePool) {
-            // Access the spritePool from the GameObjectManager
-            this.spritePool = this.gameObjectManager.spritePool;
-        }
+        // Initialize SpritePool for pickups and effects
+        this.spritePool = new SpritePool(this, {
+            initialSize: 50,
+            maxSize: 300,
+            growSize: 20
+        });
     }
     
     /**
@@ -193,6 +196,9 @@ export class WaveGame extends Scene {
 
         // Initialize XP Manager
         this.xpManager = new XPManager(this);
+        
+        // Initialize Cash Manager
+        this.cashManager = new CashManager(this, 0, 1.0);
         
         // Subscribe to XP events to update UI
         EventBus.on('xp-updated', (data) => {
@@ -800,7 +806,7 @@ export class WaveGame extends Scene {
                     const soundKey = this.soundManager.hasSound('xp_collect') 
                         ? 'xp_collect' 
                         : 'shoot_minigun'; // Fallback to an existing sound
-                    
+                        
                     this.soundManager.playSoundEffect(soundKey, {
                         detune: 1200, // Higher pitch for XP collection
                         volume: 0.3

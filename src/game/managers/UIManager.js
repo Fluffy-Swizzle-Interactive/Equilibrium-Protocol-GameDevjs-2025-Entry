@@ -1,4 +1,5 @@
 import { DEPTHS, GroupId } from '../constants';
+import { EventBus } from '../EventBus';
 
 /**
  * UIManager class
@@ -70,6 +71,12 @@ export class UIManager {
         
         // Add chaos meter display
         this.setupChaosMeter();
+
+        // Create cash display UI
+        this.createCashUI();
+
+        // Set up event listeners
+        this.setupEventListeners();
 
         this.initialized = true;
     }
@@ -426,6 +433,72 @@ export class UIManager {
             callbackScope: this,
             loop: true
         });
+    }
+    
+    /**
+     * Create cash display UI
+     */
+    createCashUI() {
+        const width = this.scene.cameras.main.width;
+        
+        // Create cash background
+        this.elements.cashBackground = this.scene.add.rectangle(
+            width - 220, 60, 120, 30,
+            0x000000, 0.7
+        ).setOrigin(0, 0).setScrollFactor(0).setDepth(100);
+        
+        // Create cash icon ($ symbol)
+        this.elements.cashIcon = this.scene.add.text(
+            width - 210, 75, '$',
+            { fontFamily: 'Arial', fontSize: 18, color: '#FFD700', fontWeight: 'bold' }
+        ).setOrigin(0.5, 0.5).setScrollFactor(0).setDepth(102);
+        
+        // Create cash text
+        this.elements.cashText = this.scene.add.text(
+            width - 170, 75, '0',
+            { fontFamily: 'Arial', fontSize: 16, color: '#FFD700' }
+        ).setOrigin(0, 0.5).setScrollFactor(0).setDepth(102);
+        
+        // Add to container
+        this.elements.container.add(this.elements.cashBackground);
+        this.elements.container.add(this.elements.cashIcon);
+        this.elements.container.add(this.elements.cashText);
+    }
+    
+    /**
+     * Update cash UI with current cash amount
+     * @param {Object} data - Cash data object containing cash value
+     */
+    updateCashUI(data) {
+        if (!this.elements.cashText) return;
+        
+        const { cash } = data;
+        
+        // Format cash value with commas for thousands
+        const formattedCash = cash.toLocaleString();
+        
+        // Update cash text
+        this.elements.cashText.setText(formattedCash);
+        
+        // Optional: Add animation effect when cash changes
+        if (this._previousCash !== undefined && cash > this._previousCash) {
+            // Cash increased, show animation
+            this.scene.tweens.add({
+                targets: this.elements.cashText,
+                scale: { from: 1.2, to: 1 },
+                duration: 200,
+                ease: 'Back.easeOut'
+            });
+            
+            // Flash the text to gold color
+            this.elements.cashText.setTint(0xFFFFFF);
+            this.scene.time.delayedCall(100, () => {
+                this.elements.cashText.setTint(0xFFD700);
+            });
+        }
+        
+        // Store current cash for next comparison
+        this._previousCash = cash;
     }
     
     /**
@@ -874,7 +947,14 @@ export class UIManager {
             ? `Waves Survived: ${this.scene.waveManager.currentWave}` 
             : '';
         const killText = `Enemies Defeated: ${this.scene.killCount}`;
-        const statsText = `${waveText}\n${killText}`;
+        
+        // Add cash stats if available
+        let cashText = '';
+        if (this.scene.cashManager) {
+            cashText = `\nCash Collected: $${this.scene.cashManager.getCurrentCash().toLocaleString()}`;
+        }
+        
+        const statsText = `${waveText}\n${killText}${cashText}`;
         this.elements.endGameStats.setText(statsText);
         this.elements.endGameStats.setVisible(true);
         this.elements.endGameStats.setAlpha(0);
@@ -929,7 +1009,14 @@ export class UIManager {
         // Prepare stats display
         const waveText = `All 40 Waves Completed!`;
         const killText = `Total Enemies Defeated: ${this.scene.killCount}`;
-        const statsText = `${waveText}\n${killText}`;
+        
+        // Add cash stats if available
+        let cashText = '';
+        if (this.scene.cashManager) {
+            cashText = `\nCash Collected: $${this.scene.cashManager.getCurrentCash().toLocaleString()}`;
+        }
+        
+        const statsText = `${waveText}\n${killText}${cashText}`;
         this.elements.endGameStats.setText(statsText);
         this.elements.endGameStats.setVisible(true);
         this.elements.endGameStats.setAlpha(0);
@@ -1120,6 +1207,32 @@ export class UIManager {
         if (this.isDebugShown) {
             this.updateDebugInfo();
         }
+    }
+    
+    /**
+     * Set up event listeners
+     */
+    setupEventListeners() {
+        // Use the imported EventBus instead of trying to access it through scene
+        
+        // Listen for XP updates
+        EventBus.on('xp-updated', this.updateXPUI, this);
+        
+        // Listen for level up events
+        EventBus.on('level-up', (data) => {
+            this.showLevelUpAnimation(data.level);
+            this.updateXPUI(data);
+        }, this);
+        
+        // Listen for cash updates
+        EventBus.on('cash-updated', this.updateCashUI, this);
+        
+        // Clean up listeners when scene changes
+        this.scene.events.once('shutdown', () => {
+            EventBus.off('xp-updated', this.updateXPUI, this);
+            EventBus.off('level-up');
+            EventBus.off('cash-updated', this.updateCashUI, this);
+        });
     }
     
     /**

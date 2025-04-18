@@ -23,6 +23,11 @@ export class Player {
         this.lastXpCollectionTime = 0;
         this.xpCollectionInterval = 100; // Check for XP pickups every 100ms
         
+        // Cash collection properties
+        this.cashCollectionRadius = 40;
+        this.lastCashCollectionTime = 0;
+        this.cashCollectionInterval = 100; // Check for cash pickups every 100ms
+        
         // Timing properties
         this.lastFireTime = 0;
         this.lastMovementTime = 0;
@@ -275,6 +280,7 @@ export class Player {
         this.updateAiming();
         this.updateAnimation();
         this.checkXPCollection();
+        this.checkCashCollection();
     }
     
     /**
@@ -323,6 +329,61 @@ export class Player {
                 return true;
             },
             'xp_pickup' // Type of sprite to check for
+        );
+    }
+
+    /**
+     * Check for and collect nearby cash pickups
+     */
+    checkCashCollection() {
+        const currentTime = this.scene.time.now;
+        
+        // Only check for cash pickups at the specified interval
+        if (currentTime - this.lastCashCollectionTime < this.cashCollectionInterval) {
+            return;
+        }
+        
+        this.lastCashCollectionTime = currentTime;
+        
+        // Make sure we have access to required objects
+        if (!this.scene.spritePool || !this.scene.cashManager) {
+            console.warn('Missing required components for cash collection:', 
+                         !this.scene.spritePool ? 'spritePool' : '', 
+                         !this.scene.cashManager ? 'cashManager' : '');
+            return;
+        }
+        
+        // Check for cash pickups within collection radius
+        const collectedItems = this.scene.spritePool.checkCollision(
+            this.graphics.x, 
+            this.graphics.y, 
+            this.cashCollectionRadius, 
+            (cashSprite) => {
+                if (cashSprite && cashSprite.customData) {
+                    // Verify this is a cash pickup
+                    if (cashSprite.customData.type === 'cash_pickup' && cashSprite.customData.value) {
+                        const amount = cashSprite.customData.value;
+                        
+                        // Add cash to player
+                        this.scene.cashManager.addCash(amount);
+                        
+                        // Play cash collection sound
+                        if (this.scene.soundManager) {
+                            const soundKey = this.scene.soundManager.hasSound('cash_pickup') 
+                                ? 'cash_pickup' 
+                                : 'laserShoot';
+                                
+                            this.scene.soundManager.playSoundEffect(soundKey, {
+                                detune: 600,
+                                volume: 0.3
+                            });
+                        }
+                    }
+                }
+                
+                // Return true to confirm this pickup should be removed
+                return true;
+            }
         );
     }
     

@@ -11,6 +11,7 @@
 - [Sound System](#sound-system)
 - [Game Mechanics](#game-mechanics)
 - [XP System](#xp-system)
+- [Cash System](#cash-system)
 - [Object Pooling System](#object-pooling-system)
 - [Wave-Based Game Mode](#wave-based-game-mode)
 - [Mapping System](#mapping-system)
@@ -884,6 +885,306 @@ The XP system provides a foundation for additional progression features:
 2. **Abilities**: Unlocking new abilities at specific level thresholds
 3. **Player Stats**: Automatically increasing player stats (health, damage) with levels
 4. **Equipment**: Unlocking better equipment options at higher levels
+
+---
+
+## Cash System
+
+The Cash System allows players to collect currency from defeated enemies, which can be used for future game mechanics like upgrades or purchases.
+
+### `CashManager` Class (`managers/CashManager.js`)
+
+Manages the player's cash, including accumulation and tracking.
+
+#### Properties
+- `scene` - Reference to the Phaser scene
+- `currentCash` - Current cash amount
+- `cashMultiplier` - Multiplier applied to all cash drops
+
+#### Methods
+- `constructor(scene, initialCash = 0, cashMultiplier = 1.0)` - Creates a new cash manager
+- `addCash(amount)` - Adds cash to the player's total and emits update event
+- `spendCash(amount)` - Deducts cash from the player's total (returns false if insufficient funds)
+- `setCash(amount)` - Sets cash to a specific value
+- `getCurrentCash()` - Returns current cash amount
+- `getCashMultiplier()` - Returns current cash multiplier
+- `setCashMultiplier(value)` - Sets cash multiplier to a specific value
+- `emitCashUpdate()` - Emits event with current cash amount
+
+#### Events Emitted
+- `cash-updated` - Emitted when cash changes, includes current cash value
+
+#### Usage Example
+```javascript
+// Initialize cash manager with starting cash of 0 and multiplier of 1.0
+this.cashManager = new CashManager(this, 0, 1.0);
+
+// Add cash when enemy is defeated
+this.cashManager.addCash(enemyCashValue);
+
+// Check if player has enough cash for a purchase
+if (this.cashManager.getCurrentCash() >= upgradePrice) {
+    const success = this.cashManager.spendCash(upgradePrice);
+    if (success) {
+        // Apply upgrade
+    }
+}
+```
+
+### BaseEnemy Cash Drop Integration
+
+The `BaseEnemy` class has been updated to support cash drops when enemies are defeated:
+
+```javascript
+die() {
+    // ...existing code...
+    
+    // Drop cash if a cash manager exists
+    if (this.scene.cashManager) {
+        // Calculate cash value based on enemy type
+        const cashValue = this.calculateCashValue();
+        
+        // Create cash pickup at enemy position
+        this.scene.spritePool.createCashPickup(this.graphics.x, this.graphics.y, {
+            value: cashValue,
+            tint: 0xFFD700  // Gold color for cash
+        });
+    }
+    
+    // ...existing code...
+}
+
+calculateCashValue() {
+    // Base cash value is derived from enemy score
+    let baseCash = Math.round(this.scoreValue * 0.5);
+    
+    // Boss enemies drop more cash
+    if (this.isBossEnemy()) {
+        baseCash *= 3;
+    }
+    
+    // Add small random variation
+    const variation = Math.random() * 0.4 - 0.2; // -20% to +20%
+    baseCash = Math.round(baseCash * (1 + variation));
+    
+    return Math.max(1, baseCash);
+}
+```
+
+### Cash Pickup Implementation
+
+Cash pickups are implemented using the SpritePool system with specialized properties:
+
+```javascript
+createCashPickup(x, y, options = {}) {
+    // Default options for cash pickups
+    const cashOptions = {
+        texture: 'particle_texture',
+        scale: 0.4,
+        tint: 0xFFD700, // Gold color
+        value: options.value || 1,
+        lifespan: 10000, // 10 seconds
+        physics: true,
+        gravity: 0.05,
+        bounce: 0.4,
+        velocityX: (Math.random() - 0.5) * 2,
+        velocityY: (Math.random() - 0.5) * 2,
+        collectable: true,
+        collectableType: 'cash',
+        fadeTime: 2000, // Start fading after 8 seconds
+        ...options
+    };
+    
+    // Create the pickup sprite
+    const sprite = this.createSprite(x, y, cashOptions);
+    
+    // Add cash symbol to pickup
+    sprite.setText('$', { fontFamily: 'Arial', fontSize: 14, color: '#ffffff' });
+    
+    return sprite;
+}
+```
+
+### Player Cash Collection
+
+The Player class has been extended to collect cash:
+
+```javascript
+checkCashCollection() {
+    if (!this.scene.spritePool) return;
+    
+    const playerPos = this.getPosition();
+    
+    // Collection radius around player
+    const collectionRadius = 40;
+    
+    // Check for collisions with cash pickups
+    this.scene.spritePool.checkCollision(
+        playerPos.x, 
+        playerPos.y,
+        collectionRadius,
+        (sprite) => {
+            // Only collect items of type 'cash'
+            if (sprite.customData && sprite.customData.collectableType === 'cash') {
+                // Add cash to player's total
+                const cashValue = sprite.customData.value || 1;
+                this.scene.cashManager.addCash(cashValue);
+                
+                // Play collection sound
+                if (this.scene.soundManager) {
+                    this.scene.soundManager.playSoundEffect('shoot_minigun', {
+                        detune: 800, // Higher pitch for cash collection
+                        volume: 0.3
+                    });
+                }
+            }
+        }
+    );
+}
+```
+
+### UI Integration
+
+The cash system integrates with the UI through the UIManager:
+
+```javascript
+createCashUI() {
+    const width = this.scene.cameras.main.width;
+    
+    // Create cash background
+    this.elements.cashBackground = this.scene.add.rectangle(
+        width - 220, 60, 120, 30,
+        0x000000, 0.7
+    ).setOrigin(0, 0).setScrollFactor(0).setDepth(100);
+    
+    // Create cash icon ($ symbol)
+    this.elements.cashIcon = this.scene.add.text(
+        width - 210, 75, '$',
+        { fontFamily: 'Arial', fontSize: 18, color: '#FFD700', fontWeight: 'bold' }
+    ).setOrigin(0.5, 0.5).setScrollFactor(0).setDepth(102);
+    
+    // Create cash text
+    this.elements.cashText = this.scene.add.text(
+        width - 170, 75, '0',
+        { fontFamily: 'Arial', fontSize: 16, color: '#FFD700' }
+    ).setOrigin(0, 0.5).setScrollFactor(0).setDepth(102);
+    
+    // Add to container
+    this.elements.container.add(this.elements.cashBackground);
+    this.elements.container.add(this.elements.cashIcon);
+    this.elements.container.add(this.elements.cashText);
+}
+
+updateCashUI(data) {
+    if (!this.elements.cashText) return;
+    
+    const { cash } = data;
+    
+    // Format cash value with commas for thousands
+    const formattedCash = cash.toLocaleString();
+    
+    // Update cash text
+    this.elements.cashText.setText(formattedCash);
+    
+    // Optional: Add animation effect when cash changes
+    if (this._previousCash !== undefined && cash > this._previousCash) {
+        // Cash increased, show animation
+        this.scene.tweens.add({
+            targets: this.elements.cashText,
+            scale: { from: 1.2, to: 1 },
+            duration: 200,
+            ease: 'Back.easeOut'
+        });
+    }
+    
+    // Store current cash for next comparison
+    this._previousCash = cash;
+}
+```
+
+### End Game Cash Statistics
+
+Both game over and victory screens display the total cash collected:
+
+```javascript
+showGameOverUI() {
+    // ...existing code...
+    
+    // Add cash stats if available
+    let cashText = '';
+    if (this.scene.cashManager) {
+        cashText = `\nCash Collected: $${this.scene.cashManager.getCurrentCash().toLocaleString()}`;
+    }
+    
+    const statsText = `${waveText}\n${killText}${cashText}`;
+    // ...existing code...
+}
+```
+
+### Cash Drop Configuration
+
+Cash drops are balanced based on enemy type:
+
+1. **Regular enemies**: Drop 50% of their score value in cash (± 20% random variation)
+2. **Boss enemies**: Drop 150% of their score value in cash (± 20% random variation)
+
+#### Cash Pickup Properties
+
+Cash pickups have the following properties:
+
+- Visually represented by gold-colored particles with '$' symbol
+- Physics-enabled with gravity and bounce effects for natural movement
+- Persist for 10 seconds with fade-out in final 2 seconds
+- Collection radius of 40 pixels around the player
+- Distinct sound effect when collected
+
+### Game Integration
+
+The cash system is fully integrated with the game:
+
+1. **Initialization**: CashManager is initialized in the WaveGame scene's setupUIManager method
+2. **Enemy Death**: BaseEnemy drops cash on death
+3. **Player Collection**: Player checks for cash collection each update
+4. **UI Updates**: CashManager emits events that update the UI
+5. **End Game**: Cash collected is displayed in game over and victory screens
+
+### Future Expansion
+
+The cash system lays the groundwork for various economy-related features:
+
+1. **Shop System**: Allow players to purchase upgrades between waves
+2. **Weapon Upgrades**: Unlock new weapons or enhance existing ones
+3. **Power-ups**: Purchase temporary power-ups during gameplay
+4. **Special Abilities**: Unlock or upgrade special abilities
+5. **Map Features**: Pay to unlock special map features or shortcuts
+
+### Integration with EventBus
+
+The cash system uses the EventBus for communication:
+
+```javascript
+// When cash is added or changed
+emitCashUpdate() {
+    const { EventBus } = this.scene.scene.systems.events.values;
+    if (EventBus) {
+        EventBus.emit('cash-updated', { cash: this.currentCash });
+    }
+}
+
+// In UIManager's setupEventListeners
+setupEventListeners() {
+    const { EventBus } = this.scene.scene.systems.events.values;
+    if (!EventBus) return;
+    
+    // Listen for cash updates
+    EventBus.on('cash-updated', this.updateCashUI, this);
+    
+    // Clean up listeners
+    this.scene.events.once('shutdown', () => {
+        EventBus.off('cash-updated', this.updateCashUI, this);
+    });
+}
+```
 
 ---
 
