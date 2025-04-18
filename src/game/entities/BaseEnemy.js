@@ -384,6 +384,27 @@ export class BaseEnemy {
         // Determine if this is a boss enemy
         const isBoss = this.isBossEnemy();
         
+        // Spawn cash pickup based on enemy value
+        if (this.scene.cashManager && this.graphics) {
+            // Calculate cash value based on enemy type
+            let cashMultiplier = 1.0; // Regular enemy
+            
+            if (isBoss) {
+                cashMultiplier = 2.0; // Boss enemies drop more cash
+            } else if (this.type === 'enemy2' || this.type === 'enemy3') {
+                cashMultiplier = 1.5; // Elite enemies (types 2 and 3) drop more cash
+            }
+            
+            const cashValue = Math.ceil(this.scoreValue * cashMultiplier);
+            
+            // Spawn cash pickup at enemy position
+            this.scene.cashManager.spawnCashPickup(
+                this.graphics.x,
+                this.graphics.y,
+                cashValue
+            );
+        }
+        
         // Call the central kill handling method in the Game scene
         if (this.scene.onEnemyKilled) {
             // Pass enemy type, position, and the enemy object itself for XP calculation

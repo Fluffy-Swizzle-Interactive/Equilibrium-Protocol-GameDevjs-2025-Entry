@@ -238,6 +238,81 @@ export class SpritePool {
         
         return sprite;
     }
+
+    /**
+     * Create a cash pickup sprite at the specified position
+     * @param {number} x - X position
+     * @param {number} y - Y position
+     * @param {Object} options - Custom options for the cash pickup
+     * @returns {Phaser.GameObjects.Sprite} - The created cash pickup sprite
+     */
+    createCashPickup(x, y, options = {}) {
+        const cashOptions = {
+            texture: 'particle_texture',
+            scale: 0.5,
+            tint: 0xFFD700, // Gold color
+            lifespan: 10000, // 10 seconds lifespan
+            rotation: 0,
+            angularVelocity: 0, // No rotation
+            velocityX: 0, // No movement
+            velocityY: 0, // No movement
+            type: 'cash_pickup',
+            collectible: true,
+            value: options.value || 1,
+            enablePhysics: false, // No physics
+            depth: 40,
+            ...options
+        };
+
+        // Create the sprite
+        const sprite = this.createSprite(x, y, cashOptions);
+        
+        if (sprite) {
+            // Add a $ text on top of the sprite to make it look like money
+            const textColor = '#FFFFFF';
+            const fontSize = 14;
+            
+            const text = this.scene.add.text(0, 0, '$', {
+                fontFamily: 'Arial',
+                fontSize: fontSize,
+                color: textColor,
+                stroke: '#000000',
+                strokeThickness: 2,
+                align: 'center'
+            });
+            
+            text.setOrigin(0.5, 0.5);
+            
+            // Create a container to hold both sprite and text
+            sprite.textObject = text;
+            text.setPosition(sprite.x, sprite.y);
+            text.setDepth(sprite.depth + 1);
+            
+            // Apply a gentle floating animation
+            if (this.scene.tweens) {
+                this.scene.tweens.add({
+                    targets: [sprite, text],
+                    y: sprite.y - 10,
+                    duration: 1000,
+                    yoyo: true,
+                    repeat: -1,
+                    ease: 'Sine.easeInOut'
+                });
+                
+                // Also add a pulsating effect
+                this.scene.tweens.add({
+                    targets: sprite,
+                    scale: sprite.scale * 1.2,
+                    duration: 800,
+                    yoyo: true,
+                    repeat: -1,
+                    ease: 'Sine.easeInOut'
+                });
+            }
+        }
+
+        return sprite;
+    }
     
     /**
      * Release a sprite back to the pool
@@ -251,11 +326,22 @@ export class SpritePool {
         // If using tweens, stop any active tweens
         if (this.scene.tweens) {
             this.scene.tweens.killTweensOf(sprite);
+            
+            // Also kill tweens on any associated text object
+            if (sprite.textObject) {
+                this.scene.tweens.killTweensOf(sprite.textObject);
+            }
         }
         
         // If physics were enabled, disable them
         if (sprite.body) {
             this.scene.physics.world.disable(sprite);
+        }
+        
+        // Clean up text object if it exists (for cash pickups)
+        if (sprite.textObject) {
+            sprite.textObject.destroy();
+            sprite.textObject = null;
         }
         
         // Reset the sprite
@@ -323,17 +409,28 @@ export class SpritePool {
      * @param {number} y - Y position to check
      * @param {number} radius - Collision radius
      * @param {Function} onCollect - Callback when a collectible is collected
+     * @param {string} [type] - Optional type of sprite to filter for 
      * @returns {Array} - Array of collected sprites
      */
-    checkCollision(x, y, radius, onCollect) {
+    checkCollision(x, y, radius, onCollect, type) {
         const collected = [];
         
         // Check each sprite
         for (let i = this.sprites.length - 1; i >= 0; i--) {
             const sprite = this.sprites[i];
             
-            // Skip inactive or non-collectible sprites
-            if (!sprite || !sprite.active || !sprite.customData.collectible) {
+            // Skip inactive sprites
+            if (!sprite || !sprite.active) {
+                continue;
+            }
+
+            // Skip non-collectible sprites
+            if (!sprite.customData || !sprite.customData.collectible) {
+                continue;
+            }
+            
+            // If type is provided, only check sprites of that type
+            if (type && sprite.customData.type !== type) {
                 continue;
             }
             
