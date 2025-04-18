@@ -72,3 +72,50 @@ export const COLORS = {
     UI_TEXT: 0xffffff,
     UI_BACKGROUND: 0x000000
 };
+
+/**
+ * Enemy Group IDs
+ * Defines the different factions that enemies can belong to
+ */
+export const GroupId = {
+    AI: 'ai',
+    CODER: 'coder',
+    NEUTRAL: 'neutral'
+};
+
+/**
+ * Chaos System Constants
+ * Values used by the Chaos system
+ */
+export const CHAOS = {
+    MIN_VALUE: -100,
+    MAX_VALUE: 100,
+    DEFAULT_VALUE: 0,
+    ADJUSTMENT_RATE: 0.5, // Default adjustment per tick
+    UPDATE_INTERVAL: 1000 // Milliseconds between chaos auto-adjustments
+};
+
+/**
+ * Group Modifiers
+ * Defines stat modifications based on group types
+ */
+export const GROUP_MODIFIERS = {
+    [GroupId.AI]: {
+        health: 1.2,
+        speed: 0.9,
+        damage: 1.3,
+        color: 0xff3333 // Red tint
+    },
+    [GroupId.CODER]: {
+        health: 0.9,
+        speed: 1.2,
+        damage: 1.0,
+        color: 0x33aaff // Blue tint
+    },
+    [GroupId.NEUTRAL]: {
+        health: 0.7,
+        speed: 1.5,
+        damage: 0.5,
+        color: 0x55ff55 // Green tint
+    }
+};

@@ -10,7 +10,9 @@ import { MapManager } from '../managers/MapManager';
 import { WaveManager } from '../managers/WaveManager';
 import { UIManager } from '../managers/UIManager';
 import { PlayerHealth } from '../entities/PlayerHealth';
-import { DEPTHS } from '../constants';
+import { GroupManager } from '../managers/GroupManager';
+import { ChaosManager } from '../managers/ChaosManager';
+import { DEPTHS, CHAOS } from '../constants';
 
 /**
  * WaveGame scene
@@ -68,6 +70,8 @@ export class WaveGame extends Scene {
         this.setupMap();
         this.setupSoundManager(); // Initialize sound manager first
         this.setupObjectManager(); // Initialize object pooling system
+        this.setupGroupManager(); // Initialize group management system
+        this.setupChaosManager(); // Initialize chaos management system
         this.setupUIManager(); // Setup UI before game objects
         this.setupGameObjects(); // Then create player and other objects
         this.setupWaveManager(); // Setup wave manager after other systems
@@ -141,6 +145,25 @@ export class WaveGame extends Scene {
             initialSize: 20,
             maxSize: 500,
             growSize: 5
+        });
+    }
+    
+    /**
+     * Set up the group manager to track enemy factions
+     */
+    setupGroupManager() {
+        // Create the group manager to track enemy factions
+        this.groupManager = new GroupManager(this);
+    }
+    
+    /**
+     * Set up the chaos manager for chaos mechanics
+     */
+    setupChaosManager() {
+        // Create the chaos manager with default settings
+        this.chaosManager = new ChaosManager(this, {
+            initialValue: CHAOS.DEFAULT_VALUE,
+            autoAdjust: false // Start with auto-adjust disabled
         });
     }
 
