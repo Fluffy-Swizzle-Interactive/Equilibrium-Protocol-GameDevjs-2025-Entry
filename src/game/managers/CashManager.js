@@ -20,6 +20,15 @@ export class CashManager {
         // Register with scene for easier access
         scene.cashManager = this;
         
+        // Cash collection animation properties
+        this.lastCashCollectTime = 0;
+        this.cashCollectTimeout = 1000; // 1 second timeout for accumulating cash
+        this.accumulatedCash = 0;
+        this.cashAnimationText = null;
+        this.cashAnimationActive = false;
+        this.cashAnimationTween = null;
+        this.fadeOutTimer = null;
+        
         // Emit initial cash update event
         this.emitCashUpdate();
     }
@@ -46,10 +55,132 @@ export class CashManager {
             });
         }
         
+        // Show cash collection animation
+        this.showCashCollectAnimation(amount);
+        
         // Emit cash update event for UI
         this.emitCashUpdate();
         
         return amount;
+    }
+    
+    /**
+     * Show an animation of cash being collected above the player's head
+     * @param {number} amount - Amount of cash collected
+     */
+    showCashCollectAnimation(amount) {
+        const currentTime = this.scene.time.now;
+        
+        // If player doesn't exist, don't show animation
+        if (!this.scene.player || !this.scene.player.getPosition) return;
+        
+        const playerPos = this.scene.player.getPosition();
+        
+        // Reset fadeout timer if it exists
+        if (this.fadeOutTimer) {
+            this.fadeOutTimer.remove();
+            this.fadeOutTimer = null;
+        }
+        
+        // Accumulate cash regardless of existing text
+        this.accumulatedCash += amount;
+        this.lastCashCollectTime = currentTime;
+        
+        // Update or create text
+        if (this.cashAnimationText && this.cashAnimationText.active) {
+            // Update existing text
+            this.cashAnimationText.setText(`+$${this.accumulatedCash}`);
+            
+            // Update position to follow player
+            this.cashAnimationText.setPosition(playerPos.x, playerPos.y - 50);
+            
+            // Stop existing tween if running
+            if (this.cashAnimationTween && this.cashAnimationTween.isPlaying()) {
+                this.cashAnimationTween.stop();
+            }
+        } else {
+            // Create new text
+            this.createCashAnimationText(playerPos);
+        }
+        
+        // Set up new fadeout timer after collecting stops
+        this.fadeOutTimer = this.scene.time.delayedCall(this.cashCollectTimeout, () => {
+            this.animateCashTextOut();
+        });
+    }
+    
+    /**
+     * Create the cash animation text object
+     * @param {Object} playerPos - Player position {x, y}
+     */
+    createCashAnimationText(playerPos) {
+        // Clean up existing text if there is one
+        if (this.cashAnimationText) {
+            this.cashAnimationText.destroy();
+        }
+        
+        // Create text slightly above player
+        this.cashAnimationText = this.scene.add.text(
+            playerPos.x, 
+            playerPos.y - 50, 
+            `+$${this.accumulatedCash}`, 
+            {
+                fontFamily: 'Arial',
+                fontSize: '20px',
+                color: '#FFD700', // Gold color
+                stroke: '#000000',
+                strokeThickness: 3,
+                align: 'center'
+            }
+        );
+        
+        this.cashAnimationText.setOrigin(0.5);
+        this.cashAnimationText.setDepth(DEPTHS.UI_FLOATING_TEXT);
+        
+        // Add a small pop-in animation
+        this.scene.tweens.add({
+            targets: this.cashAnimationText,
+            scale: { from: 0.8, to: 1 },
+            duration: 200,
+            ease: 'Back.easeOut'
+        });
+    }
+    
+    /**
+     * Animate the cash text out after player stops collecting
+     */
+    animateCashTextOut() {
+        if (!this.cashAnimationText || !this.cashAnimationText.active) return;
+        
+        // Create rising and fading animation
+        this.cashAnimationTween = this.scene.tweens.add({
+            targets: this.cashAnimationText,
+            y: '-=40', // Rise up
+            alpha: { from: 1, to: 0 },
+            scale: { from: 1, to: 1.2 },
+            duration: 500,
+            ease: 'Cubic.Out',
+            onComplete: () => {
+                if (this.cashAnimationText) {
+                    this.cashAnimationText.destroy();
+                    this.cashAnimationText = null;
+                }
+                this.accumulatedCash = 0;
+            }
+        });
+    }
+    
+    /**
+     * Update the cash animation text position to follow the player
+     * Should be called in the scene update method
+     */
+    updateCashAnimationPosition() {
+        if (!this.cashAnimationText || !this.cashAnimationText.active || !this.scene.player) return;
+        
+        const playerPos = this.scene.player.getPosition();
+        if (playerPos) {
+            this.cashAnimationText.setPosition(playerPos.x, playerPos.y - 50);
+        }
     }
     
     /**
