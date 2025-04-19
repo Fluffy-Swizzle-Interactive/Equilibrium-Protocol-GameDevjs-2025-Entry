@@ -1,7 +1,6 @@
 import { GameObjectManager } from './GameObjectManager';
 import { BaseEnemy } from '../entities/BaseEnemy';
 import { EnemyRegistry } from './EnemyRegistry';
-import { GroupId } from '../constants';
 
 /**
  * EnemyManager class
@@ -173,30 +172,8 @@ export class EnemyManager {
             return null;
         }
         
-        // If no group ID is specified in options, assign a faction based on enemy type or random
-        if (!options.groupId) {
-            // Determine faction group based on enemy type
-            if (type.includes('ai_')) {
-                options.groupId = GroupId.AI;
-            } else if (type.includes('coder_')) {
-                options.groupId = GroupId.CODER;
-            } else {
-                // Randomly assign to AI or CODER faction for regular enemies
-                // This creates dynamic factional conflict that feeds into the ChaosMeter
-                const randomFaction = Math.random() > 0.5 ? GroupId.AI : GroupId.CODER;
-                options.groupId = randomFaction;
-            }
-        }
-        
         // Get enemy from pool
-        const enemy = this.gameObjectManager.get(type, x, y, options);
-        
-        // Make sure enemy has the correct group ID set
-        if (enemy && options.groupId && enemy.setGroup) {
-            enemy.setGroup(options.groupId);
-        }
-        
-        return enemy;
+        return this.gameObjectManager.get(type, x, y, options);
     }
     
     /**

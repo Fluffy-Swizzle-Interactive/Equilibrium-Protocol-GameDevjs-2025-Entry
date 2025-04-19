@@ -1,4 +1,4 @@
-import { DEPTHS, GroupId, CHAOS } from '../constants';
+import { DEPTHS, GroupId } from '../constants';
 import { EventBus } from '../EventBus';
 
 /**
@@ -45,6 +45,9 @@ export class UIManager {
         // Create health UI
         this.createHealthUI();
         
+        // Create XP UI
+        this.createXPUI();
+        
         // Create wave banner
         this.createWaveBanner();
         
@@ -63,8 +66,11 @@ export class UIManager {
             this.isDebugShown = true;
         }
 
-        // Add chaos meter display
+        // Add group stats display for enemy factions
         this.setupGroupDisplay();
+        
+        // Add chaos meter display
+        this.setupChaosMeter();
 
         // Create cash display UI
         this.createCashUI();
@@ -134,10 +140,46 @@ export class UIManager {
             { fontFamily: 'Arial', fontSize: 14, color: '#ffffff' }
         ).setOrigin(0.5, 0.5).setScrollFactor(0).setDepth(102);
         
+        // Create level circle to the right of health bar
+        this.elements.levelCircle = this.scene.add.circle(
+            width - 30, 35, 22,
+            0x000000, 0.8
+        ).setScrollFactor(0).setDepth(101);
+        
+        // Create level circle border
+        this.elements.levelBorder = this.scene.add.circle(
+            width - 30, 35, 22
+        ).setScrollFactor(0).setDepth(102)
+        .setStrokeStyle(2, 0x00ff99);
+        
+        // Create level progress arc (empty initially)
+        this.elements.levelArc = this.scene.add.graphics()
+            .setScrollFactor(0)
+            .setDepth(101);
+        
+        // Create level text
+        this.elements.levelText = this.scene.add.text(
+            width - 30, 35, '1',
+            { fontFamily: 'Arial', fontSize: 18, color: '#ffffff' }
+        ).setOrigin(0.5, 0.5).setScrollFactor(0).setDepth(103);
+        
         // Add to container
         this.elements.container.add(this.elements.healthBackground);
         this.elements.container.add(this.elements.healthBar);
         this.elements.container.add(this.elements.healthText);
+        this.elements.container.add(this.elements.levelCircle);
+        this.elements.container.add(this.elements.levelBorder);
+        this.elements.container.add(this.elements.levelArc);
+        this.elements.container.add(this.elements.levelText);
+    }
+    
+    /**
+     * Create XP bar and level display
+     */
+    createXPUI() {
+        // No longer creating the XP bar at the bottom of the screen
+        // We're using only the circular level indicator next to the health bar
+        // which was implemented in the createHealthUI method
     }
     
     /**
@@ -384,10 +426,10 @@ export class UIManager {
         this.elements.container.add(this.elements.debugBg);
         this.elements.container.add(this.elements.debugText);
         
-        // Update debug info periodically - make sure to bind the method
+        // Update debug info periodically
         this.scene.time.addEvent({
             delay: 500, // Update every 500ms
-            callback: this.updateDebugInfo.bind(this), // Properly bind to this instance
+            callback: this.updateDebugInfo,
             callbackScope: this,
             loop: true
         });
@@ -461,300 +503,71 @@ export class UIManager {
     
     /**
      * Set up group display showing enemy faction counts
-     * Update debug information display
-     */
-    updateDebugInfo() {
-        if (!this.elements.debugText || !this.options.showDebug) return;
-        
-        const { scene } = this;
-        let debugText = 'DEBUG INFO\n';
-        
-        // FPS
-        debugText += `FPS: ${Math.floor(scene.game.loop.actualFps)}\n`;
-        
-        // Wave information
-        if (scene.waveManager) {
-            debugText += `Wave: ${scene.waveManager.currentWave}/${scene.waveManager.maxWaves}\n`;
-            debugText += `Active Enemies: ${scene.waveManager.activeEnemies || 0}\n`;
-            debugText += `Enemies Spawned: ${scene.waveManager.enemiesSpawned || 0}\n`;
-        }
-        
-        // Object pools information
-        if (scene.gameObjectManager) {
-            const stats = scene.gameObjectManager.getStats();
-            debugText += '\nPOOLS:\n';
-            
-            for (const [type, poolStats] of Object.entries(stats)) {
-                if (poolStats) {
-                    debugText += `${type}: ${poolStats.active}/${poolStats.total}\n`;
-                }
-            }
-        }
-        
-        // Player position
-        if (scene.player) {
-            const pos = scene.player.getPosition();
-            debugText += `\nPlayer: (${Math.floor(pos.x)}, ${Math.floor(pos.y)})\n`;
-        }
-        
-        // Kill count
-        debugText += `Kills: ${scene.killCount || 0}\n`;
-        
-        // Add group counts if available
-        if (scene.groupManager) {
-            const counts = scene.groupManager.getAllGroupCounts();
-            debugText += `Groups: AI=${counts[GroupId.AI] || 0}, `;
-            debugText += `CODER=${counts[GroupId.CODER] || 0}, `;
-            debugText += `NEUTRAL=${counts[GroupId.NEUTRAL] || 0}\n`;
-        }
-        
-        // Add chaos level if available
-        if (scene.chaosManager) {
-            const chaosValue = Math.round(scene.chaosManager.getChaos());
-            debugText += `Chaos: ${chaosValue}\n`;
-            
-            // Add multipliers for detailed debug info
-            if (scene.chaosManager.getMultipliers) {
-                const aiMultipliers = scene.chaosManager.getMultipliers(GroupId.AI);
-                const coderMultipliers = scene.chaosManager.getMultipliers(GroupId.CODER);
-                
-                debugText += `AI mult: HP=${aiMultipliers?.hp?.toFixed(2) || 1.00}, DMG=${aiMultipliers?.damage?.toFixed(2) || 1.00}\n`;
-                debugText += `CODER mult: HP=${coderMultipliers?.hp?.toFixed(2) || 1.00}, DMG=${coderMultipliers?.damage?.toFixed(2) || 1.00}\n`;
-            }
-        }
-        
-        // Update the debug text
-        this.elements.debugText.setText(debugText);
-    }
-    
-    /**
-     * Set up chaos meter display at top center
-     * Creates a bi-directional bar showing balance between AI and Coder factions
      */
     setupGroupDisplay() {
         const centerX = this.scene.cameras.main.width / 2;
         
-        // Container for the chaos meter (replaces previous faction counter)
-        this.groups.chaosContainer = this.scene.add.container(centerX, 40)
-            .setScrollFactor(0)
-            .setDepth(DEPTHS.UI_ELEMENTS);
+        // Create container for group info
+        this.groups.groupContainer = this.scene.add.container(centerX, 40).setScrollFactor(0).setDepth(DEPTHS.UI_ELEMENTS);
         
-        // Background for chaos meter
-        this.elements.chaosBg = this.scene.add.rectangle(0, 0, 300, 30, 0x000000, 0.7)
-            .setOrigin(0.5, 0.5)
-            .setStrokeStyle(1, 0xffffff, 0.3);
-        
-        // Central marker line
-        this.elements.centerLine = this.scene.add.rectangle(0, 0, 2, 30, 0xffffff, 0.8)
+        // Background for group counter
+        this.elements.groupBg = this.scene.add.rectangle(0, 0, 240, 60, 0x000000, 0.6)
             .setOrigin(0.5, 0.5);
         
-        // AI side bar (left side - blue)
-        this.elements.aiBar = this.scene.add.rectangle(-150, 0, 0, 24, CHAOS.COLORS.AI, 1)
-            .setOrigin(0, 0.5);
-        
-        // Coder side bar (right side - red)
-        this.elements.coderBar = this.scene.add.rectangle(0, 0, 0, 24, CHAOS.COLORS.CODER, 1)
-            .setOrigin(0, 0.5);
-        
-        // Labels
-        this.elements.aiLabel = this.scene.add.text(-140, 0, 'AI', {
-            fontFamily: 'Arial',
-            fontSize: '12px',
-            color: '#ffffff',
-            fontStyle: 'bold'
-        }).setOrigin(0, 0.5).setShadow(1, 1, '#000000', 2);
-        
-        this.elements.coderLabel = this.scene.add.text(140, 0, 'CODER', {
-            fontFamily: 'Arial',
-            fontSize: '12px',
-            color: '#ffffff',
-            fontStyle: 'bold'
-        }).setOrigin(1, 0.5).setShadow(1, 1, '#000000', 2);
-        
-        // Chaos value display
-        this.elements.chaosValue = this.scene.add.text(0, 0, '0', {
+        // Text for group counts
+        this.elements.groupText = this.scene.add.text(0, 0, 'Factions: AI: 0 | CODER: 0 | NEUTRAL: 0', {
             fontFamily: 'Arial',
             fontSize: '14px',
-            color: '#ffffff',
-            fontStyle: 'bold'
-        }).setOrigin(0.5, 0.5).setShadow(1, 1, '#000000', 2);
-        
-        // Faction count text (below the chaos meter)
-        this.elements.groupText = this.scene.add.text(0, 20, '', {
-            fontFamily: 'Arial',
-            fontSize: '11px',
             color: '#ffffff',
             align: 'center'
         }).setOrigin(0.5, 0.5);
         
-        // Add all elements to the container
+        // Add elements to container
+        this.groups.groupContainer.add([this.elements.groupBg, this.elements.groupText]);
+    }
+    
+    /**
+     * Set up chaos meter to display chaos level
+     */
+    setupChaosMeter() {
+        const width = this.scene.cameras.main.width;
+        
+        // Create container for chaos meter
+        this.groups.chaosContainer = this.scene.add.container(width - 100, 40).setScrollFactor(0).setDepth(DEPTHS.UI_ELEMENTS);
+        
+        // Background for chaos meter
+        this.elements.chaosBg = this.scene.add.rectangle(0, 0, 180, 25, 0x000000, 0.6)
+            .setOrigin(0.5, 0.5);
+        
+        // Border for chaos meter
+        this.elements.chaosBorder = this.scene.add.rectangle(0, 0, 150, 15, 0xffffff, 0.8)
+            .setOrigin(0.5, 0.5)
+            .setStrokeStyle(1, 0xffffff);
+        
+        // Empty bar (background)
+        this.elements.chaosBarBg = this.scene.add.rectangle(0, 0, 146, 11, 0x222222)
+            .setOrigin(0.5, 0.5);
+        
+        // Chaos meter fill bar
+        this.elements.chaosBar = this.scene.add.rectangle(-73, 0, 0, 11, 0xff0000)
+            .setOrigin(0, 0.5);
+        
+        // Chaos label text
+        this.elements.chaosText = this.scene.add.text(0, -25, 'CHAOS: 50%', {
+            fontFamily: 'Arial',
+            fontSize: '12px',
+            color: '#ffffff',
+            align: 'center'
+        }).setOrigin(0.5, 0.5);
+        
+        // Add elements to container
         this.groups.chaosContainer.add([
             this.elements.chaosBg,
-            this.elements.aiBar,
-            this.elements.coderBar,
-            this.elements.centerLine,
-            this.elements.aiLabel,
-            this.elements.coderLabel,
-            this.elements.chaosValue,
-            this.elements.groupText
+            this.elements.chaosBorder,
+            this.elements.chaosBarBg,
+            this.elements.chaosBar,
+            this.elements.chaosText
         ]);
-        
-        // Set up event listeners for chaos events
-        if (this.scene.chaosManager) {
-            EventBus.on('chaos-changed', this.handleChaosChanged, this);
-            EventBus.on('MAJOR_CHAOS', this.handleMajorChaosEvent, this);
-        }
-        
-        // Initialize with current value if available
-        this.updateChaosMeter();
-    }
-    
-    /**
-     * Handle chaos value changes
-     * @param {Object} data - Data containing old and new chaos values
-     */
-    handleChaosChanged(data) {
-        // Update the chaos meter visualization
-        this.updateChaosMeter();
-        
-        const majorEventThreshold = CHAOS?.MAJOR_EVENT_VALUE || 85;
-        
-        const newValue = data.newValue || data.value || 0;
-        const oldValue = data.oldValue || 0;
-        
-        // Flash the meter when passing major thresholds
-        if (Math.abs(newValue) >= majorEventThreshold && 
-            Math.abs(oldValue) < majorEventThreshold) {
-            this.flashChaosMeter();
-        }
-    }
-    
-    /**
-     * Handle major chaos events
-     * @param {Object} data - Event data with faction info
-     */
-    handleMajorChaosEvent(data) {
-        this.flashChaosMeter();
-        
-        // Add screen shake effect
-        if (this.scene.cameras && this.scene.cameras.main) {
-            this.scene.cameras.main.shake(
-                CHAOS.SHAKE_DURATION || 500,
-                CHAOS.SHAKE_INTENSITY || 0.01
-            );
-        }
-        
-        // Add particle burst effect
-        this.createChaosParticleEffect(data.factionId);
-    }
-    
-    /**
-     * Create particle effect for major chaos events
-     * @param {string} factionId - ID of the dominant faction
-     */
-    createChaosParticleEffect(factionId) {
-        const centerX = this.scene.cameras.main.width / 2;
-        const centerY = this.scene.cameras.main.height / 2;
-        
-        // Determine color based on dominant faction
-        const particleColor = factionId === GroupId.AI ? 
-            CHAOS.COLORS.AI : CHAOS.COLORS.CODER;
-        
-        // Create particle emitter
-        if (this.scene.add && this.scene.add.particles) {
-            // Use default particle texture if available, otherwise use a circle
-            const particles = this.scene.add.particles(centerX, centerY, 'particle_texture', {
-                speed: { min: 100, max: 300 },
-                scale: { start: 0.5, end: 0 },
-                alpha: { start: 1, end: 0 },
-                lifespan: 800,
-                blendMode: 'ADD',
-                tint: particleColor,
-                quantity: 50,
-                angle: { min: 0, max: 360 }
-            });
-            
-            // Auto-destroy after effect completes
-            this.scene.time.delayedCall(1000, () => {
-                if (particles) particles.destroy();
-            });
-        }
-    }
-    
-    /**
-     * Create flashing effect for the chaos meter
-     */
-    flashChaosMeter() {
-        if (!this.elements.chaosBg) return;
-        
-        // Stop any existing flash tween
-        if (this.flashTween) {
-            this.flashTween.stop();
-        }
-        
-        // Reset to normal state
-        this.elements.chaosBg.setStrokeStyle(1, 0xffffff, 0.3);
-        
-        // Create flash effect
-        this.flashTween = this.scene.tweens.add({
-            targets: [this.elements.chaosBg],
-            alpha: { from: 0.7, to: 1 },
-            strokeAlpha: { from: 0.3, to: 0.8 },
-            yoyo: true,
-            repeat: 5,
-            duration: 100,
-            ease: 'Sine.easeInOut',
-            onComplete: () => {
-                if (this.elements.chaosBg) {
-                    this.elements.chaosBg.setStrokeStyle(1, 0xffffff, 0.3);
-                    this.elements.chaosBg.setAlpha(0.7);
-                }
-                this.flashTween = null;
-            }
-        });
-    }
-    
-    /**
-     * Update chaos meter with current level
-     */
-    updateChaosMeter() {
-        if (!this.scene.chaosManager || !this.elements.aiBar || !this.elements.coderBar) return;
-        
-        const chaosValue = this.scene.chaosManager.getChaos();
-        const maxWidth = 150; // Half of the total bar width (300/2)
-        
-        // Update the value text
-        this.elements.chaosValue.setText(Math.round(chaosValue));
-        
-        // Update AI bar (left side, negative values)
-        const aiWidth = Math.max(0, -chaosValue) / Math.abs(CHAOS.MIN_VALUE) * maxWidth;
-        this.elements.aiBar.width = aiWidth;
-        this.elements.aiBar.x = -aiWidth;
-        
-        // Update Coder bar (right side, positive values)
-        const coderWidth = Math.max(0, chaosValue) / CHAOS.MAX_VALUE * maxWidth;
-        this.elements.coderBar.width = coderWidth;
-        
-        // Update faction count text beneath the meter
-        this.updateGroupCountText();
-    }
-    
-    /**
-     * Update faction count text beneath the chaos meter
-     */
-    updateGroupCountText() {
-        if (!this.scene.groupManager || !this.elements.groupText) return;
-        
-        const counts = this.scene.groupManager.getAllGroupCounts();
-        
-        // Format the group counts text
-        const aiCount = counts[GroupId.AI] || 0;
-        const coderCount = counts[GroupId.CODER] || 0;
-        const neutralCount = counts[GroupId.NEUTRAL] || 0;
-        
-        // Create text for counts
-        const groupText = `AI: ${aiCount} | CODER: ${coderCount} | NEUTRAL: ${neutralCount}`;
-        this.elements.groupText.setText(groupText);
     }
     
     /**
@@ -795,6 +608,186 @@ export class UIManager {
         } else {
             this.elements.healthBar.setFillStyle(0x00ff00); // Green
         }
+    }
+    
+    /**
+     * Update XP UI with current XP and level data
+     * @param {Object} data - XP data object containing level, xp, and xpToNext values
+     */
+    updateXPUI(data) {
+        if (!this.elements.levelText) return;
+        
+        const { level, xp, xpToNext } = data;
+        
+        // Update level text
+        this.elements.levelText.setText(level.toString());
+        
+        // Draw the circular progress arc around the level circle
+        if (this.elements.levelArc) {
+            // Clear previous arc
+            this.elements.levelArc.clear();
+            
+            // Get the position of the level circle
+            const width = this.scene.cameras.main.width;
+            const x = width - 30; // Same as the level circle x position
+            const y = 35;         // Same as the level circle y position
+            const radius = 22;    // Same as the level circle radius
+            
+            // Set arc style
+            this.elements.levelArc.lineStyle(4, 0x00ff99, 1);
+            
+            // Calculate the sweep angle based on XP progress
+            const progress = (xp / xpToNext) || 0;
+            const startAngle = -Math.PI / 2; // Start from top (270 degrees)
+            const endAngle = startAngle + (Math.PI * 2 * progress); // Full circle is 2*PI
+            
+            // Draw the arc
+            this.elements.levelArc.beginPath();
+            this.elements.levelArc.arc(x, y, radius, startAngle, endAngle, false);
+            this.elements.levelArc.strokePath();
+        }
+    }
+    
+    /**
+     * Display level up animation
+     * @param {number} level - New level reached
+     */
+    showLevelUpAnimation(level) {
+        const width = this.scene.cameras.main.width;
+        const height = this.scene.cameras.main.height;
+        
+        // Create level up text
+        const levelUpText = this.scene.add.text(
+            width / 2, height / 2, `LEVEL UP!\nLevel ${level}`,
+            { 
+                fontFamily: 'Arial', 
+                fontSize: 48, 
+                color: '#00ff99',
+                align: 'center',
+                stroke: '#000000',
+                strokeThickness: 4
+            }
+        ).setOrigin(0.5).setScrollFactor(0).setDepth(150).setAlpha(0);
+        
+        // Create particles for level up effect
+        const particles = this.scene.add.particles(width / 2, height / 2, 'particle_texture', {
+            speed: { min: 100, max: 200 },
+            scale: { start: 0.5, end: 0 },
+            alpha: { start: 1, end: 0 },
+            lifespan: 1000,
+            blendMode: 'ADD',
+            quantity: 30,
+            tint: 0x00ff99,
+            angle: { min: 0, max: 360 }
+        });
+        
+        particles.setDepth(149);
+        
+        // Create particles around level circle
+        if (this.elements.levelCircle) {
+            // Get the position of the level circle
+            const circleX = this.elements.levelCircle.x;
+            const circleY = this.elements.levelCircle.y;
+            
+            // Create particle effect at the level circle position
+            const circleParticles = this.scene.add.particles(circleX, circleY, 'particle_texture', {
+                speed: { min: 50, max: 100 },
+                scale: { start: 0.3, end: 0 },
+                alpha: { start: 1, end: 0 },
+                lifespan: 1000,
+                blendMode: 'ADD',
+                quantity: 20,
+                tint: 0x00ff99,
+                angle: { min: 0, max: 360 }
+            });
+            
+            circleParticles.setDepth(104);
+            
+            // Clean up particles after animation
+            this.scene.time.delayedCall(2000, () => {
+                circleParticles.destroy();
+            });
+        }
+        
+        // Play level up sound effect if available
+        if (this.scene.soundManager) {
+            // Use the dedicated levelUp sound effect
+            if (this.scene.soundManager.hasSound('levelUp')) {
+                this.scene.soundManager.playSoundEffect('levelUp', {
+                    volume: 0.7
+                });
+            } else {
+                // Fall back to modified weapon sound if levelUp sound is not available
+                this.scene.soundManager.playSoundEffect('shoot_minigun', {
+                    detune: 1200, // Higher pitch
+                    volume: 0.6,
+                    rate: 0.5 // Slower rate
+                });
+            }
+        }
+        
+        // Animate level up text
+        this.scene.tweens.add({
+            targets: levelUpText,
+            alpha: { from: 0, to: 1 },
+            scale: { from: 2, to: 1 },
+            duration: 500,
+            ease: 'Back.easeOut',
+            onComplete: () => {
+                // Add short pause before fading out
+                this.scene.time.delayedCall(1000, () => {
+                    // Fade out text
+                    this.scene.tweens.add({
+                        targets: levelUpText,
+                        alpha: 0,
+                        y: height * 0.4,
+                        duration: 500,
+                        ease: 'Power2',
+                        onComplete: () => {
+                            levelUpText.destroy();
+                            particles.destroy();
+                        }
+                    });
+                });
+            }
+        });
+        
+        // Pulse the level indicator and make it spin
+        this.scene.tweens.add({
+            targets: [this.elements.levelCircle, this.elements.levelBorder],
+            scale: { from: 1.5, to: 1 },
+            duration: 500,
+            ease: 'Bounce.easeOut'
+        });
+        
+        // Make the level progress arc flash briefly
+        if (this.elements.levelArc) {
+            // Save the original level arc properties
+            this.elements.levelArc.clear();
+            
+            // Create a full circle flash effect
+            this.elements.levelArc.lineStyle(4, 0xffffff, 1);
+            const x = width - 30;
+            const y = 35;
+            const radius = 22;
+            this.elements.levelArc.beginPath();
+            this.elements.levelArc.arc(x, y, radius, 0, Math.PI * 2);
+            this.elements.levelArc.strokePath();
+            
+            // Revert to normal after a short delay (will be updated by updateXPUI)
+            this.scene.time.delayedCall(300, () => {
+                this.elements.levelArc.clear();
+                // The next updateXPUI call will draw the correct arc again
+            });
+        }
+        
+        // Make the level text pop
+        this.scene.tweens.add({
+            targets: this.elements.levelText,
+            scale: { from: 1.5, to: 1 },
+            duration: 500,
+            ease: 'Bounce.easeOut'
+        });
     }
     
     /**
@@ -1074,6 +1067,138 @@ export class UIManager {
     }
     
     /**
+     * Update group display with current counts
+     */
+    updateGroupDisplay() {
+        if (!this.scene.groupManager || !this.elements.groupText) return;
+        
+        const counts = this.scene.groupManager.getAllGroupCounts();
+        
+        // Format the group counts text
+        const aiCount = counts[GroupId.AI] || 0;
+        const coderCount = counts[GroupId.CODER] || 0;
+        const neutralCount = counts[GroupId.NEUTRAL] || 0;
+        
+        // Create colored text for each faction
+        let groupText = 'Factions: ';
+        groupText += `[color=#ff3333]AI: ${aiCount}[/color] | `;
+        groupText += `[color=#33aaff]CODER: ${coderCount}[/color] | `;
+        groupText += `[color=#55ff55]NEUTRAL: ${neutralCount}[/color]`;
+        
+        // Use setHTML to support colored text
+        this.elements.groupText.setText(groupText.replace(/\[color=#([0-9a-fA-F]{6})\]/g, '')
+                                               .replace(/\[\/color\]/g, ''));
+    }
+    
+    /**
+     * Update chaos meter with current level
+     */
+    updateChaosMeter() {
+        if (!this.scene.chaosManager || !this.elements.chaosBar) return;
+        
+        const chaosValue = this.scene.chaosManager.getChaos();
+        const normalizedChaos = this.scene.chaosManager.getNormalizedChaos();
+        const polarity = this.scene.chaosManager.getPolarity();
+        const absoluteValue = this.scene.chaosManager.getAbsoluteChaos();
+        
+        // Update bar width based on absolute chaos level (0-146 pixels)
+        const maxBarWidth = 146;
+        const barWidth = Math.round(maxBarWidth * (absoluteValue / 100));
+        this.elements.chaosBar.width = barWidth;
+        
+        // Position bar differently based on polarity:
+        // For positive values: align left (origin 0, 0.5)
+        // For negative values: align right (origin 1, 0.5)
+        if (polarity >= 0) {
+            // Positive or zero
+            this.elements.chaosBar.setOrigin(0, 0.5);
+            this.elements.chaosBar.x = -73; // Left side of container
+        } else {
+            // Negative
+            this.elements.chaosBar.setOrigin(1, 0.5);
+            this.elements.chaosBar.x = 73; // Right side of container
+        }
+        
+        // Update color gradient based on polarity
+        let rgbColor;
+        if (polarity > 0) {
+            // Positive chaos (red)
+            const intensity = Math.min(255, Math.round(255 * (absoluteValue / 100)));
+            rgbColor = Phaser.Display.Color.GetColor(intensity, 50, 50);
+        } else if (polarity < 0) {
+            // Negative chaos (blue)
+            const intensity = Math.min(255, Math.round(255 * (absoluteValue / 100)));
+            rgbColor = Phaser.Display.Color.GetColor(50, 50, intensity);
+        } else {
+            // Neutral (green)
+            rgbColor = Phaser.Display.Color.GetColor(50, 150, 50);
+        }
+        this.elements.chaosBar.fillColor = rgbColor;
+        
+        // Update percentage text with sign
+        const chaosPercentage = this.scene.chaosManager.getChaosPercentage();
+        this.elements.chaosText.setText(`CHAOS: ${chaosPercentage}`);
+    }
+    
+    /**
+     * Update debug information display
+     */
+    updateDebugInfo() {
+        if (!this.elements.debugText || !this.options.showDebug) return;
+        
+        const { scene } = this;
+        let debugText = 'DEBUG INFO\n';
+        
+        // FPS
+        debugText += `FPS: ${Math.floor(scene.game.loop.actualFps)}\n`;
+        
+        // Wave information
+        if (scene.waveManager) {
+            debugText += `Wave: ${scene.waveManager.currentWave}/${scene.waveManager.maxWaves}\n`;
+            debugText += `Active Enemies: ${scene.waveManager.activeEnemies}\n`;
+            debugText += `Enemies Spawned: ${scene.waveManager.enemiesSpawned}\n`;
+        }
+        
+        // Object pools information
+        if (scene.gameObjectManager) {
+            const stats = scene.gameObjectManager.getStats();
+            debugText += '\nPOOLS:\n';
+            
+            for (const [type, poolStats] of Object.entries(stats)) {
+                if (poolStats) {
+                    debugText += `${type}: ${poolStats.active}/${poolStats.total}\n`;
+                }
+            }
+        }
+        
+        // Player position
+        if (scene.player) {
+            const pos = scene.player.getPosition();
+            debugText += `\nPlayer: (${Math.floor(pos.x)}, ${Math.floor(pos.y)})\n`;
+        }
+        
+        // Kill count
+        debugText += `Kills: ${scene.killCount}\n`;
+        
+        // Add group counts if available
+        if (scene.groupManager) {
+            const counts = scene.groupManager.getAllGroupCounts();
+            debugText += `Groups: AI=${counts[GroupId.AI] || 0}, `;
+            debugText += `CODER=${counts[GroupId.CODER] || 0}, `;
+            debugText += `NEUTRAL=${counts[GroupId.NEUTRAL] || 0}\n`;
+        }
+        
+        // Add chaos level if available
+        if (scene.chaosManager) {
+            const chaosValue = Math.round(scene.chaosManager.getChaos());
+            debugText += `Chaos: ${chaosValue}%\n`;
+        }
+        
+        // Update the debug text
+        this.elements.debugText.setText(debugText);
+    }
+    
+    /**
      * Update score UI
      * @param {number} score - Current score value
      */
@@ -1116,9 +1241,12 @@ export class UIManager {
     update() {
         // Update player health if health system exists
         if (this.scene.playerHealth) {
-           // const health = this.scene.playerHealth.getCurrentHealth();
-            //const maxHealth = this.scene.playerHealth.getMaxHealth();
-            //this.updateHealthUI(health, maxHealth);
+           // The PlayerHealth class doesn't have getCurrentHealth(), it directly uses currentHealth
+           // and has getHealthPercent() method
+           const healthPercent = this.scene.playerHealth.getHealthPercent() * 100;
+           const maxHealth = this.scene.playerHealth.maxHealth;
+           const currentHealth = this.scene.playerHealth.currentHealth;
+           this.updateHealthUI(currentHealth, maxHealth);
         }
 
         // Update debug info if enabled
@@ -1126,30 +1254,10 @@ export class UIManager {
             this.updateDebugInfo();
         }
         
+        // Update group display
+        this.updateGroupDisplay();
+        
         // Update chaos meter
         this.updateChaosMeter();
-    }
-    
-    /**
-     * Clean up resources when scene is destroyed
-     */
-    destroy() {
-        // Clean up timers
-        if (this.chaosSyncTimer) {
-            this.chaosSyncTimer.destroy();
-            this.chaosSyncTimer = null;
-        }
-        
-        // Clean up elements
-        for (const key in this.elements) {
-            if (this.elements[key] && this.elements[key].destroy) {
-                this.elements[key].destroy();
-            }
-        }
-        
-        // Clear references
-        this.elements = {};
-        this.groups = {};
-        this.scene = null;
     }
 }

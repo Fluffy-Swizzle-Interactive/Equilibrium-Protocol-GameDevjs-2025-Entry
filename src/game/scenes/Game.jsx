@@ -95,6 +95,11 @@ export class Game extends Scene {
             rate: 0.9
         });
         
+        this.soundManager.initSoundEffect('levelUp', {
+            volume: 0.7,
+            rate: 1.0
+        });
+        
         // Unlock audio context as early as possible - this helps with mobile browsers
         // and cases where audio might be initially locked
         if (this.sound.locked) {

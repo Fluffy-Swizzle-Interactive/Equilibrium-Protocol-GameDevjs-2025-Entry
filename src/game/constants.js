@@ -49,19 +49,15 @@ export const SETTINGS = {
     PLAYER_RADIUS: 20,
     
     // Weapon settings
-    MINIGUN_FIRE_RATE: 333,
+    MINIGUN_FIRE_RATE: 10,
     MINIGUN_BULLET_SPEED: 10,
     MINIGUN_BULLET_DAMAGE: 30,
-    MINIGUN_BULLET_CALIBER: 5,
-    MINIGUN_BULLET_HEALTH: 30,
     
     SHOTGUN_FIRE_RATE: 40,
     SHOTGUN_BULLET_SPEED: 12,
     SHOTGUN_BULLET_DAMAGE: 20,
     SHOTGUN_SPREAD_ANGLE: 30,
-    SHOTGUN_BULLET_COUNT: 10,
-    SHOTGUN_BULLET_CALIBER: 5,
-    SHOTGUN_BULLET_HEALTH: 30,
+    SHOTGUN_BULLET_COUNT: 10
 };
 
 /**
@@ -96,29 +92,8 @@ export const CHAOS = {
     MIN_VALUE: -100,
     MAX_VALUE: 100,
     DEFAULT_VALUE: 0,
-    KILL_WEIGHT: 1,           // Amount of chaos changed per kill
-    PANIC_THRESHOLD: 85,      // Absolute value at which faction panic begins
-    PANIC_DURATION: 3000,     // Duration of panic state in milliseconds
-    
-    // Multiplier constants (K values)
-    MULTIPLIERS: {
-        HP: 0.01,             // Health multiplier (K)
-        DAMAGE: 0.01,         // Damage multiplier (K)
-        FIRE_RATE: 0.01,      // Fire rate multiplier (K)
-        DODGE: 0.01           // Dodge frequency multiplier (K)
-    },
-    
-    // Chaos Event constants
-    MAJOR_EVENT_VALUE: 100,   // Absolute value that triggers major chaos event
-    SHAKE_INTENSITY: 0.01,    // Screen shake intensity for major events
-    SHAKE_DURATION: 500,      // Screen shake duration in ms
-    
-    // Colors for factions
-    COLORS: {
-        AI: 0x3366ff,         // Blue for AI faction
-        CODER: 0xff3366,      // Red for Coder faction
-        NEUTRAL: 0xaaaaaa     // Gray for neutral
-    }
+    ADJUSTMENT_RATE: 0.5, // Default adjustment per tick
+    UPDATE_INTERVAL: 1000 // Milliseconds between chaos auto-adjustments
 };
 
 /**

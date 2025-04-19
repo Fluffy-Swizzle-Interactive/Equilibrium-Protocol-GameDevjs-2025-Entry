@@ -72,6 +72,7 @@ export class Preloader extends Scene
         // Load sound effects
         this.load.audio('shoot_minigun', 'assets/audio/laserShoot.wav');
         this.load.audio('shoot_shotgun', 'assets/audio/laserShoot.wav');
+        this.load.audio('levelUp', 'assets/audio/levelUp.wav');
         
         // Load ambient background music
         this.load.audio('ambient_music', 'assets/audio/ambient_loop.mp3');
