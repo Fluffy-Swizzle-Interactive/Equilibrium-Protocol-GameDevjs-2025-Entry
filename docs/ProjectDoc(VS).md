@@ -17,6 +17,7 @@
 - [Mapping System](#mapping-system)
 - [Enemy Registry System](#enemy-registry-system)
 - [Enemy Grouping & Chaos System](#enemy-grouping--chaos-system)
+- [ChaosMeter System](#chaosmeter-system)
 - [Development Guidelines](#development-guidelines)
 - [Asset Management](#asset-management)
 - [Troubleshooting](#troubleshooting)
@@ -371,96 +372,69 @@ End screen showing game results and offering restart option.
 
 ## UI Components
 
-### `UIManager` Class (`managers/UIManager.js`)
+### `DebugPanel` Component (`DebugPanel.jsx`)
 
-Centralized manager for all UI elements in the game including health bar, XP display, wave information, and game state notifications.
+React component displaying real-time game metrics for development.
 
-#### Properties
-- `scene` - Reference to the Phaser scene
-- `elements` - Object storing all UI element references
-- `groups` - Object storing UI element groups
-- `options` - Configuration options
-- `initialized` - Whether the UI has been initialized
+#### Props
+- `gameRef` - Reference to the PhaserGame component
 
-#### Key Methods
-- `init(options)` - Initializes all UI elements
-- `createHealthUI()` - Creates health bar with level indicator
-- `createXPUI()` - Creates XP bar at screen bottom
-- `createWaveUI()` - Creates wave counter display
-- `createWaveBanner()` - Creates banner for wave notifications
-- `createNextWaveButton()` - Creates button to start next wave
-- `updateHealthUI(currentHealth, maxHealth)` - Updates health display
-- `updateXPUI(data)` - Updates XP bar and circular level progress
-- `showLevelUpAnimation(level)` - Displays level-up effects
-- `showWaveStartBanner(waveNumber, isBossWave)` - Shows wave start notification
-- `showWaveCompleteUI()` - Shows wave completion notification
-- `showVictoryUI()` - Shows victory screen
-- `showGameOverUI()` - Shows game over screen
+#### State
+- `debugInfo` - Object containing current game metrics
 
-#### UI Layout
+#### Methods
+- `updateDebugInfo()` - Updates displayed metrics
+- `renderSection(title, children)` - Helper to render UI sections
+- `renderInfoItem(label, value)` - Helper to render individual metrics
 
-The UI is arranged in a clean layout optimized for gameplay visibility:
+#### Displayed Information
+- FPS
+- Enemy count
+- Bullet count
+- Player position
+- Mouse position
+- Kill count
+- Game mode
+- Survival time
 
-1. **Top Left**: Wave counter showing current/maximum wave
-2. **Top Right**: Health bar and level indicator
-3. **Center (as needed)**: Wave banners, level-up notifications
-4. **Bottom Center (when applicable)**: Next Wave button
+### `UIManager.js` - Phaser UI Manager
 
-#### Level Display UI
+The `UIManager` class manages all game UI components in Phaser, including:
 
-The level indicator uses a streamlined circular progress design:
+#### ChaosMeter UI Component
 
-- Located next to the health bar in the top-right corner
-- Shows current player level as a number in the center
-- Displays XP progress as a circular arc around the level number
-- Color-coded with a teal (#00ff99) progress indicator
-- Animates during level-up with particle effects
+A bi-directional meter implemented natively in Phaser that displays the balance between AI and Coder factions.
 
-```javascript
-// Example of level arc creation
-this.elements.levelArc = this.scene.add.graphics()
-    .setScrollFactor(0)
-    .setDepth(101);
+- **Location**: Top center of screen, replacing the previous faction counter
+- **Visual Elements**:
+  - Background bar with central marker
+  - AI side (left/blue) - grows with negative chaos values
+  - Coder side (right/red) - grows with positive chaos values
+  - Numerical display showing current chaos value
+  - Faction count display below meter
 
-// Example of drawing the level progress arc
-this.elements.levelArc.clear();
-this.elements.levelArc.lineStyle(4, 0x00ff99, 1);
-this.elements.levelArc.beginPath();
-this.elements.levelArc.arc(x, y, radius, startAngle, startAngle + (Math.PI * 2 * progress), false);
-this.elements.levelArc.strokePath();
-```
+#### ChaosMeter Interaction Methods
 
-#### Animations and Visual Feedback
+- `setupGroupDisplay()` - Creates and configures the ChaosMeter UI components
+- `updateChaosMeter()` - Updates the meter based on current chaos value
+- `handleChaosChanged(data)` - Handler for chaos-changed events
+- `handleMajorChaosEvent(data)` - Handler for major chaos events
+- `flashChaosMeter()` - Creates a visual flashing effect when significant chaos events occur
+- `createChaosParticleEffect(factionId)` - Generates particle effects for major chaos events
+- `updateGroupCountText()` - Updates faction count display beneath meter
 
-The UI system includes several animations for better user experience:
+#### Visual Effects
 
-1. **Health Bar Color Changes**:
-   - Green (>75%)
-   - Yellow (50-75%)
-   - Orange (25-50%)
-   - Red (<25%)
+- Bar segments dynamically resize based on chaos level
+- Color coding: blue for AI, red for Coders
+- Flashing effect when passing major thresholds
+- Particle burst and screen shake on major chaos events
 
-2. **Level-Up Sequence**:
-   - Centered text announcement
-   - Particle effects at both the center and level indicator
-   - Flash effect on the circular level progress
-   - Scale animation on the level number
+#### Integration Points
 
-3. **Wave Transitions**:
-   - Smooth fade-in/out for wave banners
-   - Color-coding (blue for normal waves, red for boss waves)
-
-#### Implementation Notes
-
-The UI manager uses Phaser's container system for organized grouping of elements and proper depth sorting:
-
-```javascript
-this.elements.container = this.scene.add.container(0, 0)
-    .setScrollFactor(0) // Don't move with camera
-    .setDepth(100);     // Always on top
-```
-
-All UI elements are added to this container, ensuring they stay fixed on screen regardless of camera movement.
+- Connects directly to ChaosManager via EventBus
+- Updates automatically in the game update loop
+- Displays both chaos level and faction counts in one UI element
 
 ---
 
@@ -494,7 +468,6 @@ Centralized audio system that manages both background music and sound effects.
 - `setEffectsVolume(volume)` - Sets volume level for sound effects
 - `initSoundEffect(key, options)` - Registers a sound effect with options
 - `playSoundEffect(key, options)` - Plays a sound effect with options
-- `hasSound(key)` - Checks if a sound effect exists in the manager
 - `destroy()` - Cleans up all audio resources
 
 #### Usage Example
@@ -520,13 +493,10 @@ this.soundManager.initSoundEffect('explosion', {
     rate: 1.2
 });
 
-// Check if a sound exists before playing
-if (this.soundManager.hasSound('explosion')) {
-    // Play sound effect with options
-    this.soundManager.playSoundEffect('explosion', {
-        detune: Math.random() * 200 - 100
-    });
-}
+// Play sound effect with options
+this.soundManager.playSoundEffect('explosion', {
+    detune: Math.random() * 200 - 100
+});
 ```
 
 ### Audio Pause Handling
@@ -638,6 +608,7 @@ The `MainMenu` scene initializes the ambient music that continues throughout the
        
        // Handle audio context locking
        if (this.sound.locked) {
+           console.debug('Audio system is locked. Attempting to unlock...');
            this.sound.once('unlocked', () => {
                this.soundManager.playMusic('ambient_music', {
                    fadeIn: 2000
@@ -734,6 +705,7 @@ Score is determined by:
 - Kill count
 
 ---
+
 
 ## XP System
 
@@ -1233,7 +1205,6 @@ setupEventListeners() {
 ```
 
 ---
-
 ## Object Pooling System
 
 ### `GameObjectManager` Class (`managers/GameObjectManager.js`)
@@ -2161,6 +2132,149 @@ The UI displays chaos polarity using color-coding:
 - Positive values: Red (increasing intensity with value)
 - Negative values: Blue (increasing intensity with absolute value)
 - Zero: Green (neutral)
+
+---
+
+## ChaosMeter System
+
+The ChaosMeter is a dynamic gameplay mechanic that tracks the balance between enemy factions and influences gameplay accordingly.
+
+### Core Concept
+
+The ChaosMeter represents a balance between the AI and Coder factions. It ranges from -100 (AI dominance) to +100 (Coder dominance), with 0 being perfect balance. The meter shifts based on the player's kill choices, moving in the opposite direction of the killed faction:
+
+- Killing AI enemies shifts the meter toward Coder (+)
+- Killing Coder enemies shifts the meter toward AI (-)
+
+This creates a strategic gameplay element where players must decide which enemies to prioritize to manipulate the chaos level to their advantage.
+
+### `ChaosManager` Class (`managers/ChaosManager.js`)
+
+Manages the chaos meter mechanics, tracking faction dominance and applying gameplay effects.
+
+#### Properties
+- `chaosValue` - Current chaos value (-100 to 100)
+- `minValue` - Minimum chaos value (-100)
+- `maxValue` - Maximum chaos value (100)
+- `killWeight` - Amount chaos changes per kill (1)
+- `panicThreshold` - Threshold at which factions panic (85)
+- `majorEventFired` - Tracks if major events have been triggered
+- `multiplierCache` - Cached multipliers for each faction
+
+#### Methods
+- `constructor(scene, options)` - Creates a chaos manager with custom options
+- `handleEnemyKilled(data)` - Handles enemy killed events
+- `registerKill(groupId)` - Updates chaos when an enemy is killed
+- `getMultipliers(groupId)` - Gets stat multipliers for a faction
+- `calculateMultipliers(groupId)` - Calculates multipliers based on current chaos
+- `isPanicking(groupId)` - Determines if a faction should panic
+- `getChaos()` - Gets the current chaos value
+- `getNormalizedChaos()` - Gets chaos as a normalized value (0-1)
+- `getPolarity()` - Gets the chaos polarity (-1, 0, or 1)
+- `getAbsoluteChaos()` - Gets the absolute chaos value (0-100)
+- `getChaosPercentage()` - Gets chaos as a percentage with sign (+/-%)
+- `setChaos(value, emitEvent)` - Sets chaos to a specific value
+- `adjustChaos(amount, emitEvent)` - Adjusts chaos by a relative amount
+- `checkMajorChaosEvents(oldValue, newValue)` - Checks for major chaos events
+- `triggerMajorChaosEvent(factionId)` - Triggers faction dominance events
+- `reset()` - Resets chaos to default value
+- `destroy()` - Cleans up resources
+
+#### Gameplay Effects
+
+The ChaosMeter influences several gameplay factors:
+
+1. **Stats Multipliers**: The dominant faction gets stat boosts based on chaos level:
+   - HP: Health boost (scales with chaos level)
+   - Damage: Attack damage boost
+   - Fire Rate: Shooting frequency boost
+   - Dodge: Evasion capability boost
+
+2. **Panic Behavior**: When chaos exceeds a threshold (85), the disadvantaged faction enters a panic state:
+   - Enemies flee from opposing faction instead of pursuing the player
+   - Visual indicator shows which enemies are panicking (fast blinking)
+   - Creates tactical opportunities for the player
+
+3. **Major Events**: When chaos reaches extreme values (±100), special events trigger:
+   - Screen shake effect
+   - Particle effects
+   - Event notifications
+   - Potential for additional gameplay changes
+
+### `PanicFleeState` Class (`entities/ai/PanicFleeState.js`)
+
+Implements panic behavior for enemies when their faction is at a disadvantage.
+
+#### Properties
+- `enemy` - Reference to the enemy being controlled
+- `scene` - Reference to the Phaser scene
+- `fleeTarget` - The enemy they're fleeing from
+- `opposingGroupId` - The opposing faction's group ID
+
+#### Methods
+- `constructor(enemy)` - Creates a new panic state for an enemy
+- `enter()` - Initiates panic behavior (visual effects)
+- `execute(delta)` - Executes flee behavior each frame
+- `fleeFromTarget()` - Moves away from threat
+- `exit()` - Ends panic state and restores normal appearance
+- `static shouldPanic(enemy)` - Determines if an enemy should enter panic state
+
+#### Panic Behavior Flow
+1. Enemy faction reaches disadvantage threshold in chaos meter
+2. `BaseEnemy.checkPanicState()` detects this condition
+3. Enemy enters panic state with `enterPanicState()`
+4. `PanicFleeState` takes control of movement
+5. Enemy flees from nearest opposing faction enemy
+6. When chaos returns below threshold, exits panic state
+
+### `ChaosBar` Component (`components/ChaosBar.jsx`)
+
+React component that visualizes the current chaos meter state.
+
+#### Properties
+- `chaosValue` - Current chaos value from state
+- `flashing` - Whether the bar is in flashing state
+
+#### Methods
+- `handleChaosChanged(data)` - Updates display when chaos changes
+- `handleMajorChaos(data)` - Handles major chaos events
+- `handleChaosReset()` - Handles chaos reset events
+- `hexToColor(hex)` - Converts hex color to CSS format
+
+#### Visual Elements
+- Bi-directional bar showing faction balance
+- Color coding (blue for AI, red for Coders)
+- Neutral center marker
+- Numerical value display
+- Animation effects for significant changes
+- Flashing effect for major events
+
+#### EventBus Integration
+The ChaosBar component subscribes to these events:
+- `chaos-changed`: Updates when chaos value changes
+- `MAJOR_CHAOS`: Handles major chaos events
+- `chaos-reset`: Resets display when chaos is reset
+
+### Integration Points
+
+The ChaosMeter system integrates with several game systems:
+
+1. **Enemy Manager**: Enemies register with groups when spawned
+2. **EventBus**: Death events are broadcast when enemies are killed
+3. **UI System**: The ChaosBar component visualizes the current state
+4. **Enemy AI**: Panic behavior triggers based on chaos threshold
+5. **React UI Layer**: React components display the chaos meter outside the Phaser canvas
+
+### Strategic Gameplay
+
+The ChaosMeter creates strategic choices for players:
+
+1. **Balance Strategy**: Maintain neutral chaos to keep all enemies equal
+2. **Dominance Strategy**: Push chaos toward one faction to weaken the other
+3. **Panic Strategy**: Force one faction into panic to make them flee instead of attack
+4. **Switching Strategy**: Alternate between factions to control battlefield dynamics
+
+This adds depth to the gameplay beyond simple "kill everything" mechanics, rewarding strategic thinking and awareness of the game state.
 
 ---
 

@@ -1,33 +1,31 @@
 import { DEPTHS } from '../constants';
 import { PlayerHealth } from './PlayerHealth';
+import { SETTINGS } from '../constants';
 
 export class Player {
     constructor(scene, x, y) {
         this.scene = scene;
         
         // Initialize core properties
+        this.SETTINGS = SETTINGS;
         this.initPhysicsProperties();
         this.initWeaponProperties(scene.gameMode || 'minigun');
         this.initGraphics(x, y);
         this.initSounds();
         this.createAnimations();
         
+        
         // Initialize health system
         this.healthSystem = new PlayerHealth(scene, {
             maxHealth: 100,
             invulnerabilityTime: 1000
         });
-        
-        // XP collection properties
-        this.xpCollectionRadius = 40;
-        this.lastXpCollectionTime = 0;
-        this.xpCollectionInterval = 100; // Check for XP pickups every 100ms
-        
+
         // Cash collection properties
         this.cashCollectionRadius = 40;
         this.lastCashCollectionTime = 0;
         this.cashCollectionInterval = 100; // Check for cash pickups every 100ms
-        
+
         // Timing properties
         this.lastFireTime = 0;
         this.lastMovementTime = 0;
@@ -50,12 +48,12 @@ export class Player {
      * Initialize physics-related properties
      */
     initPhysicsProperties() {
-        this.speed = 3;
+        this.speed = this.SETTINGS.PLAYER_SPEED;
         this.velX = 0;
         this.velY = 0;
-        this.friction = 0.9;
-        this.acceleration = 0.3;
-        this.radius = 20; // Still need this for collision detection
+        this.friction = this.SETTINGS.PLAYER_FRICTION;
+        this.acceleration = this.SETTINGS.PLAYER_ACCELERATION;
+        this.radius = this.SETTINGS.PLAYER_RADIUS; // Still need this for collision detection
         
         // Aiming properties
         this.maxMouseDistance = 300;
@@ -86,21 +84,21 @@ export class Player {
         this.gameMode = gameMode;
         
         if (this.gameMode === 'minigun') {
-            this.fireRate = 10;
-            this.caliber = 5;
-            this.bulletSpeed = 10;
-            this.bulletDamage = 30;
+            this.fireRate = this.SETTINGS.MINIGUN_FIRE_RATE;
+            this.caliber = this.SETTINGS.MINIGUN_BULLET_CALIBER;
+            this.bulletSpeed = this.SETTINGS.MINIGUN_BULLET_SPEED;
+            this.bulletDamage = this.SETTINGS.MINIGUN_BULLET_DAMAGE;
             this.bulletColor = 0xffff00; // Yellow
-            this.bulletHealth = 4; // Health of the bullet
+            this.bulletHealth = this.SETTINGS.MINIGUN_BULLET_HEALTH; // Health of the bullet
         } else if (this.gameMode === 'shotgun') {
-            this.fireRate = 40;
-            this.caliber = 3;
-            this.bulletSpeed = 12;
-            this.bulletDamage = 20;
+            this.fireRate = this.SETTINGS.SHOTGUN_FIRE_RATE;
+            this.caliber = this.SETTINGS.SHOTGUN_BULLET_CALIBER;
+            this.bulletSpeed = this.SETTINGS.SHOTGUN_BULLET_SPEED;
+            this.bulletDamage = this.SETTINGS.SHOTGUN_BULLET_DAMAGE;
             this.bulletColor = 0xff6600; // Orange
-            this.spreadAngle = 30;
-            this.bulletCount = 10;
-            this.bulletHealth = 3; // Health of the bullet
+            this.spreadAngle = this.SETTINGS.SHOTGUN_SPREAD_ANGLE;
+            this.bulletCount = this.SETTINGS.SHOTGUN_BULLET_COUNT;
+            this.bulletHealth = this.SETTINGS.SHOTGUN_BULLET_HEALTH; // Health of the bullet
         }
     }
     
@@ -279,57 +277,9 @@ export class Player {
         this.updateMovement();
         this.updateAiming();
         this.updateAnimation();
-        this.checkXPCollection();
         this.checkCashCollection();
     }
-    
-    /**
-     * Check for and collect nearby XP pickups
-     */
-    checkXPCollection() {
-        const currentTime = this.scene.time.now;
-        
-        // Only check for XP pickups at the specified interval
-        if (currentTime - this.lastXpCollectionTime < this.xpCollectionInterval) {
-            return;
-        }
-        
-        this.lastXpCollectionTime = currentTime;
-        
-        // Make sure we have access to required objects
-        if (!this.scene.spritePool || !this.scene.xpManager) {
-            return;
-        }
-        
-        // Check for XP pickups within collection radius
-        this.scene.spritePool.checkCollision(
-            this.graphics.x, 
-            this.graphics.y, 
-            this.xpCollectionRadius, 
-            (xpSprite) => {
-                if (xpSprite && xpSprite.customData && xpSprite.customData.value) {
-                    // Add XP to player
-                    this.scene.xpManager.addXP(xpSprite.customData.value);
-                    
-                    // Play XP collection sound
-                    if (this.scene.soundManager) {
-                        // Use existing sound effect if available, otherwise use a fallback
-                        const soundKey = this.scene.soundManager.hasSound('xp_collect') 
-                            ? 'xp_collect' 
-                            : 'shoot_minigun'; // Fallback to an existing sound
 
-                        this.scene.soundManager.playSoundEffect(soundKey, {
-                            detune: 1200, // Higher pitch for XP collection
-                            volume: 0.3
-                        });
-                    }
-                }
-                
-                // Return true to confirm this pickup should be removed
-                return true;
-            },
-            'xp_pickup' // Type of sprite to check for
-        );
     }
 
     /**
