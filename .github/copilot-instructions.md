@@ -6,7 +6,7 @@ Maintain well-documented, modular, and production-ready code across the entire s
 🔄 File Update Rules
 When Copilot writes new classes, functions, game systems, or mechanics, it must:
 
-Append or update entries in /docs/ProjectDoc(VS).md.
+Append or update entries in /docs.
 
 Include relevant signatures, descriptions, and usage notes.
 
@@ -14,7 +14,7 @@ Organize documentation sections using markdown headers.
 
 Copilot Rule:
 When: New code is generated (class, method, variable, game system)
-Then: Update /docs/ProjectDoc(VS).md accordingly
+Then: Update /docs accordingly
 
 🧱 Tech Stack
 Use only the following technologies unless directed otherwise:
@@ -76,7 +76,7 @@ Do not break .github/workflows/deploy.yml or .env.production behavior
 ✅ End-of-Prompt Checklist
 At the end of a generation:
 
- Did you update /docs/ProjectDoc(VS).md?
+ Did you update /docs folder?
 
  Is the code OOP-compliant and modular?
 

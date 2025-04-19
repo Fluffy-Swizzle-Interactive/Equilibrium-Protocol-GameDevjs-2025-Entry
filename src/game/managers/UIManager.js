@@ -44,6 +44,8 @@ export class UIManager {
         
         // Create health UI
         this.createHealthUI();
+
+        
         
         // Create wave banner
         this.createWaveBanner();
@@ -65,6 +67,12 @@ export class UIManager {
 
         // Add chaos meter display
         this.setupGroupDisplay();
+
+        // Create cash display UI
+        this.createCashUI();
+
+        // Set up event listeners
+        this.setupEventListeners();
 
         this.initialized = true;
     }
@@ -128,6 +136,29 @@ export class UIManager {
             { fontFamily: 'Arial', fontSize: 14, color: '#ffffff' }
         ).setOrigin(0.5, 0.5).setScrollFactor(0).setDepth(102);
         
+        // Create level circle to the right of health bar
+        this.elements.levelCircle = this.scene.add.circle(
+            width - 30, 35, 22,
+            0x000000, 0.8
+        ).setScrollFactor(0).setDepth(101);
+        
+        // Create level circle border
+        this.elements.levelBorder = this.scene.add.circle(
+            width - 30, 35, 22
+        ).setScrollFactor(0).setDepth(102)
+        .setStrokeStyle(2, 0x00ff99);
+        
+        // Create level progress arc (empty initially)
+        this.elements.levelArc = this.scene.add.graphics()
+            .setScrollFactor(0)
+            .setDepth(101);
+        
+        // Create level text
+        this.elements.levelText = this.scene.add.text(
+            width - 30, 35, '1',
+            { fontFamily: 'Arial', fontSize: 18, color: '#ffffff' }
+        ).setOrigin(0.5, 0.5).setScrollFactor(0).setDepth(103);
+                
         // Add to container
         this.elements.container.add(this.elements.healthBackground);
         this.elements.container.add(this.elements.healthBar);
@@ -388,70 +419,69 @@ export class UIManager {
     }
     
     /**
-     * Update debug information display
+     * Create cash display UI
      */
-    updateDebugInfo() {
-        if (!this.elements.debugText || !this.options.showDebug) return;
+    createCashUI() {
+        const width = this.scene.cameras.main.width;
         
-        const { scene } = this;
-        let debugText = 'DEBUG INFO\n';
+        // Create cash background
+        this.elements.cashBackground = this.scene.add.rectangle(
+            width - 220, 60, 120, 30,
+            0x000000, 0.7
+        ).setOrigin(0, 0).setScrollFactor(0).setDepth(100);
         
-        // FPS
-        debugText += `FPS: ${Math.floor(scene.game.loop.actualFps)}\n`;
+        // Create cash icon ($ symbol)
+        this.elements.cashIcon = this.scene.add.text(
+            width - 210, 75, '$',
+            { fontFamily: 'Arial', fontSize: 18, color: '#FFD700', fontWeight: 'bold' }
+        ).setOrigin(0.5, 0.5).setScrollFactor(0).setDepth(102);
         
-        // Wave information
-        if (scene.waveManager) {
-            debugText += `Wave: ${scene.waveManager.currentWave}/${scene.waveManager.maxWaves}\n`;
-            debugText += `Active Enemies: ${scene.waveManager.activeEnemies || 0}\n`;
-            debugText += `Enemies Spawned: ${scene.waveManager.enemiesSpawned || 0}\n`;
-        }
+        // Create cash text
+        this.elements.cashText = this.scene.add.text(
+            width - 170, 75, '0',
+            { fontFamily: 'Arial', fontSize: 16, color: '#FFD700' }
+        ).setOrigin(0, 0.5).setScrollFactor(0).setDepth(102);
         
-        // Object pools information
-        if (scene.gameObjectManager) {
-            const stats = scene.gameObjectManager.getStats();
-            debugText += '\nPOOLS:\n';
+        // Add to container
+        this.elements.container.add(this.elements.cashBackground);
+        this.elements.container.add(this.elements.cashIcon);
+        this.elements.container.add(this.elements.cashText);
+    }
+    
+    /**
+     * Update cash UI with current cash amount
+     * @param {Object} data - Cash data object containing cash value
+     */
+    updateCashUI(data) {
+        if (!this.elements.cashText) return;
+        
+        const { cash } = data;
+        
+        // Format cash value with commas for thousands
+        const formattedCash = cash.toLocaleString();
+        
+        // Update cash text
+        this.elements.cashText.setText(formattedCash);
+        
+        // Optional: Add animation effect when cash changes
+        if (this._previousCash !== undefined && cash > this._previousCash) {
+            // Cash increased, show animation
+            this.scene.tweens.add({
+                targets: this.elements.cashText,
+                scale: { from: 1.2, to: 1 },
+                duration: 200,
+                ease: 'Back.easeOut'
+            });
             
-            for (const [type, poolStats] of Object.entries(stats)) {
-                if (poolStats) {
-                    debugText += `${type}: ${poolStats.active}/${poolStats.total}\n`;
-                }
-            }
+            // Flash the text to gold color
+            this.elements.cashText.setTint(0xFFFFFF);
+            this.scene.time.delayedCall(100, () => {
+                this.elements.cashText.setTint(0xFFD700);
+            });
         }
         
-        // Player position
-        if (scene.player) {
-            const pos = scene.player.getPosition();
-            debugText += `\nPlayer: (${Math.floor(pos.x)}, ${Math.floor(pos.y)})\n`;
-        }
-        
-        // Kill count
-        debugText += `Kills: ${scene.killCount || 0}\n`;
-        
-        // Add group counts if available
-        if (scene.groupManager) {
-            const counts = scene.groupManager.getAllGroupCounts();
-            debugText += `Groups: AI=${counts[GroupId.AI] || 0}, `;
-            debugText += `CODER=${counts[GroupId.CODER] || 0}, `;
-            debugText += `NEUTRAL=${counts[GroupId.NEUTRAL] || 0}\n`;
-        }
-        
-        // Add chaos level if available
-        if (scene.chaosManager) {
-            const chaosValue = Math.round(scene.chaosManager.getChaos());
-            debugText += `Chaos: ${chaosValue}\n`;
-            
-            // Add multipliers for detailed debug info
-            if (scene.chaosManager.getMultipliers) {
-                const aiMultipliers = scene.chaosManager.getMultipliers(GroupId.AI);
-                const coderMultipliers = scene.chaosManager.getMultipliers(GroupId.CODER);
-                
-                debugText += `AI mult: HP=${aiMultipliers?.hp?.toFixed(2) || 1.00}, DMG=${aiMultipliers?.damage?.toFixed(2) || 1.00}\n`;
-                debugText += `CODER mult: HP=${coderMultipliers?.hp?.toFixed(2) || 1.00}, DMG=${coderMultipliers?.damage?.toFixed(2) || 1.00}\n`;
-            }
-        }
-        
-        // Update the debug text
-        this.elements.debugText.setText(debugText);
+        // Store current cash for next comparison
+        this._previousCash = cash;
     }
     
     /**
@@ -459,12 +489,15 @@ export class UIManager {
      * Creates a bi-directional bar showing balance between AI and Coder factions
      */
     setupGroupDisplay() {
-        const centerX = this.scene.cameras.main.width / 2;
+        const width = this.scene.cameras.main.width;
+        const centerX = width / 2;
         
-        // Container for the chaos meter (replaces previous faction counter)
-        this.groups.chaosContainer = this.scene.add.container(centerX, 40)
-            .setScrollFactor(0)
-            .setDepth(DEPTHS.UI_ELEMENTS);
+        // Create container for chaos meter
+        this.groups.chaosContainer = this.scene.add.container(centerX, 40).setScrollFactor(0).setDepth(DEPTHS.UI_ELEMENTS);
+        
+        // Background for chaos meter
+        this.elements.chaosBg = this.scene.add.rectangle(0, 0, 180, 25, 0x000000, 0.6)
+            .setOrigin(0.5, 0.5);
         
         // Background for chaos meter
         this.elements.chaosBg = this.scene.add.rectangle(0, 0, 300, 30, 0x000000, 0.7)
@@ -683,6 +716,185 @@ export class UIManager {
         const groupText = `AI: ${aiCount} | CODER: ${coderCount} | NEUTRAL: ${neutralCount}`;
         this.elements.groupText.setText(groupText);
     }
+    /**
+     * Update XP UI with current XP and level data
+     * @param {Object} data - XP data object containing level, xp, and xpToNext values
+     */
+    updateXPUI(data) {
+        if (!this.elements.levelText) return;
+        
+        const { level, xp, xpToNext } = data;
+        
+        // Update level text
+        this.elements.levelText.setText(level.toString());
+        
+        // Draw the circular progress arc around the level circle
+        if (this.elements.levelArc) {
+            // Clear previous arc
+            this.elements.levelArc.clear();
+            
+            // Get the position of the level circle
+            const width = this.scene.cameras.main.width;
+            const x = width - 30; // Same as the level circle x position
+            const y = 35;         // Same as the level circle y position
+            const radius = 22;    // Same as the level circle radius
+            
+            // Set arc style
+            this.elements.levelArc.lineStyle(4, 0x00ff99, 1);
+            
+            // Calculate the sweep angle based on XP progress
+            const progress = (xp / xpToNext) || 0;
+            const startAngle = -Math.PI / 2; // Start from top (270 degrees)
+            const endAngle = startAngle + (Math.PI * 2 * progress); // Full circle is 2*PI
+            
+            // Draw the arc
+            this.elements.levelArc.beginPath();
+            this.elements.levelArc.arc(x, y, radius, startAngle, endAngle, false);
+            this.elements.levelArc.strokePath();
+        }
+    }
+    
+    /**
+     * Display level up animation
+     * @param {number} level - New level reached
+     */
+    showLevelUpAnimation(level) {
+        const width = this.scene.cameras.main.width;
+        const height = this.scene.cameras.main.height;
+        
+        // Create level up text
+        const levelUpText = this.scene.add.text(
+            width / 2, height / 2, `LEVEL UP!\nLevel ${level}`,
+            { 
+                fontFamily: 'Arial', 
+                fontSize: 48, 
+                color: '#00ff99',
+                align: 'center',
+                stroke: '#000000',
+                strokeThickness: 4
+            }
+        ).setOrigin(0.5).setScrollFactor(0).setDepth(150).setAlpha(0);
+        
+        // Create particles for level up effect
+        const particles = this.scene.add.particles(width / 2, height / 2, 'particle_texture', {
+            speed: { min: 100, max: 200 },
+            scale: { start: 0.5, end: 0 },
+            alpha: { start: 1, end: 0 },
+            lifespan: 1000,
+            blendMode: 'ADD',
+            quantity: 30,
+            tint: 0x00ff99,
+            angle: { min: 0, max: 360 }
+        });
+        
+        particles.setDepth(149);
+        
+        // Create particles around level circle
+        if (this.elements.levelCircle) {
+            // Get the position of the level circle
+            const circleX = this.elements.levelCircle.x;
+            const circleY = this.elements.levelCircle.y;
+            
+            // Create particle effect at the level circle position
+            const circleParticles = this.scene.add.particles(circleX, circleY, 'particle_texture', {
+                speed: { min: 50, max: 100 },
+                scale: { start: 0.3, end: 0 },
+                alpha: { start: 1, end: 0 },
+                lifespan: 1000,
+                blendMode: 'ADD',
+                quantity: 20,
+                tint: 0x00ff99,
+                angle: { min: 0, max: 360 }
+            });
+            
+            circleParticles.setDepth(104);
+            
+            // Clean up particles after animation
+            this.scene.time.delayedCall(2000, () => {
+                circleParticles.destroy();
+            });
+        }
+        
+        // Play level up sound effect if available
+        if (this.scene.soundManager) {
+            // Use the dedicated levelUp sound effect
+            if (this.scene.soundManager.hasSound('levelUp')) {
+                this.scene.soundManager.playSoundEffect('levelUp', {
+                    volume: 0.7
+                });
+            } else {
+                // Fall back to modified weapon sound if levelUp sound is not available
+                this.scene.soundManager.playSoundEffect('shoot_minigun', {
+                    detune: 1200, // Higher pitch
+                    volume: 0.6,
+                    rate: 0.5 // Slower rate
+                });
+            }
+        }
+        
+        // Animate level up text
+        this.scene.tweens.add({
+            targets: levelUpText,
+            alpha: { from: 0, to: 1 },
+            scale: { from: 2, to: 1 },
+            duration: 500,
+            ease: 'Back.easeOut',
+            onComplete: () => {
+                // Add short pause before fading out
+                this.scene.time.delayedCall(1000, () => {
+                    // Fade out text
+                    this.scene.tweens.add({
+                        targets: levelUpText,
+                        alpha: 0,
+                        y: height * 0.4,
+                        duration: 500,
+                        ease: 'Power2',
+                        onComplete: () => {
+                            levelUpText.destroy();
+                            particles.destroy();
+                        }
+                    });
+                });
+            }
+        });
+        
+        // Pulse the level indicator and make it spin
+        this.scene.tweens.add({
+            targets: [this.elements.levelCircle, this.elements.levelBorder],
+            scale: { from: 1.5, to: 1 },
+            duration: 500,
+            ease: 'Bounce.easeOut'
+        });
+        
+        // Make the level progress arc flash briefly
+        if (this.elements.levelArc) {
+            // Save the original level arc properties
+            this.elements.levelArc.clear();
+            
+            // Create a full circle flash effect
+            this.elements.levelArc.lineStyle(4, 0xffffff, 1);
+            const x = width - 30;
+            const y = 35;
+            const radius = 22;
+            this.elements.levelArc.beginPath();
+            this.elements.levelArc.arc(x, y, radius, 0, Math.PI * 2);
+            this.elements.levelArc.strokePath();
+            
+            // Revert to normal after a short delay (will be updated by updateXPUI)
+            this.scene.time.delayedCall(300, () => {
+                this.elements.levelArc.clear();
+                // The next updateXPUI call will draw the correct arc again
+            });
+        }
+        
+        // Make the level text pop
+        this.scene.tweens.add({
+            targets: this.elements.levelText,
+            scale: { from: 1.5, to: 1 },
+            duration: 500,
+            ease: 'Bounce.easeOut'
+        });
+    }
     
     /**
      * Update the wave UI with current wave number
@@ -881,7 +1093,14 @@ export class UIManager {
             ? `Waves Survived: ${this.scene.waveManager.currentWave}` 
             : '';
         const killText = `Enemies Defeated: ${this.scene.killCount}`;
-        const statsText = `${waveText}\n${killText}`;
+        
+        // Add cash stats if available
+        let cashText = '';
+        if (this.scene.cashManager) {
+            cashText = `\nCash Collected: $${this.scene.cashManager.getCurrentCash().toLocaleString()}`;
+        }
+        
+        const statsText = `${waveText}\n${killText}${cashText}`;
         this.elements.endGameStats.setText(statsText);
         this.elements.endGameStats.setVisible(true);
         this.elements.endGameStats.setAlpha(0);
@@ -936,7 +1155,14 @@ export class UIManager {
         // Prepare stats display
         const waveText = `All 40 Waves Completed!`;
         const killText = `Total Enemies Defeated: ${this.scene.killCount}`;
-        const statsText = `${waveText}\n${killText}`;
+        
+        // Add cash stats if available
+        let cashText = '';
+        if (this.scene.cashManager) {
+            cashText = `\nCash Collected: $${this.scene.cashManager.getCurrentCash().toLocaleString()}`;
+        }
+        
+        const statsText = `${waveText}\n${killText}${cashText}`;
         this.elements.endGameStats.setText(statsText);
         this.elements.endGameStats.setVisible(true);
         this.elements.endGameStats.setAlpha(0);
@@ -985,7 +1211,63 @@ export class UIManager {
         // Return to main menu
         this.scene.scene.start('MainMenu');
     }
-    
+     /**
+     * Update debug information display
+     */
+     updateDebugInfo() {
+        if (!this.elements.debugText || !this.options.showDebug) return;
+        
+        const { scene } = this;
+        let debugText = 'DEBUG INFO\n';
+        
+        // FPS
+        debugText += `FPS: ${Math.floor(scene.game.loop.actualFps)}\n`;
+        
+        // Wave information
+        if (scene.waveManager) {
+            debugText += `Wave: ${scene.waveManager.currentWave}/${scene.waveManager.maxWaves}\n`;
+            debugText += `Active Enemies: ${scene.waveManager.activeEnemies}\n`;
+            debugText += `Enemies Spawned: ${scene.waveManager.enemiesSpawned}\n`;
+        }
+        
+        // Object pools information
+        if (scene.gameObjectManager) {
+            const stats = scene.gameObjectManager.getStats();
+            debugText += '\nPOOLS:\n';
+            
+            for (const [type, poolStats] of Object.entries(stats)) {
+                if (poolStats) {
+                    debugText += `${type}: ${poolStats.active}/${poolStats.total}\n`;
+                }
+            }
+        }
+        
+        // Player position
+        if (scene.player) {
+            const pos = scene.player.getPosition();
+            debugText += `\nPlayer: (${Math.floor(pos.x)}, ${Math.floor(pos.y)})\n`;
+        }
+        
+        // Kill count
+        debugText += `Kills: ${scene.killCount}\n`;
+        
+        // Add group counts if available
+        if (scene.groupManager) {
+            const counts = scene.groupManager.getAllGroupCounts();
+            debugText += `Groups: AI=${counts[GroupId.AI] || 0}, `;
+            debugText += `CODER=${counts[GroupId.CODER] || 0}, `;
+            debugText += `NEUTRAL=${counts[GroupId.NEUTRAL] || 0}\n`;
+        }
+        
+        // Add chaos level if available
+        if (scene.chaosManager) {
+            const chaosValue = Math.round(scene.chaosManager.getChaos());
+            debugText += `Chaos: ${chaosValue}%\n`;
+        }
+        
+        // Update the debug text
+        this.elements.debugText.setText(debugText);
+    }
     /**
      * Update score UI
      * @param {number} score - Current score value
@@ -998,6 +1280,32 @@ export class UIManager {
     }
     
     /**
+     * Set up event listeners
+     */
+    setupEventListeners() {
+        // Use the imported EventBus instead of trying to access it through scene
+        
+        // Listen for XP updates
+        EventBus.on('xp-updated', this.updateXPUI, this);
+        
+        // Listen for level up events
+        EventBus.on('level-up', (data) => {
+            this.showLevelUpAnimation(data.level);
+            this.updateXPUI(data);
+        }, this);
+        
+        // Listen for cash updates
+        EventBus.on('cash-updated', this.updateCashUI, this);
+        
+        // Clean up listeners when scene changes
+        this.scene.events.once('shutdown', () => {
+            EventBus.off('xp-updated', this.updateXPUI, this);
+            EventBus.off('level-up');
+            EventBus.off('cash-updated', this.updateCashUI, this);
+        });
+    }
+    
+    /**
      * Update method called each frame
      */
     update() {
@@ -1006,6 +1314,10 @@ export class UIManager {
            // const health = this.scene.playerHealth.getCurrentHealth();
             //const maxHealth = this.scene.playerHealth.getMaxHealth();
             //this.updateHealthUI(health, maxHealth);
+            const healthPercent = this.scene.playerHealth.getHealthPercent() * 100;
+            const maxHealth = this.scene.playerHealth.maxHealth;
+            const currentHealth = this.scene.playerHealth.currentHealth;
+            this.updateHealthUI(currentHealth, maxHealth);
         }
 
         // Update debug info if enabled

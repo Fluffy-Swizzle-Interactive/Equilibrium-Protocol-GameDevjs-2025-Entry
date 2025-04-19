@@ -475,6 +475,11 @@ export class Game extends Scene {
             this.player.shoot();
         }
         
+        // Update cash animation position if cash manager exists
+        if (this.cashManager) {
+            this.cashManager.updateCashAnimationPosition();
+        }
+        
         // Update bullets using the pooling system
         this.updateBullets();
         

@@ -351,6 +351,14 @@ export class SoundManager {
             return null;
         }
     }
+    /**
+     * Check if a sound effect exists in the manager
+     * @param {string} key - Asset key for the sound effect
+     * @returns {boolean} Whether the sound effect exists
+     */
+    hasSound(key) {
+        return !!this.soundEffects[key] || this.scene.cache.audio.exists(key);
+    }
 
     /**
      * Cleanup and remove all sounds

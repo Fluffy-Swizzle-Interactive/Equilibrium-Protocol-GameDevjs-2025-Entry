@@ -1,3 +1,5 @@
+import { GameObjectManager } from '../managers/GameObjectManager';
+
 /**
  * SpritePool - A specialized pool for managing sprite objects like death effects and XP pickups
  * Integrates with GameObjectManager for efficient sprite recycling
@@ -24,12 +26,42 @@ export class SpritePool {
         
         // Merge provided options with defaults
         this.options = { ...this.defaultOptions, ...options };
+
+        // Check if the default texture exists, create a fallback if needed
+        this.ensureTextureExists(this.options.defaultTexture);
         
         // Register this pool with the scene for easy access
         this.scene.spritePool = this;
         
         // Initialize the sprite pool
         this.initPool();
+    }
+    
+    /**
+     * Make sure a texture exists, create a fallback if it doesn't
+     * @param {string} textureKey - The texture key to check
+     * @returns {string} The texture key (original or fallback)
+     */
+    ensureTextureExists(textureKey) {
+        if (!textureKey || !this.scene.textures.exists(textureKey)) {
+            console.warn(`Texture "${textureKey}" not found, creating fallback`);
+            this.createFallbackTexture(textureKey || 'fallback_texture');
+            return textureKey || 'fallback_texture';
+        }
+        return textureKey;
+    }
+    
+    /**
+     * Create a fallback texture when needed
+     * @param {string} key - The key to use for the fallback texture
+     */
+    createFallbackTexture(key) {
+        // Create a white square as fallback
+        const graphics = this.scene.make.graphics();
+        graphics.fillStyle(0xFFFFFF);
+        graphics.fillRect(0, 0, 16, 16);
+        graphics.generateTexture(key, 16, 16);
+        graphics.destroy();
     }
     
     /**
@@ -40,8 +72,11 @@ export class SpritePool {
         this.gameObjectManager.createPool('sprite',
             // Create function - creates sprite instance without initialization
             () => {
+                // Make sure texture exists
+                const textureKey = this.ensureTextureExists(this.options.defaultTexture);
+                
                 // Create a sprite (or image if no frames)
-                const sprite = this.scene.add.sprite(0, 0, this.options.defaultTexture);
+                const sprite = this.scene.add.sprite(0, 0, textureKey);
                 
                 // Set default properties
                 sprite.setVisible(false);
@@ -78,9 +113,12 @@ export class SpritePool {
                     ...options
                 };
                 
+                // Check if texture exists before setting
+                const textureKey = this.ensureTextureExists(spriteOptions.texture);
+                
                 // Set sprite position and texture
                 sprite.setPosition(x, y);
-                sprite.setTexture(spriteOptions.texture, spriteOptions.frame);
+                sprite.setTexture(textureKey, spriteOptions.frame);
                 sprite.setScale(spriteOptions.scale);
                 sprite.setAlpha(spriteOptions.alpha);
                 sprite.setTint(spriteOptions.tint);
@@ -146,7 +184,11 @@ export class SpritePool {
         
         // If the pool couldn't provide a sprite (e.g., reached maxSize), create one manually
         console.warn('Sprite pool maxSize reached - creating sprite outside pool');
-        const manualSprite = this.scene.add.sprite(x, y, options.texture || this.options.defaultTexture);
+        
+        // Ensure texture exists
+        const textureKey = this.ensureTextureExists(options.texture || this.options.defaultTexture);
+        
+        const manualSprite = this.scene.add.sprite(x, y, textureKey);
         
         // Set properties
         manualSprite.setScale(options.scale || 1);
@@ -238,6 +280,67 @@ export class SpritePool {
         
         return sprite;
     }
+
+    /**
+     * Create a cash pickup sprite at the specified position
+     * @param {number} x - X position
+     * @param {number} y - Y position
+     * @param {Object} options - Custom options for the cash pickup
+     * @returns {Phaser.GameObjects.Sprite} - The created cash pickup sprite
+     */
+    createCashPickup(x, y, options = {}) {
+        const cashOptions = {
+            texture: 'particle_texture',
+            scale: 0.5,
+            tint: 0xFFD700, // Gold color
+            lifespan: 10000, // 10 seconds lifespan
+            rotation: 0,
+            angularVelocity: 0,
+            velocityX: 0,
+            velocityY: 0,
+            type: 'cash_pickup',
+            collectible: true,
+            value: options.value || 1,
+            enablePhysics: false,
+            depth: 40,
+            ...options
+        };
+
+        // Create the sprite
+        const sprite = this.createSprite(x, y, cashOptions);
+        
+        // Add fade-out tween that starts near the end of lifespan
+        if (this.scene.tweens && sprite) {
+            // Start fade out 2 seconds before death
+            const fadeDelay = cashOptions.lifespan - 2000;
+            
+            this.scene.tweens.add({
+                targets: sprite,
+                alpha: { from: 1, to: 0 },
+                scale: { from: cashOptions.scale, to: 0 },
+                duration: 2000, // 2 second fade
+                ease: 'Power2',
+                delay: fadeDelay,
+                onComplete: () => {
+                    this.releaseSprite(sprite);
+                }
+            });
+
+            // If there's a text object associated with the sprite, fade it too
+            if (sprite.textObject) {
+                this.scene.tweens.add({
+                    targets: sprite.textObject,
+                    alpha: { from: 1, to: 0 },
+                    scale: { from: 1, to: 0 },
+                    duration: 2000,
+                    ease: 'Power2',
+                    delay: fadeDelay
+                });
+            }
+        }
+
+        return sprite;
+    }
     
     /**
      * Release a sprite back to the pool
@@ -251,11 +354,22 @@ export class SpritePool {
         // If using tweens, stop any active tweens
         if (this.scene.tweens) {
             this.scene.tweens.killTweensOf(sprite);
+            
+            // Also kill tweens on any associated text object
+            if (sprite.textObject) {
+                this.scene.tweens.killTweensOf(sprite.textObject);
+            }
         }
         
         // If physics were enabled, disable them
         if (sprite.body) {
             this.scene.physics.world.disable(sprite);
+        }
+        
+        // Clean up text object if it exists (for cash pickups)
+        if (sprite.textObject) {
+            sprite.textObject.destroy();
+            sprite.textObject = null;
         }
         
         // Reset the sprite
@@ -323,17 +437,28 @@ export class SpritePool {
      * @param {number} y - Y position to check
      * @param {number} radius - Collision radius
      * @param {Function} onCollect - Callback when a collectible is collected
+     * @param {string} [type] - Optional type of sprite to filter for 
      * @returns {Array} - Array of collected sprites
      */
-    checkCollision(x, y, radius, onCollect) {
+    checkCollision(x, y, radius, onCollect, type) {
         const collected = [];
         
         // Check each sprite
         for (let i = this.sprites.length - 1; i >= 0; i--) {
             const sprite = this.sprites[i];
             
-            // Skip inactive or non-collectible sprites
-            if (!sprite || !sprite.active || !sprite.customData.collectible) {
+            // Skip inactive sprites
+            if (!sprite || !sprite.active) {
+                continue;
+            }
+
+            // Skip non-collectible sprites
+            if (!sprite.customData || !sprite.customData.collectible) {
+                continue;
+            }
+            
+            // If type is provided, only check sprites of that type
+            if (type && sprite.customData.type !== type) {
                 continue;
             }
             

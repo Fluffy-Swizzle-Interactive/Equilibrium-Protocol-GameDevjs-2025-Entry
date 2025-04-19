@@ -31,6 +31,7 @@ export const DEPTHS = {
     UI_BACKGROUND: 90,
     UI_ELEMENTS: 95,
     UI_TEXT: 100,
+    UI_FLOATING_TEXT: 105,
     UI_OVERLAY: 1000
 };
 
