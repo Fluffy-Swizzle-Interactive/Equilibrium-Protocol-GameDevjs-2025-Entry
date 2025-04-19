@@ -44,9 +44,6 @@ export class WaveGame extends Scene {
         this.gridCache = new Map(); // Cache grid calculations
         this.lastGridUpdate = 0; // Time of last grid update
         this.gridUpdateInterval = 100; // ms between grid updates
-        
-        // XP multiplier for scaling XP drops
-        this.xpMultiplier = 1.0;
     }
 
     init(data) {
@@ -108,11 +105,6 @@ export class WaveGame extends Scene {
         this.soundManager.initSoundEffect('shoot_shotgun', {
             volume: 0.6,
             rate: 0.9
-        });
-        
-        this.soundManager.initSoundEffect('levelUp', {
-            volume: 0.7,
-            rate: 1.0
         });
         
         // Try to unlock audio context as early as possible
@@ -703,12 +695,12 @@ export class WaveGame extends Scene {
                 
                 // Apply knockback
                 const knockbackDistance = 30;
-                const knockbackX = Math.cos(angle) * 0.2 * knockbackDistance;
-                const knockbackY = Math.sin(angle) * 0.2 * knockbackDistance;
+                const knockbackX = Math.cos(angle) * knockbackDistance;
+                const knockbackY = Math.sin(angle) * knockbackDistance;
                 
                 // Set player velocity
-                this.player.velX = knockbackX;
-                this.player.velY = knockbackY;
+                this.player.velX = knockbackX * 0.2;
+                this.player.velY = knockbackY * 0.2;
                 
                 break; // Process only one collision per frame
             }
@@ -779,12 +771,8 @@ export class WaveGame extends Scene {
     /**
      * Method called when an enemy is killed
      * @param {boolean} isBoss - Whether the killed enemy was a boss
-     * @param {number} x - X position of the killed enemy
-     * @param {number} y - Y position of the killed enemy
-     * @param {string} enemyType - Type of enemy killed
-     * @param {object} enemy - Reference to the enemy object
      */
-    onEnemyKilled(isBoss, x, y, enemyType, enemy) {
+    onEnemyKilled(isBoss, x, y, enemyType) {
         // Increment total kill count
         this.killCount++;
         
@@ -827,23 +815,59 @@ export class WaveGame extends Scene {
             // Create special effects for boss death
             if (x !== undefined && y !== undefined) {
                 this.createBossDeathEffect(x, y);
-                
-                // Award bonus XP for boss kills
-                if (this.xpManager && enemy && enemy.scoreValue) {
-                    // Bosses give extra XP as a bonus
-                    const bonusXP = enemy.scoreValue * 0.8 * this.xpMultiplier;
-                    this.xpManager.addXP(bonusXP);
-                }
             }
         } else {
             // If a regular enemy was killed, increment the regular kill counter
             this.regularKillCount++;
         }
         
+        // IMPORTANT: Register kill with ChaosManager
+        if (this.chaosManager) {
+            // Look up the enemy by position in the enemy manager, since we might not have the actual enemy object
+            const deadEnemy = this.findEnemyByPosition(x, y, enemyType);
+            
+            if (deadEnemy && deadEnemy.groupId) {
+                // If we found a reference to the enemy and it has a group, register the kill with that group
+                this.chaosManager.registerKill(deadEnemy.groupId);
+            } else {
+                // Fallback: Assign a random faction for the kill if we can't find the enemy
+                const randomGroup = Math.random() > 0.5 ? 'ai' : 'coder';
+                this.chaosManager.registerKill(randomGroup);
+            }
+        }
+        
         // IMPORTANT: Notify the WaveManager about the killed enemy
         if (this.waveManager) {
             this.waveManager.onEnemyKilled(isBoss, enemyType);
         }
+    }
+    
+    /**
+     * Find an enemy in the enemy list by approximate position
+     * Used when we only have position data but need the enemy reference
+     * @private
+     * @param {number} x - X position
+     * @param {number} y - Y position
+     * @param {string} enemyType - Type of enemy
+     * @returns {BaseEnemy|null} The enemy at that position, or null if not found
+     */
+    findEnemyByPosition(x, y, enemyType) {
+        if (!this.enemyManager || !this.enemyManager.enemies) {
+            return null;
+        }
+        
+        // Search for enemies near this position (within a small tolerance)
+        const tolerance = 5;
+        
+        for (const enemy of this.enemyManager.enemies) {
+            if (enemy && enemy.graphics && 
+                Math.abs(enemy.graphics.x - x) <= tolerance &&
+                Math.abs(enemy.graphics.y - y) <= tolerance) {
+                return enemy;
+            }
+        }
+        
+        return null;
     }
     
     /**
