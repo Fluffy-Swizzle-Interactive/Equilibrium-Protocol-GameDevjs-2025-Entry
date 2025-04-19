@@ -1043,6 +1043,52 @@ checkCashCollection() {
 }
 ```
 
+### Cash Pickup Animation Implementation
+
+The cash pickup animation system provides visual feedback when the player collects cash:
+
+```javascript
+// In CashManager.js
+showCashCollectAnimation(amount) {
+    // Accumulate cash and reset fadeout timer
+    this.accumulatedCash += amount;
+    this.lastCashCollectTime = currentTime;
+    
+    if (this.fadeOutTimer) {
+        this.fadeOutTimer.remove();
+    }
+    
+    // Update or create text above player
+    if (this.cashAnimationText && this.cashAnimationText.active) {
+        // Update existing text
+        this.cashAnimationText.setText(`+$${this.accumulatedCash}`);
+        this.cashAnimationText.setPosition(playerPos.x, playerPos.y - 50);
+    } else {
+        // Create new text
+        this.createCashAnimationText(playerPos);
+    }
+    
+    // Set up new fadeout timer after collection stops
+    this.fadeOutTimer = this.scene.time.delayedCall(this.cashCollectTimeout, () => {
+        this.animateCashTextOut();
+    });
+}
+```
+
+#### Animation Behavior
+
+1. **Real-time Accumulation**: Cash totals accumulate in real-time as multiple pickups are collected
+2. **Player Tracking**: The animation text follows the player as they move
+3. **Delayed Fadeout**: Animation only fades out after player stops collecting cash for 1 second
+4. **Visual Polish**: Uses golden text with black outline for visibility and a smooth fade-out animation
+
+#### Technical Implementation
+
+- Uses Phaser's text objects positioned above the player
+- Text follows player position through the `updateCashAnimationPosition()` method called in scene update loops
+- Cancels and reschedules fadeout timers when new cash is collected
+- Uses tweens for smooth animation effects (pop-in when appearing, rise and fade when disappearing)
+
 ### UI Integration
 
 The cash system integrates with the UI through the UIManager:

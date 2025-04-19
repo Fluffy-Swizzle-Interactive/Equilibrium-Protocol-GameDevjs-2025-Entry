@@ -253,13 +253,13 @@ export class SpritePool {
             tint: 0xFFD700, // Gold color
             lifespan: 10000, // 10 seconds lifespan
             rotation: 0,
-            angularVelocity: 0, // No rotation
-            velocityX: 0, // No movement
-            velocityY: 0, // No movement
+            angularVelocity: 0,
+            velocityX: 0,
+            velocityY: 0,
             type: 'cash_pickup',
             collectible: true,
             value: options.value || 1,
-            enablePhysics: false, // No physics
+            enablePhysics: false,
             depth: 40,
             ...options
         };
@@ -267,46 +267,32 @@ export class SpritePool {
         // Create the sprite
         const sprite = this.createSprite(x, y, cashOptions);
         
-        if (sprite) {
-            // Add a $ text on top of the sprite to make it look like money
-            const textColor = '#FFFFFF';
-            const fontSize = 14;
+        // Add fade-out tween that starts near the end of lifespan
+        if (this.scene.tweens && sprite) {
+            // Start fade out 2 seconds before death
+            const fadeDelay = cashOptions.lifespan - 2000;
             
-            const text = this.scene.add.text(0, 0, '$', {
-                fontFamily: 'Arial',
-                fontSize: fontSize,
-                color: textColor,
-                stroke: '#000000',
-                strokeThickness: 2,
-                align: 'center'
+            this.scene.tweens.add({
+                targets: sprite,
+                alpha: { from: 1, to: 0 },
+                scale: { from: cashOptions.scale, to: 0 },
+                duration: 2000, // 2 second fade
+                ease: 'Power2',
+                delay: fadeDelay,
+                onComplete: () => {
+                    this.releaseSprite(sprite);
+                }
             });
-            
-            text.setOrigin(0.5, 0.5);
-            
-            // Create a container to hold both sprite and text
-            sprite.textObject = text;
-            text.setPosition(sprite.x, sprite.y);
-            text.setDepth(sprite.depth + 1);
-            
-            // Apply a gentle floating animation
-            if (this.scene.tweens) {
+
+            // If there's a text object associated with the sprite, fade it too
+            if (sprite.textObject) {
                 this.scene.tweens.add({
-                    targets: [sprite, text],
-                    y: sprite.y - 10,
-                    duration: 1000,
-                    yoyo: true,
-                    repeat: -1,
-                    ease: 'Sine.easeInOut'
-                });
-                
-                // Also add a pulsating effect
-                this.scene.tweens.add({
-                    targets: sprite,
-                    scale: sprite.scale * 1.2,
-                    duration: 800,
-                    yoyo: true,
-                    repeat: -1,
-                    ease: 'Sine.easeInOut'
+                    targets: sprite.textObject,
+                    alpha: { from: 1, to: 0 },
+                    scale: { from: 1, to: 0 },
+                    duration: 2000,
+                    ease: 'Power2',
+                    delay: fadeDelay
                 });
             }
         }
