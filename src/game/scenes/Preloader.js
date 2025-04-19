@@ -39,7 +39,17 @@ export class Preloader extends Scene
 
         this.load.image('logo', 'assets/logo.png');
         this.load.image('background', 'assets/bg.png');
+        
+        // Make sure particle texture loads correctly by checking for errors
         this.load.image('particle_texture', 'assets/star.png');
+        this.load.on('fileerror', (key, file) => {
+            console.error('Failed to load asset:', key, file);
+            // If particle_texture fails to load, use a fallback
+            if (key === 'particle_texture') {
+                console.warn('Creating fallback texture for particle_texture');
+                this.createFallbackParticleTexture();
+            }
+        });
         
         // Load player sprite atlas
         this.load.atlas('player', 'assets/TESTPLAYER1.png', 'assets/TESTPLAYER1.json');
@@ -78,6 +88,19 @@ export class Preloader extends Scene
     }
 
     /**
+     * Creates a fallback texture when particle_texture fails to load
+     * This ensures the game won't crash with the glTexture error
+     */
+    createFallbackParticleTexture() {
+        // Create a small circle texture as fallback
+        const graphics = this.make.graphics();
+        graphics.fillStyle(0xFFFFFF);
+        graphics.fillCircle(8, 8, 8);
+        graphics.generateTexture('particle_texture', 16, 16);
+        graphics.destroy();
+    }
+    
+    /**
      * Load all map-related assets
      * This keeps map loading organized and centralized
      */
@@ -96,6 +119,11 @@ export class Preloader extends Scene
 
     create ()
     {
+        // Double check if particle_texture was loaded, if not create a fallback
+        if (!this.textures.exists('particle_texture')) {
+            this.createFallbackParticleTexture();
+        }
+        
         EventBus.emit('preloader-complete', this);
 
         this.scene.start('MainMenu');

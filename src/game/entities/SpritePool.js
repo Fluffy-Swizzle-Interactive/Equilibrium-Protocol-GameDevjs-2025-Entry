@@ -1,3 +1,5 @@
+import { GameObjectManager } from '../managers/GameObjectManager';
+
 /**
  * SpritePool - A specialized pool for managing sprite objects like death effects and XP pickups
  * Integrates with GameObjectManager for efficient sprite recycling
@@ -24,12 +26,42 @@ export class SpritePool {
         
         // Merge provided options with defaults
         this.options = { ...this.defaultOptions, ...options };
+
+        // Check if the default texture exists, create a fallback if needed
+        this.ensureTextureExists(this.options.defaultTexture);
         
         // Register this pool with the scene for easy access
         this.scene.spritePool = this;
         
         // Initialize the sprite pool
         this.initPool();
+    }
+    
+    /**
+     * Make sure a texture exists, create a fallback if it doesn't
+     * @param {string} textureKey - The texture key to check
+     * @returns {string} The texture key (original or fallback)
+     */
+    ensureTextureExists(textureKey) {
+        if (!textureKey || !this.scene.textures.exists(textureKey)) {
+            console.warn(`Texture "${textureKey}" not found, creating fallback`);
+            this.createFallbackTexture(textureKey || 'fallback_texture');
+            return textureKey || 'fallback_texture';
+        }
+        return textureKey;
+    }
+    
+    /**
+     * Create a fallback texture when needed
+     * @param {string} key - The key to use for the fallback texture
+     */
+    createFallbackTexture(key) {
+        // Create a white square as fallback
+        const graphics = this.scene.make.graphics();
+        graphics.fillStyle(0xFFFFFF);
+        graphics.fillRect(0, 0, 16, 16);
+        graphics.generateTexture(key, 16, 16);
+        graphics.destroy();
     }
     
     /**
@@ -40,8 +72,11 @@ export class SpritePool {
         this.gameObjectManager.createPool('sprite',
             // Create function - creates sprite instance without initialization
             () => {
+                // Make sure texture exists
+                const textureKey = this.ensureTextureExists(this.options.defaultTexture);
+                
                 // Create a sprite (or image if no frames)
-                const sprite = this.scene.add.sprite(0, 0, this.options.defaultTexture);
+                const sprite = this.scene.add.sprite(0, 0, textureKey);
                 
                 // Set default properties
                 sprite.setVisible(false);
@@ -78,9 +113,12 @@ export class SpritePool {
                     ...options
                 };
                 
+                // Check if texture exists before setting
+                const textureKey = this.ensureTextureExists(spriteOptions.texture);
+                
                 // Set sprite position and texture
                 sprite.setPosition(x, y);
-                sprite.setTexture(spriteOptions.texture, spriteOptions.frame);
+                sprite.setTexture(textureKey, spriteOptions.frame);
                 sprite.setScale(spriteOptions.scale);
                 sprite.setAlpha(spriteOptions.alpha);
                 sprite.setTint(spriteOptions.tint);
@@ -146,7 +184,11 @@ export class SpritePool {
         
         // If the pool couldn't provide a sprite (e.g., reached maxSize), create one manually
         console.warn('Sprite pool maxSize reached - creating sprite outside pool');
-        const manualSprite = this.scene.add.sprite(x, y, options.texture || this.options.defaultTexture);
+        
+        // Ensure texture exists
+        const textureKey = this.ensureTextureExists(options.texture || this.options.defaultTexture);
+        
+        const manualSprite = this.scene.add.sprite(x, y, textureKey);
         
         // Set properties
         manualSprite.setScale(options.scale || 1);
