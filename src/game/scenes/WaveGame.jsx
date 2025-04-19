@@ -771,6 +771,9 @@ export class WaveGame extends Scene {
     /**
      * Method called when an enemy is killed
      * @param {boolean} isBoss - Whether the killed enemy was a boss
+     * @param {number} x - X position of the killed enemy
+     * @param {number} y - Y position of the killed enemy
+     * @param {string} enemyType - Type of enemy that was killed
      */
     onEnemyKilled(isBoss, x, y, enemyType) {
         // Increment total kill count
@@ -786,9 +789,14 @@ export class WaveGame extends Scene {
             this.createEnemyDeathEffect(x, y);
             
             // Award XP directly based on enemy score value instead of spawning pickups
-            if (this.xpManager && enemy && enemy.scoreValue) {
+            if (this.xpManager) {
+                // Find the enemy by position
+                const deadEnemy = this.findEnemyByPosition(x, y, enemyType);
+                
                 // Calculate XP value based on enemy type and score
-                const xpValue = enemy.scoreValue * this.xpMultiplier;
+                const xpValue = deadEnemy && deadEnemy.scoreValue ? 
+                    deadEnemy.scoreValue * (this.xpMultiplier || 1) : 
+                    isBoss ? 500 : 100; // Default values if enemy not found
                 
                 // Award XP directly to the player
                 this.xpManager.addXP(xpValue);
@@ -796,10 +804,11 @@ export class WaveGame extends Scene {
                 // Play XP gain sound effect
                 if (this.soundManager) {
                     // Use existing sound with different parameters for XP collection
-                    const soundKey = this.soundManager.hasSound('xp_collect') 
-                        ? 'xp_collect' 
-                        : 'shoot_minigun'; // Fallback to an existing sound
-                        
+                    const soundKey = this.soundManager.soundEffects && 
+                                     this.soundManager.soundEffects['xp_collect'] ? 
+                                     'xp_collect' : 
+                                     'shoot_minigun'; // Fallback to an existing sound
+                                     
                     this.soundManager.playSoundEffect(soundKey, {
                         detune: 1200, // Higher pitch for XP collection
                         volume: 0.3
