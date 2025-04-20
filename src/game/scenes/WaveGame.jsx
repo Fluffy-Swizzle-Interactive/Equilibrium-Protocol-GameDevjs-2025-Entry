@@ -15,6 +15,7 @@ import { ChaosManager } from '../managers/ChaosManager';
 import { XPManager } from '../managers/XPManager';
 import { CashManager } from '../managers/CashManager';
 import { SpritePool } from '../entities/SpritePool';
+import { CollectibleManager } from '../managers/CollectibleManager';
 import { DEPTHS, CHAOS } from '../constants';
 
 /**
@@ -78,6 +79,7 @@ export class WaveGame extends Scene {
         this.setupUIManager(); // Setup UI before game objects
         this.setupGameObjects(); // Then create player and other objects
         this.setupWaveManager(); // Setup wave manager after other systems
+        this.setupCollectibleManager(); // Setup collectible manager
         this.setupInput();
         
         EventBus.emit('current-scene-ready', this);
@@ -283,6 +285,33 @@ export class WaveGame extends Scene {
                     });
                 }
             });
+        }
+    }
+
+    /**
+     * Set up the collectible manager for handling collectibles
+     */
+    setupCollectibleManager() {
+        // Initialize CollectibleManager with configuration options
+        this.collectibleManager = new CollectibleManager(this, {
+            xpCollectionRadius: 40,
+            cashCollectionRadius: 40,
+            healthCollectionRadius: 30,
+            collectionInterval: 100 // Check collectibles every 100ms
+        });
+        
+        // Register all managers with the collectible manager
+        if (this.xpManager) {
+            this.collectibleManager.registerManager('xpManager', this.xpManager);
+        }
+        
+        if (this.cashManager) {
+            this.collectibleManager.registerManager('cashManager', this.cashManager);
+        }
+        
+        // Log initialization in dev mode
+        if (this.isDev) {
+            console.debug('CollectibleManager initialized with XP and Cash managers');
         }
     }
 
@@ -529,6 +558,11 @@ export class WaveGame extends Scene {
         // Update UI manager
         if (this.uiManager) {
             this.uiManager.update();
+        }
+        
+        // Update collectible manager
+        if (this.collectibleManager) {
+            this.collectibleManager.update();
         }
         
         // Check for collisions

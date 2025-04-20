@@ -17,6 +17,7 @@ export class UIManager {
         this.groups = {}; // Store UI element groups
         this.isDebugShown = false;
         this.initialized = false;
+        this.isProcessingNextWave = false; // Flag for debounce protection
 
         // Register with scene for easier access
         scene.uiManager = this;
@@ -780,40 +781,16 @@ export class UIManager {
             speed: { min: 100, max: 200 },
             scale: { start: 0.5, end: 0 },
             alpha: { start: 1, end: 0 },
-            lifespan: 1000,
+            lifespan: 600,
             blendMode: 'ADD',
-            quantity: 30,
+            quantity: 10,
             tint: 0x00ff99,
             angle: { min: 0, max: 360 }
         });
         
         particles.setDepth(149);
         
-        // Create particles around level circle
-        if (this.elements.levelCircle) {
-            // Get the position of the level circle
-            const circleX = this.elements.levelCircle.x;
-            const circleY = this.elements.levelCircle.y;
-            
-            // Create particle effect at the level circle position
-            const circleParticles = this.scene.add.particles(circleX, circleY, 'particle_texture', {
-                speed: { min: 50, max: 100 },
-                scale: { start: 0.3, end: 0 },
-                alpha: { start: 1, end: 0 },
-                lifespan: 1000,
-                blendMode: 'ADD',
-                quantity: 20,
-                tint: 0x00ff99,
-                angle: { min: 0, max: 360 }
-            });
-            
-            circleParticles.setDepth(104);
-            
-            // Clean up particles after animation
-            this.scene.time.delayedCall(2000, () => {
-                circleParticles.destroy();
-            });
-        }
+        
         
         // Play level up sound effect if available
         if (this.scene.soundManager) {
@@ -1066,16 +1043,33 @@ export class UIManager {
     }
     
     /**
-     * Handle next wave button click
+     * Handle next wave button click with debounce protection
+     * Ensures the function cannot be called again until animations complete
      */
     onNextWaveClick() {
+        // If already processing a click, ignore subsequent clicks
+        if (this.isProcessingNextWave) {
+            return;
+        }
+        
+        // Set processing flag to prevent multiple rapid clicks
+        this.isProcessingNextWave = true;
+        
         // Hide the button
         this.hideNextWaveButton();
         
-        // Start next wave if wave manager exists
-        if (this.scene.waveManager) {
-            this.scene.waveManager.startNextWave();
-        }
+        // Wait for animation to complete (500ms) before starting next wave
+        this.scene.time.delayedCall(500, () => {
+            // Start next wave if wave manager exists
+            if (this.scene.waveManager) {
+                this.scene.waveManager.startNextWave();
+            }
+            
+            // Reset processing flag after a safety delay
+            this.scene.time.delayedCall(100, () => {
+                this.isProcessingNextWave = false;
+            });
+        });
     }
     
     /**

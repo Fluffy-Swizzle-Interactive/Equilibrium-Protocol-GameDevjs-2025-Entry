@@ -21,15 +21,10 @@ export class Player {
             invulnerabilityTime: 1000
         });
         
-        // XP collection properties
+        // Collection properties
+        // These are now just fallbacks in case collectibleManager isn't initialized
         this.xpCollectionRadius = 40;
-        this.lastXpCollectionTime = 0;
-        this.xpCollectionInterval = 100; // Check for XP pickups every 100ms
-        
-        // Cash collection properties
         this.cashCollectionRadius = 40;
-        this.lastCashCollectionTime = 0;
-        this.cashCollectionInterval = 100; // Check for cash pickups every 100ms
         
         // Timing properties
         this.lastFireTime = 0;
@@ -282,12 +277,18 @@ export class Player {
         this.updateMovement();
         this.updateAiming();
         this.updateAnimation();
-        this.checkXPCollection();
-        this.checkCashCollection();
+        
+        // Collectibles are now handled by the collectible manager
+        // The old methods are kept as fallbacks for backward compatibility
+        if (!this.scene.collectibleManager) {
+            this.checkXPCollection();
+            this.checkCashCollection();
+        }
     }
     
     /**
      * Check for and collect nearby XP pickups
+     * @deprecated Use CollectibleManager instead
      */
     checkXPCollection() {
         const currentTime = this.scene.time.now;
@@ -337,6 +338,7 @@ export class Player {
 
     /**
      * Check for and collect nearby cash pickups
+     * @deprecated Use CollectibleManager instead
      */
     checkCashCollection() {
         const currentTime = this.scene.time.now;
