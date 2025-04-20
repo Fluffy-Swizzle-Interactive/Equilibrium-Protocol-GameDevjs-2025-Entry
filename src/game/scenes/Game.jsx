@@ -68,6 +68,23 @@ export class Game extends Scene {
         this.setupInput();
         this.setupEnemySpawner();
         
+        // Initialize CollectibleManager after other managers are created
+        this.collectibleManager = new CollectibleManager(this, {
+            xpCollectionRadius: 40,
+            cashCollectionRadius: 40,
+            healthCollectionRadius: 30,
+            collectionInterval: 100
+        });
+        
+        // Register all managers with the collectible manager
+        if (this.xpManager) {
+            this.collectibleManager.registerManager('xpManager', this.xpManager);
+        }
+        
+        if (this.cashManager) {
+            this.collectibleManager.registerManager('cashManager', this.cashManager);
+        }
+        
         EventBus.emit('current-scene-ready', this);
     }
 
@@ -412,6 +429,12 @@ export class Game extends Scene {
         
         // Update difficulty based on game time
         this.updateDifficulty();
+        
+        // Update managers
+        if (this.xpManager) this.xpManager.update(time, delta);
+        if (this.cashManager) this.cashManager.update(time, delta);
+        if (this.chaosManager) this.chaosManager.update(time, delta);
+        if (this.collectibleManager) this.collectibleManager.update(time, delta);
         
         // Uncomment the following line to visualize the spatial grid (for debugging)
          //this.debugDrawGrid();
