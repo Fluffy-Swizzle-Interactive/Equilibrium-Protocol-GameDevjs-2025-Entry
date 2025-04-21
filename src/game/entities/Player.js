@@ -1,6 +1,7 @@
 import { DEPTHS } from '../constants';
 import { PlayerHealth } from './PlayerHealth';
 import { SETTINGS } from '../constants';
+import { EventBus } from '../EventBus';
 
 export class Player {
     constructor(scene, x, y) {
@@ -29,19 +30,82 @@ export class Player {
         // Timing properties
         this.lastFireTime = 0;
         this.lastMovementTime = 0;
+        
+        // Initialize upgrade tracking
+        this.upgrades = {
+            health: 0,
+            armor: 0,
+            speed: 0,
+            weaponDamage: 0,
+            fireRate: 0,
+            pierce: 0
+        };
+        
+        // Initialize player credits
+        this.credits = 100; // Starting credits
     }
 
-    // Add a takeDamage method that delegates to the health system
     /**
-     * Apply damage to the player
-     * @param {number} amount - Amount of damage to take
-     * @returns {boolean} Whether the player died from this damage
+     * Apply an upgrade to the player
+     * @param {Object} upgrade - The upgrade to apply
+     * @returns {boolean} - Whether the upgrade was applied successfully
      */
-    takeDamage(amount) {
-        if (this.healthSystem) {
-            return this.healthSystem.takeDamage(amount);
+    applyUpgrade(upgrade) {
+        // Make sure the upgrade is valid
+        if (!upgrade || !upgrade.type) {
+            console.warn('Invalid upgrade provided:', upgrade);
+            return false;
         }
-        return false;
+
+        // Apply different effects based on upgrade type
+        switch (upgrade.type) {
+            case 'Health':
+                // Increase max health by 20%
+                if (this.healthSystem) {
+                    const currentMax = this.healthSystem.getMaxHealth();
+                    const healthIncrease = Math.round(currentMax * 0.2);
+                    this.healthSystem.setMaxHealth(currentMax + healthIncrease);
+                    
+                    // Also heal the player for the increase amount
+                    this.healthSystem.heal(healthIncrease);
+                    
+                    // Track upgrade
+                    this.upgrades.health++;
+                }
+                break;
+                
+            case 'Armor':
+                // Decrease damage taken by 15%
+                if (this.healthSystem) {
+                    const currentResistance = this.healthSystem.getDamageResistance() || 0;
+                    const newResistance = currentResistance + 0.15; // 15% more damage resistance
+                    this.healthSystem.setDamageResistance(newResistance);
+                    
+                    // Track upgrade
+                    this.upgrades.armor++;
+                }
+                break;
+                
+            case 'Speed':
+                // Increase movement speed by 15%
+                this.speed *= 1.15;
+                
+                // Track upgrade
+                this.upgrades.speed++;
+                break;
+                
+            default:
+                console.warn(`Unknown upgrade type: ${upgrade.type}`);
+                return false;
+        }
+        
+        // Emit event for upgrading player
+        EventBus.emit('player-upgraded', {
+            upgradeType: upgrade.type,
+            level: this.upgrades[upgrade.type.toLowerCase()]
+        });
+        
+        return true;
     }
     
     /**
@@ -90,6 +154,7 @@ export class Player {
             this.bulletDamage = this.SETTINGS.MINIGUN_BULLET_DAMAGE;
             this.bulletColor = 0xffff00; // Yellow
             this.bulletHealth = this.SETTINGS.MINIGUN_BULLET_HEALTH; // Health of the bullet
+            this.bulletPierce = 1; // Default pierce value
         } else if (this.gameMode === 'shotgun') {
             this.fireRate = this.SETTINGS.SHOTGUN_FIRE_RATE;
             this.caliber = this.SETTINGS.SHOTGUN_BULLET_CALIBER;
@@ -99,6 +164,7 @@ export class Player {
             this.spreadAngle = this.SETTINGS.SHOTGUN_SPREAD_ANGLE;
             this.bulletCount = this.SETTINGS.SHOTGUN_BULLET_COUNT;
             this.bulletHealth = this.SETTINGS.SHOTGUN_BULLET_HEALTH; // Health of the bullet
+            this.bulletPierce = 1; // Default pierce value
         }
     }
     

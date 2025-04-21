@@ -351,6 +351,28 @@ React component displaying real-time game metrics.
 - Game mode
 - Survival time
 
+**Debug Actions:**
+- `Open Shop` - Opens the in-game shop interface for testing purposes
+
+**Implementation:**
+```javascript
+/**
+ * Open the shop from debug panel
+ */
+const openShop = () => {
+    if (gameRef.current?.scene?.shopManager) {
+        gameRef.current.scene.shopManager.openShop();
+    } else {
+        console.warn('ShopManager not found in current scene');
+    }
+};
+
+// Rendering debug actions section
+{renderSection("Debug Actions", <>
+    {renderActionButton("Open Shop", openShop)}
+</>)}
+```
+
 ---
 
 *This documentation is maintained by the Fluffy-Swizz Interactive development team.*

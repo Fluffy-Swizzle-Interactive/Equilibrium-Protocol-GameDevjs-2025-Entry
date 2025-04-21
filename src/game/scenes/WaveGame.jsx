@@ -16,6 +16,7 @@ import { XPManager } from '../managers/XPManager';
 import { CashManager } from '../managers/CashManager';
 import { SpritePool } from '../entities/SpritePool';
 import { CollectibleManager } from '../managers/CollectibleManager';
+import ShopManager from '../managers/ShopManager';
 import { DEPTHS, CHAOS } from '../constants';
 
 /**
@@ -80,6 +81,7 @@ export class WaveGame extends Scene {
         this.setupGameObjects(); // Then create player and other objects
         this.setupWaveManager(); // Setup wave manager after other systems
         this.setupCollectibleManager(); // Setup collectible manager
+        this.setupShopManager(); // Setup shop system
         this.setupInput();
         
         EventBus.emit('current-scene-ready', this);
@@ -312,6 +314,47 @@ export class WaveGame extends Scene {
         // Log initialization in dev mode
         if (this.isDev) {
             console.debug('CollectibleManager initialized with XP and Cash managers');
+        }
+    }
+
+    /**
+     * Set up the shop manager for upgrades between waves
+     */
+    setupShopManager() {
+        // Create RNG for generating upgrades
+        const rng = {
+            pick: (array) => {
+                return array[Math.floor(Math.random() * array.length)];
+            },
+            range: (min, max) => {
+                return Math.floor(Math.random() * (max - min + 1)) + min;
+            }
+        };
+
+        // Create weapon reference for upgrades
+        const weapon = {
+            type: this.weaponType || 'Standard',
+            damage: this.player.bulletDamage || 10,
+            fireRate: this.player.fireRate || 0.1,
+            pierce: this.player.bulletPierce || 1
+        };
+
+        // Initialize shop manager
+        this.shopManager = new ShopManager(this, this.player, weapon, rng);
+        
+        // Initialize player credits if not already set
+        if (this.player.credits === undefined) {
+            this.player.credits = 100; // Starting credits
+            
+            // Update cash display
+            if (this.cashManager) {
+                this.cashManager.setCash(this.player.credits);
+            }
+        }
+        
+        // Log initialization in dev mode
+        if (this.isDev) {
+            console.debug('ShopManager initialized');
         }
     }
 

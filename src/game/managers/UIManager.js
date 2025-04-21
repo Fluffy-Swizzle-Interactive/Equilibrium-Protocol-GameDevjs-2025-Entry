@@ -15,7 +15,7 @@ export class UIManager {
         this.scene = scene;
         this.elements = {}; // Store all UI elements
         this.groups = {}; // Store UI element groups
-        this.isDebugShown = false;
+        
         this.initialized = false;
         this.isProcessingNextWave = false; // Flag for debounce protection
 
@@ -31,12 +31,7 @@ export class UIManager {
         // Skip if already initialized
         if (this.initialized) return;
 
-        // Store configuration options
-        this.options = {
-            showDebug: options.showDebug !== undefined ? options.showDebug : false,
-            ...options
-        };
-        
+       
         // Create UI container
         this.createUIContainer();
         
@@ -59,12 +54,6 @@ export class UIManager {
         
         // Create pause overlay
         this.createPauseOverlay();
-        
-        // Create debug info
-        if (this.options.showDebug) {
-            this.createDebugInfo();
-            this.isDebugShown = true;
-        }
 
         // Add chaos meter display
         this.setupGroupDisplay();
@@ -381,42 +370,6 @@ export class UIManager {
         this.elements.container.add(this.elements.pauseText);
         this.elements.pauseOverlay.setVisible(false);
         this.elements.pauseText.setVisible(false);
-    }
-    
-    /**
-     * Create debug info display
-     */
-    createDebugInfo() {
-        const width = this.scene.cameras.main.width;
-        
-        // Create debug background
-        this.elements.debugBg = this.scene.add.rectangle(
-            width - 260, 100, 240, 200,
-            0x000000, 0.5
-        ).setOrigin(0, 0).setScrollFactor(0).setDepth(100);
-        
-        // Create debug text
-        this.elements.debugText = this.scene.add.text(
-            width - 250, 110, 'Debug Info',
-            { 
-                fontFamily: 'Courier', 
-                fontSize: 14, 
-                color: '#ffffff',
-                align: 'left'
-            }
-        ).setScrollFactor(0).setDepth(101);
-        
-        // Add to container
-        this.elements.container.add(this.elements.debugBg);
-        this.elements.container.add(this.elements.debugText);
-        
-        // Update debug info periodically - make sure to bind the method
-        this.scene.time.addEvent({
-            delay: 500, // Update every 500ms
-            callback: this.updateDebugInfo.bind(this), // Properly bind to this instance
-            callbackScope: this,
-            loop: true
-        });
     }
     
     /**
@@ -1267,10 +1220,6 @@ export class UIManager {
      * @param {number} score - Current score value
      */
     updateScoreUI(score) {
-        // No dedicated score UI in wave mode, but we can update debug if needed
-        if (this.isDebugShown) {
-            this.updateDebugInfo();
-        }
     }
     
     /**
@@ -1314,10 +1263,6 @@ export class UIManager {
             this.updateHealthUI(currentHealth, maxHealth);
         }
 
-        // Update debug info if enabled
-        if (this.options.showDebug && this.elements.debugText) {
-            this.updateDebugInfo();
-        }
         
         // Update chaos meter
         this.updateChaosMeter();
