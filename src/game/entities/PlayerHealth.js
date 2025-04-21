@@ -18,6 +18,9 @@ export class PlayerHealth {
         this.isInvulnerable = false;
         this.invulnerabilityTime = options.invulnerabilityTime || 1000; // ms of invulnerability after hit
         
+        // Damage resistance (for armor upgrades)
+        this.damageResistance = options.damageResistance || 0; // 0 = no resistance, 1 = 100% resistance
+        
         // Visual feedback properties
         this.damageFlashDuration = options.damageFlashDuration || 200;
         this.damageFlashColor = options.damageFlashColor || 0xff0000;
@@ -36,6 +39,11 @@ export class PlayerHealth {
     takeDamage(amount = this.hitDamage) {
         // If invulnerable, ignore damage
         if (this.isInvulnerable) return false;
+        
+        // Apply damage resistance if any
+        if (this.damageResistance > 0) {
+            amount = Math.max(1, amount * (1 - this.damageResistance));
+        }
         
         // Reduce health
         this.currentHealth = Math.max(0, this.currentHealth - amount);
@@ -214,6 +222,52 @@ export class PlayerHealth {
         if (this.scene.uiManager) {
             this.scene.uiManager.updateHealthUI(this.currentHealth, this.maxHealth);
         }
+    }
+    
+    /**
+     * Set the maximum health
+     * @param {number} maxHealth - New maximum health value
+     */
+    setMaxHealth(maxHealth) {
+        this.maxHealth = maxHealth;
+        
+        // Update UI if available
+        if (this.scene.uiManager) {
+            this.scene.uiManager.updateHealthUI(this.currentHealth, this.maxHealth);
+        }
+    }
+    
+    /**
+     * Get the current health value
+     * @returns {number} Current health
+     */
+    getCurrentHealth() {
+        return this.currentHealth;
+    }
+    
+    /**
+     * Get the maximum health value
+     * @returns {number} Maximum health
+     */
+    getMaxHealth() {
+        return this.maxHealth;
+    }
+    
+    /**
+     * Set the damage resistance value (from armor upgrades)
+     * @param {number} resistance - Resistance value between 0 and 1
+     */
+    setDamageResistance(resistance) {
+        // Clamp between 0 and 0.9 (never allow 100% damage resistance)
+        this.damageResistance = Math.min(0.9, Math.max(0, resistance));
+    }
+    
+    /**
+     * Get current damage resistance value
+     * @returns {number} Damage resistance between 0 and 1
+     */
+    getDamageResistance() {
+        return this.damageResistance;
     }
     
     /**

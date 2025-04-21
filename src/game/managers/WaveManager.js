@@ -1,3 +1,5 @@
+import { EventBus } from '../EventBus';
+
 /**
  * WaveManager class
  * Manages wave-based gameplay including wave progression, enemy spawning,
@@ -470,11 +472,23 @@ export class WaveManager {
             this.enterPausePhase();
         }
         
-        // Emit wave completed event
-        this.scene.events.emit('wave-completed', {
+        // Emit wave completed event on both the scene events and EventBus
+        // This ensures all listeners receive the event
+        const eventData = {
             wave: this.currentWave,
             isLastWave
-        });
+        };
+        
+        this.scene.events.emit('wave-completed', eventData);
+        
+        // Also emit on EventBus to ensure ShopManager receives it
+        if (EventBus) {
+            EventBus.emit('wave-completed', eventData);
+            
+            if (this.scene.isDev) {
+                console.debug('Wave completed event emitted on EventBus', eventData);
+            }
+        }
     }
     
     /**

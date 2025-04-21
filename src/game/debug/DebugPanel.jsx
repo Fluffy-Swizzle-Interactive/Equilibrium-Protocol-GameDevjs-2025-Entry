@@ -55,6 +55,19 @@ export function DebugPanel({ gameRef }) {
         value: {
             color: '#ffffff',
             fontFamily: 'monospace',
+        },
+        button: {
+            backgroundColor: '#2a4d2a',
+            color: 'white',
+            border: '1px solid #44aa44',
+            borderRadius: '4px',
+            padding: '5px 10px',
+            margin: '5px 0',
+            cursor: 'pointer',
+            fontWeight: 'bold',
+            width: '100%',
+            fontSize: '14px',
+            textAlign: 'center'
         }
     };
     
@@ -91,6 +104,38 @@ export function DebugPanel({ gameRef }) {
     };
     
     /**
+     * Open the shop from debug panel
+     */
+    const openShop = () => {
+        if (gameRef.current?.scene?.shopManager) {
+            gameRef.current.scene.shopManager.openShop();
+        } else {
+            console.warn('ShopManager not found in current scene');
+        }
+    };
+
+    /**
+     * Execute a debug action with visual feedback on button
+     * @param {Function} action - The action to execute
+     * @param {Event} e - The click event object
+     */
+    const executeDebugAction = (action, e) => {
+        // Visual feedback on button click
+        const button = e.target;
+        const originalBg = button.style.backgroundColor;
+        
+        button.style.backgroundColor = '#3a5d3a';
+        
+        // Execute the action
+        action();
+        
+        // Restore button appearance after a brief delay
+        setTimeout(() => {
+            button.style.backgroundColor = originalBg;
+        }, 200);
+    };
+    
+    /**
      * Render a section of debug information
      * @param {string} title - The section title
      * @param {React.ReactNode} children - The section content
@@ -112,6 +157,20 @@ export function DebugPanel({ gameRef }) {
             <span style={styles.label}>{label}:</span>
             <span style={styles.value}>{value}</span>
         </div>
+    );
+    
+    /**
+     * Render a debug action button
+     * @param {string} label - The button label
+     * @param {Function} action - The action to perform when clicked
+     */
+    const renderActionButton = (label, action) => (
+        <button 
+            style={styles.button}
+            onClick={(e) => executeDebugAction(action, e)}
+        >
+            {label}
+        </button>
     );
     
     // Render the debug panel with different sections
@@ -143,6 +202,11 @@ export function DebugPanel({ gameRef }) {
             {/* Mouse Info */}
             {renderSection("Mouse", <>
                 {renderInfoItem("Position", `${debugInfo.mouseX}, ${debugInfo.mouseY}`)}
+            </>)}
+            
+            {/* Debug Actions Section */}
+            {renderSection("Debug Actions", <>
+                {renderActionButton("Open Shop", openShop)}
             </>)}
         </div>
     );
