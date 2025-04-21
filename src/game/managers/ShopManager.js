@@ -392,29 +392,32 @@ export default class ShopManager {
       // Add all elements to card
       card.add([cardBg, cardBorder, nameText, categoryText, rarityText, effectsText, priceBox, priceText]);
       
-      // Make card interactive
-      cardBg.setInteractive({ cursor: 'pointer' });
+      // Make the entire card container interactive instead of just the background
+      card.setSize(cardWidth, cardHeight); // Set the size of the container for hit testing
+      card.setInteractive({ 
+        useHandCursor: true,
+        hitArea: new Phaser.Geom.Rectangle(-cardWidth/2 + 330, -cardHeight/2 + 460, cardWidth, cardHeight),
+        hitAreaCallback: Phaser.Geom.Rectangle.Contains
+      });
       
-      // Add hover effect
-      cardBg.on('pointerover', () => {
+      // Add hover effect to the container
+      card.on('pointerover', () => {
         cardBorder.setStrokeStyle(3, upgrade.borderColor);
-        // Highlight the text on hover for better feedback
         categoryText.setColor('#ffffff');
         rarityText.setStyle({ color: rarityColor, fontSize: '14px' });
       });
       
-      cardBg.on('pointerout', () => {
+      card.on('pointerout', () => {
         cardBorder.setStrokeStyle(2, upgrade.borderColor);
-        // Reset text on pointer out
         categoryText.setColor('#dddddd');
         rarityText.setStyle({ color: rarityColor, fontSize: '13px' });
       });
       
       // Add click event
-      cardBg.on('pointerdown', () => {
+      card.on('pointerdown', () => {
         // Visual feedback for click
         this.scene.tweens.add({
-          targets: cardBg,
+          targets: card,
           scaleX: 0.95,
           scaleY: 0.95,
           duration: 50,
@@ -474,7 +477,7 @@ export default class ShopManager {
     // Create player upgrade buttons - stacked vertically
     playerUpgradeTypes.forEach((upgrade, index) => {
       // Calculate vertical position with proper spacing
-      // Move buttons 50px higher by subtracting 50 from the y position
+      // Move buttons 50px higher by subtracting 55 from the y position
       const y = startY - 55 + (index * (buttonHeight + spacing));
       
       // Create button container
@@ -498,8 +501,20 @@ export default class ShopManager {
       // Add elements to button container
       button.add([btnBg, btnBorder, nameText]);
       
-      // Make button interactive
-      btnBg.setInteractive({ cursor: 'pointer' });
+      // Make button interactive with correct hitbox
+      btnBg.setInteractive({ 
+        useHandCursor: true,
+        hitArea: new Phaser.Geom.Rectangle(250, 370, buttonWidth, buttonHeight),
+        hitAreaCallback: Phaser.Geom.Rectangle.Contains
+      });
+      
+      // If in dev mode, visualize the hitbox (improved version)
+      if (this.scene.isDev) {
+          const hitboxDebug = this.scene.add.graphics();
+          hitboxDebug.lineStyle(1, 0xff0000);
+          hitboxDebug.strokeRect(-buttonWidth/2 + 667, -buttonHeight/2 + 370, buttonWidth, buttonHeight);
+          button.add(hitboxDebug);
+      }
       
       // Add hover effect
       btnBg.on('pointerover', () => {
@@ -713,8 +728,12 @@ export default class ShopManager {
     
     rerollContainer.add([rerollBg, rerollText]);
     
-    // Make reroll button interactive
-    rerollBg.setInteractive({ cursor: 'pointer' });
+    // Make reroll button interactive with proper hitbox
+    rerollBg.setInteractive({
+      useHandCursor: true,
+      hitArea: new Phaser.Geom.Rectangle(250, 390, 100, 36),
+      hitAreaCallback: Phaser.Geom.Rectangle.Contains
+    });
     
     // Add hover and click effects
     rerollBg.on('pointerover', () => {
@@ -750,8 +769,12 @@ export default class ShopManager {
     
     nextWaveContainer.add([nextWaveBg, nextWaveText]);
     
-    // Make next wave button interactive
-    nextWaveBg.setInteractive({ cursor: 'pointer' });
+    // Make next wave button interactive with proper hitbox
+    nextWaveBg.setInteractive({
+      useHandCursor: true,
+      hitArea: new Phaser.Geom.Rectangle(250, 390, 150, 36),
+      hitAreaCallback: Phaser.Geom.Rectangle.Contains
+    });
     
     // Add hover and click effects
     nextWaveBg.on('pointerover', () => {
@@ -987,5 +1010,62 @@ export default class ShopManager {
     }
 
     return this.isShopOpen;
+  }
+
+  toggleDebugView() {
+    if (!this.scene.isDev) return;
+    
+    // Show hitbox visualization
+    this.showDebugHitboxes();
+    
+    // Log positions
+    console.debug('Shop overlay position:', this.shopOverlay.x, this.shopOverlay.y);
+    console.debug('Main container position:', this.mainContainer?.x, this.mainContainer?.y);
+    
+    // Log all interactive elements
+    console.debug('Weapon cards:', this.upgradeElements.weaponCards);
+    console.debug('Player buttons:', this.upgradeElements.playerButtons);
+  }
+  
+  /**
+   * Enable debug visualization for all shop hitboxes
+   * Shows the clickable areas and bounds of all interactive elements
+   */
+  showDebugHitboxes() {
+    if (!this.scene.isDev) return;
+    
+    // Clear any existing debug graphics
+    if (this.debugGraphics) this.debugGraphics.destroy();
+    
+    this.debugGraphics = this.scene.add.graphics();
+    this.debugGraphics.setScrollFactor(0);
+    this.debugGraphics.setDepth(200); // Above everything else
+    
+    // Visualize weapon card hitboxes
+    this.upgradeElements.weaponCards.forEach(card => {
+      const bounds = card.container.getBounds();
+      this.debugGraphics.lineStyle(2, 0xff0000, 1);
+      this.debugGraphics.strokeRect(bounds.x, bounds.y, bounds.width, bounds.height);
+    });
+    
+    // Visualize player upgrade button hitboxes
+    this.upgradeElements.playerButtons.forEach(button => {
+      const bounds = button.container.getBounds();
+      this.debugGraphics.lineStyle(2, 0x00ff00, 1);
+      this.debugGraphics.strokeRect(bounds.x, bounds.y, bounds.width, bounds.height);
+    });
+    
+    // Visualize bottom button hitboxes if they exist
+    if (this.rerollButton?.container) {
+      const rerollBounds = this.rerollButton.container.getBounds();
+      this.debugGraphics.lineStyle(2, 0x0000ff, 1);
+      this.debugGraphics.strokeRect(rerollBounds.x, rerollBounds.y, rerollBounds.width, rerollBounds.height);
+    }
+    
+    if (this.nextWaveButton?.container) {
+      const nextWaveBounds = this.nextWaveButton.container.getBounds();
+      this.debugGraphics.lineStyle(2, 0x0000ff, 1);
+      this.debugGraphics.strokeRect(nextWaveBounds.x, nextWaveBounds.y, nextWaveBounds.width, nextWaveBounds.height);
+    }
   }
 }
