@@ -242,6 +242,14 @@ export default class ShopManager {
     // Reset reroll count for next shop visit
     this.upgradeManager.resetReroll();
 
+    // Hide the next wave button (which is currently showing "Open Shop")
+    if (this.scene.uiManager && this.scene.uiManager.elements.nextWaveButtonBg) {
+      this.scene.uiManager.elements.nextWaveButtonBg.setVisible(false);
+      if (this.scene.uiManager.elements.nextWaveButtonText) {
+        this.scene.uiManager.elements.nextWaveButtonText.setVisible(false);
+      }
+    }
+
     // Start next wave using wave manager
     if (this.scene.waveManager) {
       this.scene.waveManager.startNextWave();

@@ -2,6 +2,7 @@ import { DEPTHS } from '../constants';
 import { PlayerHealth } from './PlayerHealth';
 import { SETTINGS } from '../constants';
 import { EventBus } from '../EventBus';
+import { WeaponManager } from '../managers/WeaponManager';
 
 export class Player {
     constructor(scene, x, y) {
@@ -10,11 +11,9 @@ export class Player {
         // Initialize core properties
         this.SETTINGS = SETTINGS;
         this.initPhysicsProperties();
-        this.initWeaponProperties(scene.gameMode || 'minigun');
         this.initGraphics(x, y);
         this.initSounds();
         this.createAnimations();
-        
         
         // Initialize health system
         this.healthSystem = new PlayerHealth(scene, {
@@ -28,7 +27,6 @@ export class Player {
         this.cashCollectionRadius = 40;
         
         // Timing properties
-        this.lastFireTime = 0;
         this.lastMovementTime = 0;
         
         // Initialize upgrade tracking
@@ -43,6 +41,22 @@ export class Player {
         
         // Initialize player credits
         this.credits = 100; // Starting credits
+    }
+    
+    /**
+     * Initialize the weapon system with the specified weapon type
+     * @param {string} weaponType - The weapon type ('minigun' or 'shotgun')
+     */
+    initWeaponSystem(weaponType = 'minigun') {
+        // Create the weapon manager
+        this.weaponManager = new WeaponManager(this.scene, this, {
+            weaponType: weaponType,
+            maxDrones: 0, // Start with no drones
+            bulletRange: 600
+        });
+        
+        // Store weapon type on player for backward compatibility
+        this.gameMode = weaponType;
     }
 
     /**
@@ -94,6 +108,19 @@ export class Player {
                 this.upgrades.speed++;
                 break;
                 
+            case 'Drone':
+                // Add a drone if weapon manager exists
+                if (this.weaponManager) {
+                    const newDrone = this.weaponManager.upgradeDrones();
+                    if (newDrone) {
+                        // Track upgrade (we could add a specific drone counter if needed)
+                        return true;
+                    } else {
+                        return false; // Failed to add drone
+                    }
+                }
+                break;
+                
             default:
                 console.warn(`Unknown upgrade type: ${upgrade.type}`);
                 return false;
@@ -138,34 +165,6 @@ export class Player {
         // Track movement status for animation control
         this.isMoving = false;
         this.animationSpeed = 8; // Frames per second for walk animation
-    }
-    
-    /**
-     * Initialize weapon-specific properties based on game mode
-     * @param {string} gameMode - The weapon mode ('minigun' or 'shotgun')
-     */
-    initWeaponProperties(gameMode) {
-        this.gameMode = gameMode;
-        
-        if (this.gameMode === 'minigun') {
-            this.fireRate = this.SETTINGS.MINIGUN_FIRE_RATE;
-            this.caliber = this.SETTINGS.MINIGUN_BULLET_CALIBER;
-            this.bulletSpeed = this.SETTINGS.MINIGUN_BULLET_SPEED;
-            this.bulletDamage = this.SETTINGS.MINIGUN_BULLET_DAMAGE;
-            this.bulletColor = 0xffff00; // Yellow
-            this.bulletHealth = this.SETTINGS.MINIGUN_BULLET_HEALTH; // Health of the bullet
-            this.bulletPierce = 1; // Default pierce value
-        } else if (this.gameMode === 'shotgun') {
-            this.fireRate = this.SETTINGS.SHOTGUN_FIRE_RATE;
-            this.caliber = this.SETTINGS.SHOTGUN_BULLET_CALIBER;
-            this.bulletSpeed = this.SETTINGS.SHOTGUN_BULLET_SPEED;
-            this.bulletDamage = this.SETTINGS.SHOTGUN_BULLET_DAMAGE;
-            this.bulletColor = 0xff6600; // Orange
-            this.spreadAngle = this.SETTINGS.SHOTGUN_SPREAD_ANGLE;
-            this.bulletCount = this.SETTINGS.SHOTGUN_BULLET_COUNT;
-            this.bulletHealth = this.SETTINGS.SHOTGUN_BULLET_HEALTH; // Health of the bullet
-            this.bulletPierce = 1; // Default pierce value
-        }
     }
     
     /**
@@ -325,24 +324,18 @@ export class Player {
      * Initialize sound effects for the player
      */
     initSounds() {
-        // Check if soundManager exists - it should be created in the Game scene
-        if (!this.scene.soundManager) {
-            console.warn('SoundManager not found in scene. Weapon sounds will not be played.');
-            return;
-        }
-
-        // Use the sound effects that have already been initialized by the scene
-        if (this.gameMode === 'minigun') {
-            this.soundKey = 'shoot_minigun';
-        } else if (this.gameMode === 'shotgun') {
-            this.soundKey = 'shoot_shotgun';
-        }
+        // Sound initialization is now handled by WeaponManager
     }
     
     update() {
         this.updateMovement();
         this.updateAiming();
         this.updateAnimation();
+        
+        // Update weapon manager if it exists
+        if (this.weaponManager) {
+            this.weaponManager.update();
+        }
         
         // Collectibles are now handled by the collectible manager
         // The old methods are kept as fallbacks for backward compatibility
@@ -636,153 +629,22 @@ export class Player {
         }
     }
     
-    createBullet(spawnX, spawnY, dirX, dirY) {
-        // Create a single bullet based on current weapon type
-        if (this.gameMode === 'minigun') {
-            return this.createMinigunBullet(spawnX, spawnY, dirX, dirY);
-        } else if (this.gameMode === 'shotgun') {
-            return this.createShotgunBullets(spawnX, spawnY, dirX, dirY);
-        }
-    }
-
-    createMinigunBullet(spawnX, spawnY, dirX, dirY) {
-        // Use bullet pool instead of direct creation
-        if (this.scene.bulletPool) {
-            return this.scene.bulletPool.createMinigunBullet(
-                spawnX, spawnY, dirX, dirY,
-                this.bulletSpeed, this.bulletHealth,
-                this.bulletColor, this.caliber
-            );
-        } else {
-            // Fallback to old method if bulletPool not available
-            const bullet = this.scene.add.circle(spawnX, spawnY, this.caliber, this.bulletColor);
-            
-            // Add bullet properties
-            bullet.dirX = dirX;
-            bullet.dirY = dirY;
-            bullet.speed = this.bulletSpeed;
-            bullet.health = this.bulletHealth;
-            
-            // Add bullet to group
-            this.scene.bullets.add(bullet);
-            return bullet;
-        }
-    }
-
-    createShotgunBullets(spawnX, spawnY, dirX, dirY) {
-        // Use bullet pool instead of direct creation
-        if (this.scene.bulletPool) {
-            return this.scene.bulletPool.createShotgunBullets(
-                spawnX, spawnY, dirX, dirY,
-                this.bulletSpeed, this.bulletHealth,
-                this.bulletColor, this.caliber,
-                this.bulletCount, this.spreadAngle
-            );
-        } else {
-            // Fallback to old method if bulletPool not available
-            const bullets = [];
-            const baseAngle = Math.atan2(dirY, dirX);
-            
-            for (let i = 0; i < this.bulletCount; i++) {
-                // Calculate spread angle
-                const spreadRadians = (Math.random() * this.spreadAngle - this.spreadAngle/2) * (Math.PI / 180);
-                const angle = baseAngle + spreadRadians;
-                
-                // Calculate new direction with spread
-                const newDirX = Math.cos(angle);
-                const newDirY = Math.sin(angle);
-                
-                // Create bullet with spread
-                const bullet = this.scene.add.circle(spawnX, spawnY, this.caliber, this.bulletColor);
-                
-                // Add bullet properties
-                bullet.dirX = newDirX;
-                bullet.dirY = newDirY;
-                bullet.speed = this.bulletSpeed;
-                bullet.health = this.bulletHealth;
-                
-                // Add bullet to group
-                this.scene.bullets.add(bullet);
-                bullets.push(bullet);
-            }
-            
-            return bullets;
-        }
-    }
-
     /**
      * Shoot a bullet or multiple bullets based on weapon type
      * @returns {boolean} Whether a shot was successfully fired
      */
     shoot() {
-        const currentTime = this.scene.time.now;
+        if (!this.weaponManager) return false;
         
-        // Check if enough time has passed since last shot (fire rate)
-        if (currentTime - this.lastFireTime < this.fireRate) {
-            return false; // Can't shoot yet
+        // Use the weapon manager to handle shooting
+        const didShoot = this.weaponManager.shoot(this.targetX, this.targetY);
+        
+        if (didShoot) {
+            // Also fire from drones
+            this.weaponManager.shootDrones(this.targetX, this.targetY);
         }
         
-        // Update last fire time
-        this.lastFireTime = currentTime;
-        
-        // Make sure we have a target
-        if (!this.targetX || !this.targetY) return false;
-        
-        // Calculate direction vector to target
-        const directionVector = this.calculateDirectionVector();
-        
-        // Calculate spawn position (edge of player circle)
-        const spawnX = this.graphics.x + directionVector.x * this.radius;
-        const spawnY = this.graphics.y + directionVector.y * this.radius;
-        
-        // Create bullets using the dedicated methods
-        this.createBullet(spawnX, spawnY, directionVector.x, directionVector.y);
-        
-        // Play shooting sound using SoundManager
-        this.playWeaponSound();
-        
-        return true; // Successfully shot
-    }
-
-    /**
-     * Play the weapon sound with error handling
-     * @private
-     */
-    playWeaponSound() {
-        // Don't try to play sounds if soundManager or soundKey aren't available
-        if (!this.scene.soundManager || !this.soundKey) return;
-        
-        try {
-            // Add slight pitch variation for more realistic sound
-            const detune = Math.random() * 200 - 100; // Random detune between -100 and +100
-            
-            // If this is the first shot, force an unlock of the audio context
-            if (!this.hasPlayedSound && this.scene.sound.locked) {
-                this.scene.sound.unlock();
-            }
-            
-            this.scene.soundManager.playSoundEffect(this.soundKey, { detune });
-            this.hasPlayedSound = true;
-        } catch (error) {
-            console.warn('Error playing weapon sound:', error);
-        }
-    }
-    
-    /**
-     * Calculate normalized direction vector from player to target
-     * @returns {Object} Object with x and y properties representing direction
-     */
-    calculateDirectionVector() {
-        // Calculate direction from player to target
-        const dx = this.targetX - this.graphics.x;
-        const dy = this.targetY - this.graphics.y;
-        
-        // Normalize direction vector
-        const distance = Math.sqrt(dx * dx + dy * dy);
-        return {
-            x: dx / distance,
-            y: dy / distance
-        };
+        return didShoot;
     }
     
     /**
@@ -813,6 +675,12 @@ export class Player {
      * Called when the player is being removed or reinitialized
      */
     destroy() {
+        // Clean up weapon manager
+        if (this.weaponManager) {
+            this.weaponManager.destroy();
+            this.weaponManager = null;
+        }
+        
         // Clean up graphics objects
         if (this.graphics) {
             this.graphics.destroy();

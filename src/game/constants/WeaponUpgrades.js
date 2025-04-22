@@ -39,7 +39,8 @@ export const UPGRADE_CATEGORIES = {
     PIERCE: 'Pierce',
     AREA: 'Area of Effect',
     CRITICAL: 'Critical',
-    PROJECTILE: 'Projectile'
+    PROJECTILE: 'Projectile',
+    DRONE: 'Drone' // New category for drone upgrades
 };
 
 /**
@@ -206,6 +207,58 @@ export const WEAPON_UPGRADES = [
             borderColor: 0xdd5500,
             fillColor: 0x331100
         }
+    },
+    // New Drone upgrades
+    {
+        id: 'drone_1',
+        name: '🤖 Combat Drone I',
+        category: UPGRADE_CATEGORIES.DRONE,
+        rarity: RARITY.EPIC,
+        price: 300,
+        effects: 'Adds 1 Combat Drone',
+        stats: {
+            drone: true,
+            droneCount: 1
+        },
+        isDroneUpgrade: true,
+        visualProperties: {
+            borderColor: 0x44aadd,
+            fillColor: 0x112233
+        }
+    },
+    {
+        id: 'drone_2',
+        name: '🤖🤖 Combat Drone II',
+        category: UPGRADE_CATEGORIES.DRONE,
+        rarity: RARITY.LEGENDARY,
+        price: 500,
+        effects: 'Adds a 2nd Combat Drone',
+        stats: {
+            drone: true,
+            droneCount: 1
+        },
+        isDroneUpgrade: true,
+        visualProperties: {
+            borderColor: 0x44ddff,
+            fillColor: 0x113344
+        }
+    },
+    {
+        id: 'drone_3',
+        name: '🤖🤖🤖 Combat Drone III',
+        category: UPGRADE_CATEGORIES.DRONE,
+        rarity: RARITY.LEGENDARY,
+        price: 750,
+        effects: 'Adds a 3rd Combat Drone',
+        stats: {
+            drone: true,
+            droneCount: 1
+        },
+        isDroneUpgrade: true,
+        visualProperties: {
+            borderColor: 0x22ffff,
+            fillColor: 0x114455
+        }
     }
 ];
 
@@ -229,7 +282,8 @@ export function getRandomWeaponUpgrades(count = 3, rng) {
     for (let i = 0; i < count; i++) {
         if (availableUpgrades.length === 0) break;
         
-        const randomIndex = Math.floor(rng.pick(availableUpgrades));
+        // Get a random index
+        const randomIndex = Math.floor(rng.range(0, availableUpgrades.length - 1));
         const selected = availableUpgrades.splice(randomIndex, 1)[0];
         selectedUpgrades.push(selected);
     }

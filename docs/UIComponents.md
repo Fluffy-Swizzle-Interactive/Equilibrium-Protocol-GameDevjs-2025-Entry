@@ -329,48 +329,82 @@ showDamageNumber(x, y, amount, isCritical = false) {
 
 ## Debug Panel
 
-A special UI component for development purposes.
+A sophisticated UI component for development and testing purposes.
 
 ### `DebugPanel.jsx`
 
-React component displaying real-time game metrics.
+React component displaying comprehensive real-time game metrics with a scrollable interface.
 
 **Props:**
 - `gameRef` - Reference to the PhaserGame component
 
 **State:**
 - `debugInfo` - Object containing current game metrics
+- `collapsedSections` - Tracks which sections are collapsed
+
+**Features:**
+- Scrollable panel (maximum height 80vh)
+- Collapsible sections with toggle controls
+- Progress bars for health and XP visualization
+- Error handling for data retrieval
 
 **Displayed Information:**
-- FPS
-- Enemy count
-- Bullet count
-- Player position
-- Mouse position
-- Kill count
-- Game mode
-- Survival time
+- **Game Stats**: FPS, game mode, survival time, kill count
+- **Wave Info**: Current wave, wave status, enemy counts, boss wave indicator
+- **XP & Level**: Current level, XP progress with visual bar
+- **Cash**: Current cash amount, cash multiplier
+- **Chaos & Factions**: Chaos value, AI/Coder/Neutral faction counts
+- **Player Stats**: Health (with visual bar), speed, defense
+- **Weapon Stats**: Damage, fire rate, crit chance, crit multiplier, drone count
+- **Entity Counts**: Enemies, bullets, collectibles, spatial grid info
+- **Object Pools**: Active/total counts for all managed object pools
+- **Position**: Player and mouse coordinates
 
 **Debug Actions:**
-- `Open Shop` - Opens the in-game shop interface for testing purposes
+- `Open Shop` - Opens the in-game shop interface
+- `Spawn Drone` - Creates a new drone helper for the player
+- `Next Wave` - Immediately starts the next wave (when in pause phase)
+- `Add XP (50)` - Adds experience points to test leveling
+- `Add Cash ($100)` - Adds money to test purchasing
+- `Toggle Chaos` - Switches chaos value between AI and Coder factions
 
-**Implementation:**
+**Implementation Example:**
 ```javascript
-/**
- * Open the shop from debug panel
- */
-const openShop = () => {
-    if (gameRef.current?.scene?.shopManager) {
-        gameRef.current.scene.shopManager.openShop();
-    } else {
-        console.warn('ShopManager not found in current scene');
-    }
+// Section rendering with collapsible functionality
+const renderSection = (title, children, id) => {
+  const isCollapsed = collapsedSections[id];
+  
+  return (
+    <div style={styles.section}>
+      <div style={styles.sectionHeader}>
+        {title}
+        <span 
+          style={styles.sectionToggle} 
+          onClick={() => toggleSection(id)}
+        >
+          {isCollapsed ? '[+]' : '[-]'}
+        </span>
+      </div>
+      {!isCollapsed && children}
+    </div>
+  );
 };
 
-// Rendering debug actions section
-{renderSection("Debug Actions", <>
-    {renderActionButton("Open Shop", openShop)}
-</>)}
+// Progress bar rendering
+const renderProgressBar = (value, max, color = '#44aa44') => {
+  const percentage = max > 0 ? Math.min(100, (value / max) * 100) : 0;
+  return (
+    <div style={styles.progressBar}>
+      <div 
+        style={{
+          ...styles.progressFill,
+          width: `${percentage}%`,
+          backgroundColor: color
+        }}
+      />
+    </div>
+  );
+};
 ```
 
 ---
