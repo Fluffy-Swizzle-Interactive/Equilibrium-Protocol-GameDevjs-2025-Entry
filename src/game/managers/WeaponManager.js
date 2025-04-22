@@ -103,6 +103,9 @@ export class WeaponManager {
         
         this.drones.push(drone);
         
+        // Recalculate orbit positions for all drones to ensure they're evenly distributed
+        this.recalculateDronePositions();
+        
         // Emit event for drone added
         EventBus.emit('drone-added', {
             drone: drone,
@@ -110,6 +113,29 @@ export class WeaponManager {
         });
         
         return drone;
+    }
+    
+    /**
+     * Recalculate orbit positions for all drones to ensure even spacing
+     */
+    recalculateDronePositions() {
+        const totalDrones = this.drones.length;
+        
+        // Skip if no drones
+        if (totalDrones === 0) return;
+        
+        // For each drone, update its orbit offset and angle
+        for (let i = 0; i < totalDrones; i++) {
+            const drone = this.drones[i];
+            if (drone) {
+                // Calculate new offset based on total drones and this drone's index
+                const newOffset = (2 * Math.PI / totalDrones) * i;
+                
+                // Update drone's orbit offset and current angle
+                drone.orbitOffset = newOffset;
+                drone.angle = newOffset;
+            }
+        }
     }
     
     /**
@@ -193,6 +219,16 @@ export class WeaponManager {
                 const dx = targetX - dronePos.x;
                 const dy = targetY - dronePos.y;
                 const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                // Only fire if target is outside the drone's orbit radius
+                // This prevents drones from firing when the cursor is too close
+                const droneOrbitRadius = this.drones[i].orbitRadius || 
+                                        this.drones[i].radius * 3 || 
+                                        50; // Fallback value
+                
+                if (distance <= droneOrbitRadius) {
+                    continue; // Skip this drone if target is inside its circle
+                }
                 
                 // Normalize direction vector
                 const dirX = dx / distance;

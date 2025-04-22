@@ -21,7 +21,15 @@ export class PlayerDrone {
         // Configuration
         this.orbitRadius = 120;  // Base orbit radius around player
         this.orbitSpeed = 0.003; // Speed of orbit rotation
-        this.orbitOffset = index * (Math.PI / 3); // Angle offset based on index
+        
+        // Calculate the total number of drones (including this one)
+        const totalDrones = scene.weaponManager ? 
+                           (scene.weaponManager.drones ? scene.weaponManager.drones.length + 1 : 1) : 
+                           1;
+        
+        // Calculate angle offset to distribute drones evenly around the orbit
+        this.orbitOffset = (2 * Math.PI / totalDrones) * index;
+        
         this.radius = 12;       // Drone collision radius
         
         // Initialize graphics

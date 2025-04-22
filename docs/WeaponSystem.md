@@ -85,10 +85,20 @@ BulletPool implements object pooling for bullets to optimize performance by:
 ## Drone System
 
 Drones are combat companions that:
-1. Orbit the player in a circular pattern
+1. Orbit the player in a circular pattern at evenly distributed positions
 2. Fire automatically at the same target as the player
-3. Use the same weapon type as the player but with reduced damage (70%)
-4. Can be acquired through shop upgrades
+3. Only fire when the cursor exceeds their orbital radius (preventing short-range firing)
+4. Use the same weapon type as the player but with reduced damage (70%)
+5. Can be acquired through shop upgrades
+6. Automatically reposition themselves when new drones are added to maintain even spacing
+
+### Drone Positioning
+
+The drone system features sophisticated positioning logic:
+- Drones calculate their position based on the total number of active drones
+- Each drone is placed at equal angular intervals around the player (2π / totalDrones)
+- When a new drone is added, all existing drones recalculate their positions to maintain even spacing
+- A small orbit radius variation creates subtle movement patterns
 
 ### Drone Upgrades
 The shop system offers up to three drone upgrades:
