@@ -448,8 +448,8 @@ export class WaveGame extends Scene {
         const playerY = this.mapDimensions.height / 2;
         this.player = new Player(this, playerX, playerY);
         
-        // Initialize player's weapon
-        this.player.initWeaponProperties(this.weaponType);
+        // Initialize player's weapon system
+        this.player.initWeaponSystem(this.weaponType);
         
         // Setup player health system
         this.playerHealth = new PlayerHealth(this, {
@@ -701,15 +701,37 @@ export class WaveGame extends Scene {
                             enemyGraphics.x, enemyGraphics.y
                         );
                         
-                        if (distance < (this.player.caliber + enemyGraphics.parentEnemy.size/2)) {
+                        // Get enemy size and bullet properties
+                        const enemySize = enemyGraphics.parentEnemy ? enemyGraphics.parentEnemy.size/2 : 12;
+                        
+                        // Get bullet properties - either from the bullet itself or from the player's weapon
+                        const bulletSize = bullet.radius || this.player.caliber || 5;
+                        const bulletDamage = bullet.damage || 
+                                            (this.player.weaponManager ? 
+                                             this.player.weaponManager.getDamage() : 
+                                             this.player.bulletDamage || 10);
+                        
+                        // Check if bullet hits enemy
+                        if (distance < (bulletSize + enemySize)) {
                             // Damage enemy with bullet's damage value
-                            enemyGraphics.parentEnemy.takeDamage(this.player.bulletDamage);
+                            if (enemyGraphics.parentEnemy && typeof enemyGraphics.parentEnemy.takeDamage === 'function') {
+                                enemyGraphics.parentEnemy.takeDamage(bulletDamage);
+                            }
                             
-                            // Reduce bullet health
-                            bullet.health--;
+                            // Reduce bullet health/pierce
+                            if (bullet.health !== undefined) {
+                                bullet.health--;
+                            } else if (bullet.pierce !== undefined) {
+                                bullet.pierce--;
+                            }
+                            
+                            // Track already hit enemies for bullets with pierce
+                            if (bullet.pierce > 0 && bullet.penetratedEnemies) {
+                                bullet.penetratedEnemies.push(enemyGraphics.parentEnemy.id);
+                            }
                             
                             // Visual feedback - make bullet flash
-                            const originalColor = this.player.bulletColor;
+                            const originalColor = bullet.fillColor || 0xffffff;
                             bullet.fillColor = 0xffffff;
                             
                             // Reset bullet color after a short delay if it still exists
@@ -719,8 +741,9 @@ export class WaveGame extends Scene {
                                 }
                             });
                             
-                            // Only release bullet back to pool if its health is depleted
-                            if (bullet.health <= 0) {
+                            // Only release bullet back to pool if its health/pierce is depleted
+                            if ((bullet.health !== undefined && bullet.health <= 0) || 
+                                (bullet.pierce !== undefined && bullet.pierce <= 0)) {
                                 this.bulletPool.releaseBullet(bullet);
                             }
                         }
@@ -772,8 +795,8 @@ export class WaveGame extends Scene {
                 
                 // Apply knockback
                 const knockbackDistance = 30;
-                const knockbackX = Math.cos(angle) * knockbackDistance;
-                const knockbackY = Math.sin(angle) * knockbackDistance;
+                const knockbackX = Math.cos(angle) * 30;
+                const knockbackY = Math.sin(angle) * 30;
                 
                 // Set player velocity
                 this.player.velX = knockbackX * 0.2;

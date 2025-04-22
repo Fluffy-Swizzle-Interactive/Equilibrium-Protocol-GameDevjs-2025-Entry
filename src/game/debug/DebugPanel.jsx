@@ -12,7 +12,9 @@ export function DebugPanel({ gameRef }) {
         mouseY: 0,
         killCount: 0,
         gameMode: '',
-        survivalTime: 0
+        survivalTime: 0,
+        droneCount: 0,
+        maxDrones: 0
     });
     
     // Style objects
@@ -85,6 +87,9 @@ export function DebugPanel({ gameRef }) {
             const scene = gameRef.current.scene;
             const game = gameRef.current.game;
             
+            // Get weapon manager if available
+            const weaponManager = scene.player?.weaponManager || null;
+            
             // Extract all the debug info from the current scene
             const newInfo = {
                 fps: Math.round(game.loop.actualFps),
@@ -96,7 +101,9 @@ export function DebugPanel({ gameRef }) {
                 mouseY: scene.mouseY ? Math.round(scene.mouseY) : 0,
                 killCount: scene.killCount || 0,
                 gameMode: scene.gameMode || 'N/A',
-                survivalTime: scene.survivalTime ? Math.floor(scene.survivalTime) : 0
+                survivalTime: scene.survivalTime ? Math.floor(scene.survivalTime) : 0,
+                droneCount: weaponManager ? weaponManager.drones.length : 0,
+                maxDrones: weaponManager ? weaponManager.maxDrones : 0
             };
             
             setDebugInfo(newInfo);
@@ -111,6 +118,33 @@ export function DebugPanel({ gameRef }) {
             gameRef.current.scene.shopManager.openShop();
         } else {
             console.warn('ShopManager not found in current scene');
+        }
+    };
+    
+    /**
+     * Spawn a test drone for the player
+     */
+    const spawnDrone = () => {
+        const scene = gameRef.current?.scene;
+        if (!scene || !scene.player || !scene.player.weaponManager) {
+            console.warn('Player or WeaponManager not found in current scene');
+            return;
+        }
+        
+        const weaponManager = scene.player.weaponManager;
+        
+        // Temporarily increase max drones if needed
+        if (weaponManager.drones.length >= weaponManager.maxDrones) {
+            weaponManager.maxDrones++;
+        }
+        
+        // Add a new drone
+        const newDrone = weaponManager.addDrone();
+        
+        if (newDrone) {
+            console.log('Debug drone added successfully');
+        } else {
+            console.warn('Failed to add debug drone');
         }
     };
 
@@ -192,6 +226,7 @@ export function DebugPanel({ gameRef }) {
             {renderSection("Entities", <>
                 {renderInfoItem("Enemies", debugInfo.enemyCount)}
                 {renderInfoItem("Bullets", debugInfo.bulletCount)}
+                {renderInfoItem("Drones", `${debugInfo.droneCount}/${debugInfo.maxDrones}`)}
             </>)}
             
             {/* Player Info */}
@@ -207,6 +242,7 @@ export function DebugPanel({ gameRef }) {
             {/* Debug Actions Section */}
             {renderSection("Debug Actions", <>
                 {renderActionButton("Open Shop", openShop)}
+                {renderActionButton("Spawn Drone", spawnDrone)}
             </>)}
         </div>
     );

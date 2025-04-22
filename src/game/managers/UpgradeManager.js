@@ -64,6 +64,28 @@ export default class UpgradeManager {
     applyWeaponUpgrade(upgrade) {
         if (!upgrade || !upgrade.stats || !this.player) return;
         
+        // Check if this is a drone upgrade
+        if (upgrade.isDroneUpgrade && upgrade.stats.drone && this.player.weaponManager) {
+            // Add drone to weapon manager
+            const newDrone = this.player.weaponManager.upgradeDrones();
+            
+            // Emit event for drone addition
+            EventBus.emit('drone-added', {
+                upgrade: upgrade,
+                droneCount: this.player.weaponManager.drones.length,
+                maxDrones: this.player.weaponManager.maxDrones
+            });
+            
+            return;
+        }
+        
+        // Use the WeaponManager to apply the upgrade if available
+        if (this.player.weaponManager) {
+            this.player.weaponManager.applyUpgrade(upgrade);
+            return;
+        }
+        
+        // Backwards compatibility - apply directly to player if no weapon manager
         // Apply each stat change from the upgrade
         Object.entries(upgrade.stats).forEach(([stat, value]) => {
             switch (stat) {

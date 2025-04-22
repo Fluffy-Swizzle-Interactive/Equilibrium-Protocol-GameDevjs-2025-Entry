@@ -695,6 +695,7 @@ This document provides solutions for common issues that may arise during develop
 1. **Use the Debug Panel**
    - Enable the built-in debug panel
    - Add custom metrics for specific debugging
+   - Use debug actions to test game features
 
    ```javascript
    // Enable debug panel
@@ -705,6 +706,12 @@ This document provides solutions for common issues that may arise during develop
        this.debugPanel.addMetric('fps', () => Math.round(this.game.loop.actualFps));
    }
    ```
+
+   **Available Debug Actions:**
+   - **Open Shop**: Forces the shop to open for testing upgrades
+   - **Spawn Drone**: Adds a combat drone to the player for testing drone mechanics
+     - Automatically increases max drone count if at limit
+     - Provides visual feedback in the entity count section
 
 2. **Visual Debugging**
    - Show hitboxes and collision areas
