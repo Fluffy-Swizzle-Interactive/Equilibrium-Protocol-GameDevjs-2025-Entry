@@ -202,7 +202,7 @@ export class MainMenu_DEV extends MainMenu {
                 });
             } else {
                 // Start the classic game mode with debug flag
-                this.scene.start('WaveGame', { 
+                this.scene.start('Game', { 
                     weaponType: this.selectedWeapon,
                     debug: this.debugMode
                 });

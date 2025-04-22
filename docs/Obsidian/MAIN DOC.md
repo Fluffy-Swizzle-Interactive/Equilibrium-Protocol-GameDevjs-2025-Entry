@@ -94,15 +94,13 @@ src/
 
         ├── Boot.js        # Initial loading
 
+        ├── Game.jsx       # Main gameplay
+
         ├── GameOver.js    # End screen
 
         ├── MainMenu.js    # Menu screen
 
-        ├── MainMenu_DEV.js # Development version of menu
-
-        ├── Preloader.js   # Asset loading
-
-        └── WaveGame.jsx   # Main gameplay scene
+        └── Preloader.js   # Asset loading
 
 ```
 
@@ -198,7 +196,7 @@ Initializes the Phaser game with appropriate configuration.
 
 - `MainMenu` - Game menu
 
-- `WaveGame` - Main gameplay
+- `Game` - Main gameplay
 
 - `GameOver` - End screen
 
@@ -426,11 +424,11 @@ Game start screen with weapon selection options.
 
   
 
-### `WaveGame` Scene (`WaveGame.jsx`)
+### `Game` Scene (`Game.jsx`)
 
   
 
-Main gameplay scene implementing a wave-based survival game with boss encounters.
+Main gameplay scene handling game loop, entities, and mechanics.
 
   
 
@@ -438,15 +436,11 @@ Main gameplay scene implementing a wave-based survival game with boss encounters
 
 - `gameMode` - Selected weapon type
 
-- `waveManager` - Manages wave progression and enemy spawning
+- `enemySpawnRate` - Time between enemy spawns (decreases over time)
 
 - `enemyList` - Array of active enemies
 
 - `killCount` - Number of enemies defeated
-
-- `regularKillCount` - Number of regular enemies killed
-
-- `bossesKilled` - Number of boss enemies killed
 
 - `survivalTime` - Time survived in seconds
 
@@ -466,15 +460,7 @@ Main gameplay scene implementing a wave-based survival game with boss encounters
 
 - `setupCamera()` - Configures camera to follow player
 
-- `setupUIManager()` - Creates UI elements
-
-- `setupGroupManager()` - Sets up enemy faction management
-
-- `setupChaosManager()` - Sets up chaos mechanics
-
-- `setupWaveManager()` - Sets up wave progression system
-
-- `setupCollectibleManager()` - Sets up collectible system
+- `setupUI()` - Creates UI elements
 
 - `setupInput()` - Sets up keyboard and mouse input
 
@@ -486,21 +472,29 @@ Main gameplay scene implementing a wave-based survival game with boss encounters
 
 - `updateBullets()` - Manages bullet movement and lifetime
 
+- `updateEnemies()` - Manages enemy behavior
+
 - `checkCollisions()` - Detects and handles collisions
 
-- `checkBulletEnemyCollisions()` - Handles bullet-enemy collisions
+- `spawnEnemy()` - Creates new enemy at appropriate position
 
-- `checkPlayerEnemyCollisions()` - Handles player-enemy collisions
+- `spawnEnemyGroup()` - Creates group of 3-6 enemies together
 
-- `updateSpatialGrid()` - Updates grid for collision optimization  
+- `spawnBoss()` - Creates boss enemy
 
-- `onEnemyKilled(isBoss, x, y, enemyType)` - Handles enemy death
+- `updateDifficulty()` - Increases difficulty over time
+
+- `playerDeath()` - Handles player death
+
+- `setPauseState(isPaused, reason)` - Manages game pause functionality
+
+- `togglePause()` - Toggles pause state
 
 - `createEnemyDeathEffect(x, y)` - Visual effects for enemy death
 
 - `createBossDeathEffect(x, y)` - Visual effects for boss death
 
-- `playerDeath()` - Handles player death
+- `showBossWarning()` - Displays boss warning message
 
   
 

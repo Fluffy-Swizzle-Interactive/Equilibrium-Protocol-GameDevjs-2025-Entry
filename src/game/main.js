@@ -1,4 +1,5 @@
 import { Boot } from './scenes/Boot';
+import { Game } from './scenes/Game.jsx';
 import { GameOver } from './scenes/GameOver';
 import { MainMenu } from './scenes/MainMenu';
 import { MainMenu_DEV } from './scenes/MainMenu_DEV';
@@ -38,6 +39,7 @@ const config = {
         Boot,
         Preloader,
         menuComponent,
+        Game,
         WaveGame,
         GameOver
     ]

@@ -87,7 +87,7 @@ export class MainMenu extends Scene
                 });
             } else {
                 // Start the classic game mode
-                this.scene.start('WaveGame', { weaponType: this.selectedWeapon });
+                this.scene.start('Game', { weaponType: this.selectedWeapon });
             }
         });
     }

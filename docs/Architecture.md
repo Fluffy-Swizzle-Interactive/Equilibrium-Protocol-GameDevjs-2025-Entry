@@ -32,10 +32,11 @@ src/
     │   └── TileMapManager.js # Map creation and handling
     └── scenes/            # Game screens
         ├── Boot.js        # Initial loading
+        ├── Game.jsx       # Main gameplay (Endless mode)
         ├── GameOver.js    # End screen
         ├── MainMenu.js    # Menu screen
         ├── Preloader.js   # Asset loading
-        └── WaveGame.jsx   # Main gameplay scene with wave-based mechanics
+        └── WaveGame.jsx   # Wave-based gameplay mode
 ```
 
 ## Core Components
@@ -74,8 +75,9 @@ Initializes the Phaser game with appropriate configuration.
 - `Boot` - Initial loading
 - `Preloader` - Asset loading
 - `MainMenu` - Game menu
-- `WaveGame` - Main gameplay scene with wave-based mechanics
+- `Game` - Main gameplay
 - `GameOver` - End screen
+- `WaveGame` - Wave-based gameplay mode
 
 ## Communication System
 
@@ -103,7 +105,7 @@ The game follows a specific scene flow:
 1. **Boot Scene** - Initial loading and setup
 2. **Preloader Scene** - Loads all game assets
 3. **MainMenu Scene** - Player selects game mode
-4. **WaveGame Scene** - Main gameplay
+4. **Game Scene** or **WaveGame Scene** - Main gameplay
 5. **GameOver Scene** - Displays results when player dies
 
 ### Scene Transitions
@@ -111,8 +113,8 @@ The game follows a specific scene flow:
 Scenes transition between each other using Phaser's scene management:
 
 ```javascript
-// Example: Transitioning from MainMenu to WaveGame scene
-this.scene.start('WaveGame', { gameMode: 'minigun' });
+// Example: Transitioning from MainMenu to Game scene
+this.scene.start('Game', { gameMode: 'minigun' });
 
 // Example: Transitioning to GameOver with stats
 this.scene.start('GameOver', { 

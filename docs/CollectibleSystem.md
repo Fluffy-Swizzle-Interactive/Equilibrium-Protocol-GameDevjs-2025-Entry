@@ -124,7 +124,7 @@ processPowerUpCollection(sprite) {
 ### Initialization
 
 ```javascript
-// In WaveGame.jsx create method
+// In Game.jsx create method
 this.collectibleManager = new CollectibleManager(this, {
     xpCollectionRadius: 40,
     cashCollectionRadius: 40,
