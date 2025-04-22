@@ -1,156 +1,113 @@
 # Shop System
 
-The Shop System provides an in-game interface for purchasing weapon and player upgrades between waves in roguelike game modes. It offers a modal/overlay UI that appears after wave completion, allowing players to spend Credits and XP on various upgrades.
+## Overview
+The shop system allows players to purchase upgrades between waves for both their character and weapons. It uses a clean separation of concerns between UI rendering and business logic.
 
-## Core Components
+## Architecture
+
+The shop system consists of several interconnected components:
+
+1. **ShopManager**: Business logic layer that handles purchases, rerolls, and upgrades
+2. **ShopMenuScene**: UI layer that manages all visual elements of the shop
+3. **UpgradeManager**: Handles the generation and application of upgrades
+4. **Weapon/PlayerUpgrades**: Constants files defining all available upgrades and their properties
+
+### Component Relationships
+
+```
+┌───────────────┐         ┌───────────────┐
+│ WeaponUpgrades│─────────│PlayerUpgrades │
+└───────┬───────┘         └───────┬───────┘
+        │                         │
+        │                         │
+        ▼                         ▼
+┌───────────────┐         ┌───────────────┐
+│ UpgradeManager│◄────────┤  ShopManager  │
+└───────┬───────┘         └───────┬───────┘
+        │                         │
+        │                         │
+        └─────────────────────────┘
+                    │   
+                    ▼
+           ┌───────────────┐
+           │ ShopMenuScene │
+           └───────────────┘
+```
+
+## Components
 
 ### ShopManager
 
-The central component that manages the shop UI and coordinates between game systems.
+Handles the business logic of the shop, including:
+- Opening the shop when a wave is completed
+- Processing purchases of upgrades
+- Handling reroll requests
+- Communicating with the player and weapon objects
 
-```javascript
-// Create a shop manager
-const shopManager = new ShopManager(scene, player, weapon, rng);
-```
+### ShopMenuScene
 
-#### Properties
-
-| Property | Type | Description |
-|----------|------|-------------|
-| `scene` | `Phaser.Scene` | Reference to the game scene |
-| `player` | `Player` | Reference to the player object |
-| `weapon` | `Object` | Reference to the player's weapon object |
-| `rng` | `Object` | Random number generator for upgrade generation |
-| `upgradeManager` | `UpgradeManager` | Manager for generating and applying upgrades |
-| `shopOverlay` | `Phaser.GameObjects.Container` | Container for shop UI elements |
-| `isShopOpen` | `boolean` | Whether the shop is currently open |
-
-#### Methods
-
-| Method | Parameters | Description |
-|--------|------------|-------------|
-| `openShop()` | None | Opens the shop interface and generates upgrades |
-| `closeShop()` | None | Closes the shop interface and resets reroll count |
-| `onNextWaveStart()` | None | Handles starting the next wave after shopping |
-| `handleReroll()` | None | Handles rerolling available upgrades |
-| `purchaseWeaponUpgrade(upgrade, card, index)` | Upgrade object, card container, index | Processes weapon upgrade purchase |
-| `purchasePlayerUpgrade(upgrade, button, index)` | Upgrade object, button container, index | Processes player upgrade purchase |
+Manages the UI elements of the shop, including:
+- Displaying available upgrades
+- Handling user interactions
+- Visual effects for purchases and failures
+- Displaying player and weapon stats
 
 ### UpgradeManager
 
-Responsible for generating, storing, and applying upgrades to the player and weapons.
+Manages the generation and application of upgrades, including:
+- Random generation of upgrade options
+- Applying upgrade effects to player and weapon
+- Tracking reroll counts and costs
 
-```javascript
-// Create an upgrade manager
-const upgradeManager = new UpgradeManager(player, weapon, rng);
-```
+### Constants Files
 
-#### Properties
+#### WeaponUpgrades.js
+Defines all available weapon upgrades with:
+- Stats and effects
+- Visual properties
+- Rarity and pricing
+- Helper function for generating random selections
 
-| Property | Type | Description |
-|----------|------|-------------|
-| `player` | `Player` | Reference to the player object |
-| `weapon` | `Object` | Reference to the player's weapon object |
-| `rng` | `Object` | Random number generator |
-| `rerollCost` | `number` | Base cost for rerolling upgrades |
-| `rerollCount` | `number` | Number of times upgrades have been rerolled |
+#### PlayerUpgrades.js 
+Defines all available player upgrades with:
+- Stats and effects
+- Visual properties
+- Pricing
+- Helper function for generating random selections
 
-#### Methods
+## Flow
 
-| Method | Parameters | Description |
-|--------|------------|-------------|
-| `generateUpgrades()` | None | Generate a set of random weapon and player upgrades |
-| `getRandomWeaponUpgrades(count)` | Number of upgrades | Generate random weapon upgrades |
-| `getRandomPlayerUpgrades(count)` | Number of upgrades | Generate random player upgrades |
-| `applyUpgrade(upgrade, type)` | Upgrade object, type string | Apply an upgrade to player or weapon |
-| `reroll()` | None | Regenerate all upgrades |
-| `getRerollCost()` | None | Calculate cost for rerolling based on reroll count |
-| `resetReroll()` | None | Reset the reroll counter |
-| `calculateWeaponCost(index)` | Index | Calculate cost for a weapon upgrade |
+1. When a wave is completed, the WaveManager notifies the ShopManager
+2. ShopManager updates the "Next Wave" button text to "Open Shop"
+3. When the player clicks "Open Shop", the ShopManager:
+   - Pauses the main game scene
+   - Generates upgrade options with UpgradeManager
+   - Launches the ShopMenuScene with the upgrade options
+4. The ShopMenuScene displays the shop UI with available upgrades
+5. When the player purchases an upgrade:
+   - ShopMenuScene triggers ShopManager.purchaseWeaponUpgrade() or ShopManager.purchasePlayerUpgrade()
+   - ShopManager processes the payment and applies the upgrade using UpgradeManager
+   - An event is emitted to update the UI
+6. When the player clicks "Start Next Wave":
+   - ShopMenuScene closes and resumes the main game scene
+   - ShopManager triggers the next wave via WaveManager
 
-## Shop UI Layout
+## Event Communication
 
-The shop interface consists of the following UI elements:
+The shop system uses the EventBus for communication between components:
 
-1. **Weapon Upgrade Cards (Left Side)**
-   - 3 upgrade cards with red borders
-   - Each displays: Name, Category (Melee/Ranged/AoE), Rarity (Common/Rare/Epic), and Cost
+- `shop-item-purchased`: When an upgrade is successfully purchased
+- `shop-purchase-failed`: When a purchase fails (e.g., insufficient funds)
+- `shop-rerolled`: When upgrades are rerolled
+- `shop-reroll-failed`: When a reroll fails
+- `weapon-upgraded`: When a weapon upgrade is applied
+- `player-upgraded`: When a player upgrade is applied
 
-2. **Player Upgrade Buttons (Right Side)**
-   - 3 upgrade buttons with green borders
-   - Each displays: Type (Health, Armor, Speed) and Cost
+## Adding New Upgrades
 
-3. **Control Buttons (Right Side)**
-   - Reroll button to refresh all upgrade options (cost increases with each use)
-   - Start Next Wave button to close the shop and begin the next wave
+To add new upgrades:
 
-4. **Stats Panels (Bottom)**
-   - Player Stats: HP, Level, XP, Speed, Credits
-   - Weapon Stats: Type, Damage, Fire Rate, Pierce, DPS
-
-## Integration with Game Systems
-
-### Wave System Integration
-
-The shop system integrates with the WaveManager:
-
-```javascript
-// Listen for wave completed events
-EventBus.on('wave-completed', this.onWaveCompleted, this);
-```
-
-When a wave is completed:
-1. The "Start Next Wave" button changes to "Open Shop" 
-2. Clicking this button opens the shop interface
-3. After shopping, clicking "Start Next Wave" closes the shop and begins the next wave
-
-### Economy Integration
-
-The shop system integrates with two resource systems:
-
-1. **Credits System**: Used for weapon upgrades and rerolls
-   ```javascript
-   // Process credit payment
-   this.player.credits -= upgrade.cost;
-   EventBus.emit('cash-updated', { cash: this.player.credits });
-   ```
-
-2. **XP System**: Used for player upgrades
-   ```javascript
-   // Process XP payment
-   this.scene.xpManager.spendXP(upgrade.cost);
-   ```
-
-## Example Usage
-
-```javascript
-// In your scene's create method:
-setupShopManager() {
-  const rng = {
-    pick: (array) => array[Math.floor(Math.random() * array.length)],
-    range: (min, max) => Math.floor(Math.random() * (max - min + 1)) + min
-  };
-
-  const weapon = {
-    type: this.weaponType || 'Standard',
-    damage: this.player.bulletDamage || 10,
-    fireRate: this.player.fireRate || 0.1,
-    pierce: this.player.bulletPierce || 1
-  };
-
-  this.shopManager = new ShopManager(this, this.player, weapon, rng);
-}
-```
-
-## Troubleshooting
-
-- **Shop doesn't open**: Ensure EventBus is properly listening for 'wave-completed'
-- **Upgrades don't apply**: Check that UpgradeManager.applyUpgrade() correctly modifies properties
-- **UI layout issues**: Verify that screen dimensions are properly passed to the createOverlay method
-
-## Future Enhancements
-
-- Support for special/legendary upgrade rarities
-- Add persistent upgrade effects that stack across waves
-- Implement special/limited-time offers between specific waves
-- Add shop themes based on level environment
+1. Add the upgrade definition to the appropriate constants file (WeaponUpgrades.js or PlayerUpgrades.js)
+2. Ensure the stats object contains properties that UpgradeManager can process
+3. Define visual properties for proper display in the UI
+4. No code changes are needed in ShopMenuScene or ShopManager
