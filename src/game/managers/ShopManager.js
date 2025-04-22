@@ -164,92 +164,7 @@ export default class ShopManager {
       ease: 'Power2'
     });
   }
-
-  /**
-   * Creates the main shop UI container and all nested elements
-   * @param {number} x - X position for the shop container
-   * @param {number} y - Y position for the shop container
-   * @returns {Phaser.GameObjects.Container} - The main shop container
-   */
-  createShopUI(x, y) {
-    // Clear previous elements if they exist
-    if (this.shopContainer) {
-      this.shopContainer.destroy();
-      this.upgradeElements = {
-        weaponCards: [],
-        playerButtons: [],
-        statPanels: []
-      };
-    }
-
-    // Constants for shop dimensions and layout
-    const shopWidth = 900;
-    const shopHeight = 600;
-    const upperSectionHeight = shopHeight * 0.4;
-    const lowerSectionY = upperSectionHeight + 20; // Y position where the lower section begins
-    
-    // Create main container
-    this.shopContainer = this.scene.add.container(x, y);
-    
-    // Create shop background
-    const shopBg = this.scene.add.graphics();
-    shopBg.fillStyle(0x000000, 0.85);
-    shopBg.fillRoundedRect(-shopWidth / 2, -shopHeight / 2, shopWidth, shopHeight, 15);
-    shopBg.lineStyle(4, 0x6a4f2d);
-    shopBg.strokeRoundedRect(-shopWidth / 2, -shopHeight / 2, shopWidth, shopHeight, 15);
-    this.shopContainer.add(shopBg);
-    
-    // Create shop title
-    const titleText = this.scene.add.text(0, -shopHeight / 2 + 20, 'SHOP', {
-      fontFamily: 'Arial',
-      fontSize: '32px',
-      color: '#ffffff',
-      fontStyle: 'bold'
-    }).setOrigin(0.5);
-    this.shopContainer.add(titleText);
-    
-    // Create close button
-    const closeButton = this.scene.add.text(shopWidth / 2 - 50, -shopHeight / 2 + 20, 'X', {
-      fontFamily: 'Arial',
-      fontSize: '24px',
-      color: '#ff0000',
-      fontStyle: 'bold'
-    }).setOrigin(0.5);
-    closeButton.setInteractive({ useHandCursor: true });
-    closeButton.on('pointerup', () => this.closeShop());
-    this.shopContainer.add(closeButton);
-    
-    // Display player's current cash
-    this.cashText = this.scene.add.text(
-      -shopWidth / 2 + 30, 
-      -shopHeight / 2 + 20, 
-      `CASH: ${this.cashManager.getPlayerCash()}$`, {
-        fontFamily: 'Arial',
-        fontSize: '24px',
-        color: '#ffff00',
-        fontStyle: 'bold'
-      }
-    );
-    this.shopContainer.add(this.cashText);
-    
-    // Create sections separator line
-    const separator = this.scene.add.graphics();
-    separator.lineStyle(2, 0x6a4f2d);
-    separator.lineBetween(-shopWidth / 2, -shopHeight / 2 + upperSectionHeight, shopWidth / 2, -shopHeight / 2 + upperSectionHeight);
-    this.shopContainer.add(separator);
-    
-    // Create weapon upgrade cards in the upper section
-    this.createWeaponUpgrades(this.shopContainer, shopWidth, upperSectionHeight);
-    
-    // Create player upgrade buttons in the upper right section
-    this.createPlayerUpgrades(this.shopContainer, shopWidth, upperSectionHeight);
-    
-    // Create stat panels in the lower section, aligned with upper section elements
-    this.createStatPanels(this.shopContainer, shopWidth, shopHeight, lowerSectionY - shopHeight / 2);
-    
-    return this.shopContainer;
-  }
-
+  
   /**
    * Create weapon upgrade cards display - horizontally arranged on left side
    * @param {Phaser.GameObjects.Container} container - Main container to add elements to
@@ -392,29 +307,32 @@ export default class ShopManager {
       // Add all elements to card
       card.add([cardBg, cardBorder, nameText, categoryText, rarityText, effectsText, priceBox, priceText]);
       
-      // Make card interactive
-      cardBg.setInteractive({ cursor: 'pointer' });
+      // Make the entire card container interactive instead of just the background
+      card.setSize(cardWidth, cardHeight); // Set the size of the container for hit testing
+      card.setInteractive({ 
+        useHandCursor: true,
+        hitArea: new Phaser.Geom.Rectangle(-cardWidth/2 + 330, -cardHeight/2 + 460, cardWidth, cardHeight),
+        hitAreaCallback: Phaser.Geom.Rectangle.Contains
+      });
       
-      // Add hover effect
-      cardBg.on('pointerover', () => {
+      // Add hover effect to the container
+      card.on('pointerover', () => {
         cardBorder.setStrokeStyle(3, upgrade.borderColor);
-        // Highlight the text on hover for better feedback
         categoryText.setColor('#ffffff');
         rarityText.setStyle({ color: rarityColor, fontSize: '14px' });
       });
       
-      cardBg.on('pointerout', () => {
+      card.on('pointerout', () => {
         cardBorder.setStrokeStyle(2, upgrade.borderColor);
-        // Reset text on pointer out
         categoryText.setColor('#dddddd');
         rarityText.setStyle({ color: rarityColor, fontSize: '13px' });
       });
       
       // Add click event
-      cardBg.on('pointerdown', () => {
+      card.on('pointerdown', () => {
         // Visual feedback for click
         this.scene.tweens.add({
-          targets: cardBg,
+          targets: card,
           scaleX: 0.95,
           scaleY: 0.95,
           duration: 50,
@@ -457,24 +375,27 @@ export default class ShopManager {
       { 
         name: '❤️ Health Upgrade', 
         borderColor: 0xaa6666, 
-        fillColor: 0x221111
+        fillColor: 0x221111,
+        description: 'Increases maximum health by 20 points, allowing you to survive longer in battle.'
       },
       { 
         name: '🛡️ Armor Upgrade', 
         borderColor: 0x6666aa, 
-        fillColor: 0x111122 
+        fillColor: 0x111122,
+        description: 'Adds 5 defense points, reducing damage taken from all enemy attacks by 5%.'
       },
       { 
         name: '⚡ Speed Upgrade', 
         borderColor: 0xaaaa66, 
-        fillColor: 0x222211
+        fillColor: 0x222211,
+        description: 'Increases movement speed by 15%, helping you dodge enemies more effectively.'
       }
     ];
     
     // Create player upgrade buttons - stacked vertically
     playerUpgradeTypes.forEach((upgrade, index) => {
       // Calculate vertical position with proper spacing
-      // Move buttons 50px higher by subtracting 50 from the y position
+      // Move buttons 50px higher by subtracting 55 from the y position
       const y = startY - 55 + (index * (buttonHeight + spacing));
       
       // Create button container
@@ -498,23 +419,74 @@ export default class ShopManager {
       // Add elements to button container
       button.add([btnBg, btnBorder, nameText]);
       
-      // Make button interactive
-      btnBg.setInteractive({ cursor: 'pointer' });
+      // Make button interactive with correct hitbox
+      btnBg.setInteractive({ 
+        useHandCursor: true,
+        hitArea: new Phaser.Geom.Rectangle(250, 370, buttonWidth, buttonHeight),
+        hitAreaCallback: Phaser.Geom.Rectangle.Contains
+      });
       
-      // Add hover effect
+      // If in dev mode, visualize the hitbox (improved version)
+      if (this.scene.isDev) {
+          const hitboxDebug = this.scene.add.graphics();
+          hitboxDebug.lineStyle(1, 0xff0000);
+          hitboxDebug.strokeRect(-buttonWidth/2 + 667, -buttonHeight/2 + 370, buttonWidth, buttonHeight);
+          button.add(hitboxDebug);
+      }
+      
+      // Create tooltip for upgrade description (initially hidden)
+      const tooltipWidth = 200;
+      const tooltipHeight = 80;
+      const tooltipPadding = 10;
+      
+      // Create tooltip container that will be shown on hover
+      const tooltip = this.scene.add.container(buttonWidth/2 + 10, 0).setVisible(false);
+      button.add(tooltip);
+      
+      // Create tooltip background with colored border to match upgrade
+      const tooltipBg = this.scene.add.rectangle(0, 0, tooltipWidth, tooltipHeight, 0x000000, 0.8);
+      tooltipBg.setStrokeStyle(2, upgrade.borderColor);
+      tooltipBg.setOrigin(0, 0.5);
+      tooltip.add(tooltipBg);
+      
+      // Create tooltip text
+      const tooltipText = this.scene.add.text(
+        tooltipPadding, 
+        0, 
+        upgrade.description, 
+        {
+          fontFamily: 'Arial',
+          fontSize: '13px',
+          color: '#ffffff',
+          wordWrap: { width: tooltipWidth - (tooltipPadding * 2) }
+        }
+      ).setOrigin(0, 0.5);
+      tooltip.add(tooltipText);
+      
+      // Add hover and click effects to match weapon upgrade cards
       btnBg.on('pointerover', () => {
         btnBorder.setStrokeStyle(3, upgrade.borderColor);
+        nameText.setColor('#ffffff');
+        nameText.setStyle({ fontSize: '15px', fontStyle: 'bold' });
+        
+        // Show tooltip
+        tooltip.setVisible(true);
       });
       
       btnBg.on('pointerout', () => {
         btnBorder.setStrokeStyle(2, upgrade.borderColor);
+        nameText.setColor('#dddddd');
+        nameText.setStyle({ fontSize: '14px', fontStyle: 'bold' });
+        
+        // Hide tooltip
+        tooltip.setVisible(false);
       });
       
-      // Add click event
+      // Add click event with visual feedback
       btnBg.on('pointerdown', () => {
         // Visual feedback for click
         this.scene.tweens.add({
-          targets: btnBg,
+          targets: button,
           scaleX: 0.95,
           scaleY: 0.95,
           duration: 50,
@@ -527,7 +499,8 @@ export default class ShopManager {
       this.upgradeElements.playerButtons.push({
         container: button,
         upgrade: upgrade,
-        purchased: false
+        purchased: false,
+        tooltip: tooltip
       });
     });
   }
@@ -713,8 +686,12 @@ export default class ShopManager {
     
     rerollContainer.add([rerollBg, rerollText]);
     
-    // Make reroll button interactive
-    rerollBg.setInteractive({ cursor: 'pointer' });
+    // Make reroll button interactive with proper hitbox
+    rerollBg.setInteractive({
+      useHandCursor: true,
+      hitArea: new Phaser.Geom.Rectangle(250, 390, 100, 36),
+      hitAreaCallback: Phaser.Geom.Rectangle.Contains
+    });
     
     // Add hover and click effects
     rerollBg.on('pointerover', () => {
@@ -750,8 +727,12 @@ export default class ShopManager {
     
     nextWaveContainer.add([nextWaveBg, nextWaveText]);
     
-    // Make next wave button interactive
-    nextWaveBg.setInteractive({ cursor: 'pointer' });
+    // Make next wave button interactive with proper hitbox
+    nextWaveBg.setInteractive({
+      useHandCursor: true,
+      hitArea: new Phaser.Geom.Rectangle(250, 390, 150, 36),
+      hitAreaCallback: Phaser.Geom.Rectangle.Contains
+    });
     
     // Add hover and click effects
     nextWaveBg.on('pointerover', () => {
@@ -987,5 +968,62 @@ export default class ShopManager {
     }
 
     return this.isShopOpen;
+  }
+
+  toggleDebugView() {
+    if (!this.scene.isDev) return;
+    
+    // Show hitbox visualization
+    this.showDebugHitboxes();
+    
+    // Log positions
+    console.debug('Shop overlay position:', this.shopOverlay.x, this.shopOverlay.y);
+    console.debug('Main container position:', this.mainContainer?.x, this.mainContainer?.y);
+    
+    // Log all interactive elements
+    console.debug('Weapon cards:', this.upgradeElements.weaponCards);
+    console.debug('Player buttons:', this.upgradeElements.playerButtons);
+  }
+  
+  /**
+   * Enable debug visualization for all shop hitboxes
+   * Shows the clickable areas and bounds of all interactive elements
+   */
+  showDebugHitboxes() {
+    if (!this.scene.isDev) return;
+    
+    // Clear any existing debug graphics
+    if (this.debugGraphics) this.debugGraphics.destroy();
+    
+    this.debugGraphics = this.scene.add.graphics();
+    this.debugGraphics.setScrollFactor(0);
+    this.debugGraphics.setDepth(200); // Above everything else
+    
+    // Visualize weapon card hitboxes
+    this.upgradeElements.weaponCards.forEach(card => {
+      const bounds = card.container.getBounds();
+      this.debugGraphics.lineStyle(2, 0xff0000, 1);
+      this.debugGraphics.strokeRect(bounds.x, bounds.y, bounds.width, bounds.height);
+    });
+    
+    // Visualize player upgrade button hitboxes
+    this.upgradeElements.playerButtons.forEach(button => {
+      const bounds = button.container.getBounds();
+      this.debugGraphics.lineStyle(2, 0x00ff00, 1);
+      this.debugGraphics.strokeRect(bounds.x, bounds.y, bounds.width, bounds.height);
+    });
+    
+    // Visualize bottom button hitboxes if they exist
+    if (this.rerollButton?.container) {
+      const rerollBounds = this.rerollButton.container.getBounds();
+      this.debugGraphics.lineStyle(2, 0x0000ff, 1);
+      this.debugGraphics.strokeRect(rerollBounds.x, rerollBounds.y, rerollBounds.width, rerollBounds.height);
+    }
+    
+    if (this.nextWaveButton?.container) {
+      const nextWaveBounds = this.nextWaveButton.container.getBounds();
+      this.debugGraphics.lineStyle(2, 0x0000ff, 1);
+      this.debugGraphics.strokeRect(nextWaveBounds.x, nextWaveBounds.y, nextWaveBounds.width, nextWaveBounds.height);
+    }
   }
 }
