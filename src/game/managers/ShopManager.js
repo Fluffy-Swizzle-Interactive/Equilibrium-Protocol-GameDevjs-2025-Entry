@@ -375,17 +375,20 @@ export default class ShopManager {
       { 
         name: '❤️ Health Upgrade', 
         borderColor: 0xaa6666, 
-        fillColor: 0x221111
+        fillColor: 0x221111,
+        description: 'Increases maximum health by 20 points, allowing you to survive longer in battle.'
       },
       { 
         name: '🛡️ Armor Upgrade', 
         borderColor: 0x6666aa, 
-        fillColor: 0x111122 
+        fillColor: 0x111122,
+        description: 'Adds 5 defense points, reducing damage taken from all enemy attacks by 5%.'
       },
       { 
         name: '⚡ Speed Upgrade', 
         borderColor: 0xaaaa66, 
-        fillColor: 0x222211
+        fillColor: 0x222211,
+        description: 'Increases movement speed by 15%, helping you dodge enemies more effectively.'
       }
     ];
     
@@ -431,17 +434,52 @@ export default class ShopManager {
           button.add(hitboxDebug);
       }
       
+      // Create tooltip for upgrade description (initially hidden)
+      const tooltipWidth = 200;
+      const tooltipHeight = 80;
+      const tooltipPadding = 10;
+      
+      // Create tooltip container that will be shown on hover
+      const tooltip = this.scene.add.container(buttonWidth/2 + 10, 0).setVisible(false);
+      button.add(tooltip);
+      
+      // Create tooltip background with colored border to match upgrade
+      const tooltipBg = this.scene.add.rectangle(0, 0, tooltipWidth, tooltipHeight, 0x000000, 0.8);
+      tooltipBg.setStrokeStyle(2, upgrade.borderColor);
+      tooltipBg.setOrigin(0, 0.5);
+      tooltip.add(tooltipBg);
+      
+      // Create tooltip text
+      const tooltipText = this.scene.add.text(
+        tooltipPadding, 
+        0, 
+        upgrade.description, 
+        {
+          fontFamily: 'Arial',
+          fontSize: '13px',
+          color: '#ffffff',
+          wordWrap: { width: tooltipWidth - (tooltipPadding * 2) }
+        }
+      ).setOrigin(0, 0.5);
+      tooltip.add(tooltipText);
+      
       // Add hover and click effects to match weapon upgrade cards
       btnBg.on('pointerover', () => {
         btnBorder.setStrokeStyle(3, upgrade.borderColor);
         nameText.setColor('#ffffff');
         nameText.setStyle({ fontSize: '15px', fontStyle: 'bold' });
+        
+        // Show tooltip
+        tooltip.setVisible(true);
       });
       
       btnBg.on('pointerout', () => {
         btnBorder.setStrokeStyle(2, upgrade.borderColor);
         nameText.setColor('#dddddd');
         nameText.setStyle({ fontSize: '14px', fontStyle: 'bold' });
+        
+        // Hide tooltip
+        tooltip.setVisible(false);
       });
       
       // Add click event with visual feedback
@@ -461,7 +499,8 @@ export default class ShopManager {
       this.upgradeElements.playerButtons.push({
         container: button,
         upgrade: upgrade,
-        purchased: false
+        purchased: false,
+        tooltip: tooltip
       });
     });
   }
