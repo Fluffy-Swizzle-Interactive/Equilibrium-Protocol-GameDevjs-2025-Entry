@@ -431,20 +431,24 @@ export default class ShopManager {
           button.add(hitboxDebug);
       }
       
-      // Add hover effect
+      // Add hover and click effects to match weapon upgrade cards
       btnBg.on('pointerover', () => {
         btnBorder.setStrokeStyle(3, upgrade.borderColor);
+        nameText.setColor('#ffffff');
+        nameText.setStyle({ fontSize: '15px', fontStyle: 'bold' });
       });
       
       btnBg.on('pointerout', () => {
         btnBorder.setStrokeStyle(2, upgrade.borderColor);
+        nameText.setColor('#dddddd');
+        nameText.setStyle({ fontSize: '14px', fontStyle: 'bold' });
       });
       
-      // Add click event
+      // Add click event with visual feedback
       btnBg.on('pointerdown', () => {
         // Visual feedback for click
         this.scene.tweens.add({
-          targets: btnBg,
+          targets: button,
           scaleX: 0.95,
           scaleY: 0.95,
           duration: 50,
