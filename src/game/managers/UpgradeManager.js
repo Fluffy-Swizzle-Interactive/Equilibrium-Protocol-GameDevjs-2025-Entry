@@ -25,6 +25,13 @@ export default class UpgradeManager {
 
         // Track current drone level (0 = no drones, 1 = first drone, etc.)
         this.currentDroneLevel = 0;
+
+        // Track purchased upgrades in the current shop session
+        // These will be excluded from rerolls
+        this.purchasedUpgradesThisSession = {
+            weapon: new Set(),  // Store upgrade IDs
+            player: new Set()   // Store upgrade IDs
+        };
     }
 
     /**
@@ -39,10 +46,16 @@ export default class UpgradeManager {
             this.player.scene.xpManager.getCurrentLevel() : 1);
 
         // Get all weapon upgrades
-        let weaponUpgrades = getRandomWeaponUpgrades(4, this.rng, currentLevel);
+        let weaponUpgrades = getRandomWeaponUpgrades(6, this.rng, currentLevel); // Get more to account for filtering
 
         // Filter out purchased drone upgrades and enforce drone upgrade dependencies
         weaponUpgrades = this.filterDroneUpgrades(weaponUpgrades);
+
+        // Filter out upgrades that were already purchased in this shop session
+        if (this.purchasedUpgradesThisSession.weapon.size > 0) {
+            weaponUpgrades = weaponUpgrades.filter(upgrade =>
+                !this.purchasedUpgradesThisSession.weapon.has(upgrade.id));
+        }
 
         // Limit to 3 upgrades (in case we got extras for filtering)
         weaponUpgrades = weaponUpgrades.slice(0, 3);
@@ -62,9 +75,21 @@ export default class UpgradeManager {
             defense: playerDefense
         };
 
+        // Get player upgrades with filtering for defense cap
+        let playerUpgrades = getRandomPlayerUpgrades(5, this.rng, currentLevel, playerStats); // Get more to account for filtering
+
+        // Filter out upgrades that were already purchased in this shop session
+        if (this.purchasedUpgradesThisSession.player.size > 0) {
+            playerUpgrades = playerUpgrades.filter(upgrade =>
+                !this.purchasedUpgradesThisSession.player.has(upgrade.id));
+        }
+
+        // Limit to 3 player upgrades
+        playerUpgrades = playerUpgrades.slice(0, 3);
+
         return {
             weaponUpgrades: weaponUpgrades,
-            playerUpgrades: getRandomPlayerUpgrades(3, this.rng, currentLevel, playerStats)
+            playerUpgrades: playerUpgrades
         };
     }
 
@@ -122,18 +147,39 @@ export default class UpgradeManager {
     }
 
     /**
-     * Reset reroll count (when shop is closed)
+     * Reset reroll count and purchased upgrades tracking (when shop is closed)
      */
     resetReroll() {
         this.rerollCount = 0;
+
+        // Clear the purchased upgrades tracking for the next shop session
+        this.purchasedUpgradesThisSession.weapon.clear();
+        this.purchasedUpgradesThisSession.player.clear();
+    }
+
+    /**
+     * Track a purchased upgrade to exclude it from future rerolls in this session
+     * @param {string} type - Type of upgrade ('weapon' or 'player')
+     * @param {string} upgradeId - ID of the purchased upgrade
+     */
+    trackPurchasedUpgrade(type, upgradeId) {
+        if (type === 'weapon' || type === 'player') {
+            this.purchasedUpgradesThisSession[type].add(upgradeId);
+        }
     }
 
     /**
      * Apply a weapon upgrade to the player's weapon
      * @param {Object} upgrade - Weapon upgrade to apply
+     * @returns {boolean} - Whether the upgrade was successfully applied
      */
     applyWeaponUpgrade(upgrade) {
-        if (!upgrade || !upgrade.stats || !this.player) return;
+        if (!upgrade || !upgrade.stats || !this.player) return false;
+
+        // Track this upgrade as purchased for this shop session
+        if (upgrade.id) {
+            this.trackPurchasedUpgrade('weapon', upgrade.id);
+        }
 
         // Check if this is a drone upgrade
         if (upgrade.isDroneUpgrade && upgrade.stats.drone && this.player.weaponManager) {
@@ -158,13 +204,13 @@ export default class UpgradeManager {
                 currentDroneLevel: this.currentDroneLevel
             });
 
-            return;
+            return true; // Indicate success
         }
 
         // Use the WeaponManager to apply the upgrade if available
         if (this.player.weaponManager) {
-            this.player.weaponManager.applyUpgrade(upgrade);
-            return;
+            const success = this.player.weaponManager.applyUpgrade(upgrade);
+            return success !== false; // Return true unless explicitly failed
         }
 
         // Backwards compatibility - apply directly to player if no weapon manager
@@ -230,14 +276,22 @@ export default class UpgradeManager {
                 criticalDamage: this.player.criticalDamageMultiplier
             }
         });
+
+        return true; // Indicate success
     }
 
     /**
      * Apply a player upgrade to the player
      * @param {Object} upgrade - Player upgrade to apply
+     * @returns {boolean} - Whether the upgrade was successfully applied
      */
     applyPlayerUpgrade(upgrade) {
-        if (!upgrade || !upgrade.stats || !this.player) return;
+        if (!upgrade || !upgrade.stats || !this.player) return false;
+
+        // Track this upgrade as purchased for this shop session
+        if (upgrade.id) {
+            this.trackPurchasedUpgrade('player', upgrade.id);
+        }
 
         // Apply each stat change from the upgrade
         Object.entries(upgrade.stats).forEach(([stat, value]) => {
@@ -332,5 +386,7 @@ export default class UpgradeManager {
                 healthRegen: this.player.healthRegen
             }
         });
+
+        return true; // Indicate success
     }
 }
