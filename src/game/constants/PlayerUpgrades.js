@@ -45,7 +45,7 @@ export const PLAYER_UPGRADES = [
     },
     {
         id: 'health_2',
-        name: '❤️❤️ Major Health',
+        name: '❤️ Major Health',
         category: UPGRADE_CATEGORIES.HEALTH,
         rarity: RARITY.RARE,
         price: 200,
@@ -75,7 +75,7 @@ export const PLAYER_UPGRADES = [
     },
     {
         id: 'defense_2',
-        name: '🛡️🛡️ Heavy Armor',
+        name: '🛡️ Heavy Armor',
         category: UPGRADE_CATEGORIES.DEFENSE,
         rarity: RARITY.RARE,
         price: 240,
@@ -105,7 +105,7 @@ export const PLAYER_UPGRADES = [
     },
     {
         id: 'speed_2',
-        name: '⚡⚡ Nitro Speed',
+        name: '⚡ Nitro Speed',
         category: UPGRADE_CATEGORIES.SPEED,
         rarity: RARITY.RARE,
         price: 180,

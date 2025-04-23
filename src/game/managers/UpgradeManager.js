@@ -19,6 +19,12 @@ export default class UpgradeManager {
         this.rng = rng;
         this.rerollCount = 0;
         this.baseRerollCost = 50;
+
+        // Track purchased drone upgrades
+        this.purchasedDroneUpgrades = new Set();
+
+        // Track current drone level (0 = no drones, 1 = first drone, etc.)
+        this.currentDroneLevel = 0;
     }
 
     /**
@@ -32,10 +38,49 @@ export default class UpgradeManager {
             (this.player && this.player.scene && this.player.scene.xpManager ?
             this.player.scene.xpManager.getCurrentLevel() : 1);
 
+        // Get all weapon upgrades
+        let weaponUpgrades = getRandomWeaponUpgrades(4, this.rng, currentLevel);
+
+        // Filter out purchased drone upgrades and enforce drone upgrade dependencies
+        weaponUpgrades = this.filterDroneUpgrades(weaponUpgrades);
+
+        // Limit to 3 upgrades (in case we got extras for filtering)
+        weaponUpgrades = weaponUpgrades.slice(0, 3);
+
         return {
-            weaponUpgrades: getRandomWeaponUpgrades(3, this.rng, currentLevel),
+            weaponUpgrades: weaponUpgrades,
             playerUpgrades: getRandomPlayerUpgrades(3, this.rng, currentLevel)
         };
+    }
+
+    /**
+     * Filter drone upgrades based on purchase history and dependencies
+     * @param {Array} upgrades - Array of weapon upgrades
+     * @returns {Array} - Filtered array of weapon upgrades
+     */
+    filterDroneUpgrades(upgrades) {
+        return upgrades.filter(upgrade => {
+            // If it's not a drone upgrade, keep it
+            if (!upgrade.isDroneUpgrade) return true;
+
+            // If this drone upgrade has already been purchased, filter it out
+            if (this.purchasedDroneUpgrades.has(upgrade.id)) return false;
+
+            // Check dependencies for drone upgrades
+            if (upgrade.id === 'drone_1') {
+                // Drone 1 can always appear if not purchased
+                return true;
+            } else if (upgrade.id === 'drone_2') {
+                // Drone 2 requires drone 1 to be purchased
+                return this.purchasedDroneUpgrades.has('drone_1');
+            } else if (upgrade.id === 'drone_3') {
+                // Drone 3 requires drone 2 to be purchased
+                return this.purchasedDroneUpgrades.has('drone_2');
+            }
+
+            // Default case - allow the upgrade
+            return true;
+        });
     }
 
     /**
@@ -77,13 +122,24 @@ export default class UpgradeManager {
         // Check if this is a drone upgrade
         if (upgrade.isDroneUpgrade && upgrade.stats.drone && this.player.weaponManager) {
             // Add drone to weapon manager
-            const newDrone = this.player.weaponManager.upgradeDrones();
+            this.player.weaponManager.upgradeDrones();
+
+            // Track this drone upgrade as purchased
+            if (upgrade.id) {
+                this.purchasedDroneUpgrades.add(upgrade.id);
+
+                // Update current drone level based on the upgrade ID
+                if (upgrade.id === 'drone_1') this.currentDroneLevel = 1;
+                if (upgrade.id === 'drone_2') this.currentDroneLevel = 2;
+                if (upgrade.id === 'drone_3') this.currentDroneLevel = 3;
+            }
 
             // Emit event for drone addition
             EventBus.emit('drone-added', {
                 upgrade: upgrade,
                 droneCount: this.player.weaponManager.drones.length,
-                maxDrones: this.player.weaponManager.maxDrones
+                maxDrones: this.player.weaponManager.maxDrones,
+                currentDroneLevel: this.currentDroneLevel
             });
 
             return;

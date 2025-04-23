@@ -156,7 +156,7 @@ export const WEAPON_UPGRADES = [
         category: UPGRADE_CATEGORIES.AREA,
         rarity: RARITY.EPIC,
         price: 200,
-        effects: 'Small explosion on hit',
+        effects: 'Self Explanatory 💣',
         stats: {
             aoeRadius: 30, // Small explosion radius
             aoeDamage: 0.5 // 50% of bullet damage
@@ -217,7 +217,7 @@ export const WEAPON_UPGRADES = [
         id: 'drone_1',
         name: '🤖 Combat Drone I',
         category: UPGRADE_CATEGORIES.DRONE,
-        rarity: RARITY.EPIC,
+        rarity: RARITY.RARE,
         price: 300,
         effects: 'Adds 1 Combat Drone',
         stats: {
@@ -234,7 +234,7 @@ export const WEAPON_UPGRADES = [
         id: 'drone_2',
         name: '🤖 Combat Drone II',
         category: UPGRADE_CATEGORIES.DRONE,
-        rarity: RARITY.LEGENDARY,
+        rarity: RARITY.EPIC,
         price: 500,
         effects: 'Adds a 2nd Combat Drone',
         stats: {
@@ -419,24 +419,33 @@ export function getRandomWeaponUpgrades(count = 3, rng, playerLevel = 1) {
         // Create a deep copy of the selected upgrade
         const upgradeCopy = JSON.parse(JSON.stringify(selected));
 
-        // Randomly assign a new rarity using weights
-        const rarityValues = Object.values(RARITY);
+        // For drone upgrades, keep the original rarity
+        // For other upgrades, randomly assign a new rarity
+        let randomRarity;
 
-        // Create a weighted pool for rarities
-        const rarityPool = [];
-        rarityValues.forEach(rarity => {
-            // Add each rarity to the pool based on its weight
-            for (let i = 0; i < rarity.weight; i++) {
-                rarityPool.push(rarity);
-            }
-        });
+        if (upgradeCopy.isDroneUpgrade) {
+            // Keep original rarity for drone upgrades
+            randomRarity = upgradeCopy.rarity;
+        } else {
+            // Randomly assign a new rarity using weights for non-drone upgrades
+            const rarityValues = Object.values(RARITY);
 
-        // Select a random rarity from the weighted pool
-        const randomRarityIndex = Math.floor(rng.range(0, rarityPool.length - 1));
-        const randomRarity = rarityPool[randomRarityIndex];
+            // Create a weighted pool for rarities
+            const rarityPool = [];
+            rarityValues.forEach(rarity => {
+                // Add each rarity to the pool based on its weight
+                for (let i = 0; i < rarity.weight; i++) {
+                    rarityPool.push(rarity);
+                }
+            });
 
-        // Apply the new rarity
-        upgradeCopy.rarity = randomRarity;
+            // Select a random rarity from the weighted pool
+            const randomRarityIndex = Math.floor(rng.range(0, rarityPool.length - 1));
+            randomRarity = rarityPool[randomRarityIndex];
+
+            // Apply the new rarity
+            upgradeCopy.rarity = randomRarity;
+        }
 
         // Adjust price based on new rarity
         const rarityPriceMultiplier = randomRarity.multiplier;
