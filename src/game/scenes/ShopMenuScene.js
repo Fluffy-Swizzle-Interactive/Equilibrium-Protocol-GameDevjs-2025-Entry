@@ -650,7 +650,7 @@ export default class ShopMenuScene extends Phaser.Scene {
         this.upgradeElements.statPanels = [];
 
         const panelWidth = 220;
-        const panelHeight = 180;
+        const panelHeight = 185; // Increased by 5px for more space at the bottom
         const cardWidth = 160; // Width of a weapon upgrade card
         const buttonWidth = 200; // Width of player upgrade buttons
         const textPadding = 20; // Padding for text inside panels
@@ -745,50 +745,25 @@ export default class ShopMenuScene extends Phaser.Scene {
         weaponStatsText.setShadow(1, 1, 'rgba(0,0,0,0.7)', 2);
         playerStatsText.setShadow(1, 1, 'rgba(0,0,0,0.7)', 2);
 
-        // Add separator lines between stat entries
-        const weaponSeparator = this.add.graphics();
-        weaponSeparator.lineStyle(1, 0x444444, 0.7);
-        for (let i = 1; i < 6; i++) { // Increased to 6 to accommodate the additional Pierce stat
-            weaponSeparator.lineBetween(
-                weaponPanelX - panelWidth/2 + 10,
-                adjustedY + 30 + (i * 20),
-                weaponPanelX + panelWidth/2 - 10,
-                adjustedY + 30 + (i * 20)
-            );
-        }
-
-        const playerSeparator = this.add.graphics();
-        playerSeparator.lineStyle(1, 0x444444, 0.7);
-        for (let i = 1; i < 5; i++) {
-            playerSeparator.lineBetween(
-                playerPanelX - panelWidth/2 + 10,
-                adjustedY + 30 + (i * 20),
-                playerPanelX + panelWidth/2 - 10,
-                adjustedY + 30 + (i * 20)
-            );
-        }
-
         // Add panels to our tracking array
         this.upgradeElements.statPanels.push({
             type: 'weapon',
             graphics: weaponPanel,
             title: weaponTitle,
-            statsText: weaponStatsText,
-            separator: weaponSeparator
+            statsText: weaponStatsText
         });
 
         this.upgradeElements.statPanels.push({
             type: 'player',
             graphics: playerPanel,
             title: playerTitle,
-            statsText: playerStatsText,
-            separator: playerSeparator
+            statsText: playerStatsText
         });
 
         // Add all these elements to our container
         container.add([
-            weaponPanel, weaponTitle, weaponStatsText, weaponSeparator,
-            playerPanel, playerTitle, playerStatsText, playerSeparator
+            weaponPanel, weaponTitle, weaponStatsText,
+            playerPanel, playerTitle, playerStatsText
         ]);
     }
 
