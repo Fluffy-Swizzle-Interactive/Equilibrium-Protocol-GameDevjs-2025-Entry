@@ -47,9 +47,24 @@ export default class UpgradeManager {
         // Limit to 3 upgrades (in case we got extras for filtering)
         weaponUpgrades = weaponUpgrades.slice(0, 3);
 
+        // Get player defense stat for filtering upgrades
+        let playerDefense = 0;
+        if (this.player.healthSystem) {
+            playerDefense = Math.round(this.player.healthSystem.getDamageResistance() * 100);
+        } else if (this.player.scene && this.player.scene.playerHealth) {
+            playerDefense = Math.round(this.player.scene.playerHealth.getDamageResistance() * 100);
+        } else if (this.player.defense !== undefined) {
+            playerDefense = this.player.defense;
+        }
+
+        // Create player stats object for filtering
+        const playerStats = {
+            defense: playerDefense
+        };
+
         return {
             weaponUpgrades: weaponUpgrades,
-            playerUpgrades: getRandomPlayerUpgrades(3, this.rng, currentLevel)
+            playerUpgrades: getRandomPlayerUpgrades(3, this.rng, currentLevel, playerStats)
         };
     }
 
@@ -94,6 +109,7 @@ export default class UpgradeManager {
         const playerLevel = this.player && this.player.scene && this.player.scene.xpManager ?
             this.player.scene.xpManager.getCurrentLevel() : 1;
 
+        // Generate new upgrades with current player level
         return this.generateUpgrades(playerLevel);
     }
 
@@ -243,18 +259,29 @@ export default class UpgradeManager {
                     break;
 
                 case 'defense':
+                    // Get current resistance to check if we're at the cap
+                    let currentResistance = 0;
+                    if (this.player.healthSystem) {
+                        currentResistance = this.player.healthSystem.getDamageResistance() || 0;
+                    } else if (this.player.scene.playerHealth) {
+                        currentResistance = this.player.scene.playerHealth.getDamageResistance() || 0;
+                    }
+
+                    // Check if already at max defense (25%)
+                    if (currentResistance >= 0.25) {
+                        console.log('Player already at maximum defense (25%). Upgrade not applied.');
+                        return false; // Indicate upgrade wasn't applied
+                    }
+
                     // Update player.defense property for tracking
                     this.player.defense = (this.player.defense || 0) + value;
 
                     // Update the actual damage resistance in the health system
                     // Convert defense points to percentage (e.g., 5 defense = 0.05 or 5% resistance)
+                    const newResistance = currentResistance + (value / 100);
                     if (this.player.healthSystem) {
-                        const currentResistance = this.player.healthSystem.getDamageResistance() || 0;
-                        const newResistance = currentResistance + (value / 100);
                         this.player.healthSystem.setDamageResistance(newResistance);
                     } else if (this.player.scene.playerHealth) {
-                        const currentResistance = this.player.scene.playerHealth.getDamageResistance() || 0;
-                        const newResistance = currentResistance + (value / 100);
                         this.player.scene.playerHealth.setDamageResistance(newResistance);
                     }
                     break;

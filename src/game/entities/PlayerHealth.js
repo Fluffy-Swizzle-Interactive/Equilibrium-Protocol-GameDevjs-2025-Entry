@@ -258,8 +258,8 @@ export class PlayerHealth {
      * @param {number} resistance - Resistance value between 0 and 1
      */
     setDamageResistance(resistance) {
-        // Clamp between 0 and 0.9 (never allow 100% damage resistance)
-        this.damageResistance = Math.min(0.9, Math.max(0, resistance));
+        // Clamp between 0 and 0.25 (cap at 25% damage resistance)
+        this.damageResistance = Math.min(0.25, Math.max(0, resistance));
     }
 
     /**

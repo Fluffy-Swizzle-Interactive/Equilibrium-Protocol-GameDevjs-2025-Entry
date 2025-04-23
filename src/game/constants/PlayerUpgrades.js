@@ -298,9 +298,10 @@ export function scalePlayerUpgradeByLevel(upgrade, playerLevel) {
  * @param {number} count - Number of upgrades to get
  * @param {Object} rng - Random number generator object with pick method
  * @param {number} playerLevel - Current player level for scaling upgrades
+ * @param {Object} playerStats - Optional player stats to filter upgrades
  * @returns {Array} - Array of random player upgrades
  */
-export function getRandomPlayerUpgrades(count = 3, rng, playerLevel = 1) {
+export function getRandomPlayerUpgrades(count = 3, rng, playerLevel = 1, playerStats = null) {
     if (!rng || (typeof rng.pick !== 'function' && typeof rng.range !== 'function')) {
         // Fallback if no RNG is provided
         return PLAYER_UPGRADES.slice(0, count);
@@ -315,8 +316,17 @@ export function getRandomPlayerUpgrades(count = 3, rng, playerLevel = 1) {
     }
 
     // Create a copy to avoid modifying the original array
-    const availableUpgrades = [...PLAYER_UPGRADES];
+    let availableUpgrades = [...PLAYER_UPGRADES];
     const selectedUpgrades = [];
+
+    // Filter out defense upgrades if player has reached the defense cap (25%)
+    if (playerStats && playerStats.defense !== undefined) {
+        // If defense is 25% or higher, filter out all defense upgrades
+        if (playerStats.defense >= 25) {
+            availableUpgrades = availableUpgrades.filter(upgrade =>
+                upgrade.category !== UPGRADE_CATEGORIES.DEFENSE);
+        }
+    }
 
     // Create a weighted pool based on rarity
     const weightedPool = [];

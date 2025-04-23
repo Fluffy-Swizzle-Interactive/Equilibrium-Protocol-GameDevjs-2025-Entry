@@ -93,6 +93,13 @@ export class Player {
                 // Decrease damage taken by 15%
                 if (this.healthSystem) {
                     const currentResistance = this.healthSystem.getDamageResistance() || 0;
+
+                    // Check if already at max defense (25%)
+                    if (currentResistance >= 0.25) {
+                        console.log('Player already at maximum defense (25%). Upgrade not applied.');
+                        return false; // Indicate upgrade wasn't applied
+                    }
+
                     const newResistance = currentResistance + 0.15; // 15% more damage resistance
                     this.healthSystem.setDamageResistance(newResistance);
 
