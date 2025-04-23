@@ -377,9 +377,34 @@ export default class UpgradeManager {
 
                 case 'pickupRadius':
                     if (this.player.scene.collectibleManager) {
-                        this.player.scene.collectibleManager.xpCollectionRadius *= value;
-                        this.player.scene.collectibleManager.cashCollectionRadius *= value;
-                        this.player.scene.collectibleManager.healthCollectionRadius *= value;
+                        const collectibleManager = this.player.scene.collectibleManager;
+
+                        // Use the new method to update all collection radii
+                        if (typeof collectibleManager.updateAllCollectionRadii === 'function') {
+                            collectibleManager.updateAllCollectionRadii(value);
+                        } else {
+                            // Fallback to direct update if the method doesn't exist
+                            if (collectibleManager.collectionConfig) {
+                                // Update XP pickup radius
+                                if (collectibleManager.collectionConfig.xp_pickup) {
+                                    collectibleManager.collectionConfig.xp_pickup.radius *= value;
+                                }
+
+                                // Update cash pickup radius
+                                if (collectibleManager.collectionConfig.cash_pickup) {
+                                    collectibleManager.collectionConfig.cash_pickup.radius *= value;
+                                }
+
+                                // Update health pickup radius
+                                if (collectibleManager.collectionConfig.health_pickup) {
+                                    collectibleManager.collectionConfig.health_pickup.radius *= value;
+                                }
+
+                                console.log('Updated collection radii with multiplier:', value);
+                            } else {
+                                console.warn('CollectibleManager has no collectionConfig object');
+                            }
+                        }
                     }
                     break;
 
