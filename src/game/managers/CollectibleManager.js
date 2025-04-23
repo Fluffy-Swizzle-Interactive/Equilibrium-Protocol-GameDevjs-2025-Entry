@@ -241,25 +241,94 @@ export class CollectibleManager {
             return false;
         }
 
-        const player = this.scene.player;
+        // Get the health amount from the sprite
+        const amount = sprite.customData.value;
+        let healedAmount = 0;
 
-        if (!player || !player.healthSystem || !player.healthSystem.heal) {
-            console.warn('CollectibleManager: Cannot process health - no valid Player health system found');
+        // Try different ways to access the health system
+        // 1. First try scene.playerHealth (centralized health system in WaveGame)
+        if (this.scene.playerHealth && typeof this.scene.playerHealth.heal === 'function') {
+            healedAmount = this.scene.playerHealth.heal(amount);
+            if (this.scene.isDev) console.debug('Health pickup: Used scene.playerHealth to heal', amount);
+        }
+        // 2. Then try player.healthSystem (attached health system)
+        else if (this.scene.player && this.scene.player.healthSystem &&
+                 typeof this.scene.player.healthSystem.heal === 'function') {
+            healedAmount = this.scene.player.healthSystem.heal(amount);
+            if (this.scene.isDev) console.debug('Health pickup: Used player.healthSystem to heal', amount);
+        }
+        // 3. Finally try direct player.heal method
+        else if (this.scene.player && typeof this.scene.player.heal === 'function') {
+            this.scene.player.heal(amount);
+            healedAmount = amount; // Assume full healing for UI purposes
+            if (this.scene.isDev) console.debug('Health pickup: Used player.heal to heal', amount);
+        }
+        else {
+            console.warn('CollectibleManager: Cannot process health - no valid health system found');
             return false;
         }
 
-        // Heal the player
-        const amount = sprite.customData.value;
-        const healedAmount = player.healthSystem.heal(amount);
-
         // Show floating text if UI manager exists and actually healed
-        if (healedAmount > 0 && this.scene.uiManager && this.scene.uiManager.showFloatingText) {
+        if (this.scene.uiManager && this.scene.uiManager.showFloatingText) {
             this.scene.uiManager.showFloatingText(
-                sprite.x, sprite.y, `+${healedAmount} HP`, 0xFF0000
+                sprite.x, sprite.y, `+${amount} HP`, 0xFF0000
             );
         }
 
+        // Play healing sound if available
+        if (this.scene.soundManager) {
+            const soundKey = this.scene.soundManager.hasSound('health_pickup')
+                ? 'health_pickup'
+                : 'laserShoot';
+
+            this.scene.soundManager.playSoundEffect(soundKey, {
+                detune: 900,
+                volume: 0.4
+            });
+        }
+
+        // Show healing visual effect on player
+        this.showHealingEffect();
+
         return true;
+    }
+
+    /**
+     * Show visual effect when player is healed
+     */
+    showHealingEffect() {
+        // Get player sprite if available
+        const playerSprite = this.scene.player?.graphics;
+        if (!playerSprite) return;
+
+        // Flash player green
+        playerSprite.setTint(0x00ff00); // Green flash for healing
+
+        // Return to normal after flash duration
+        this.scene.time.delayedCall(200, () => {
+            playerSprite.clearTint();
+        });
+
+        // Create healing particles around player
+        if (this.scene.add && this.scene.add.particles) {
+            const particles = this.scene.add.particles(playerSprite.x, playerSprite.y, 'particle_texture', {
+                speed: { min: 30, max: 80 },
+                scale: { start: 0.2, end: 0 },
+                alpha: { start: 0.8, end: 0 },
+                lifespan: 500,
+                blendMode: 'ADD',
+                quantity: 8,
+                tint: 0x00ff00, // Green particles for healing
+                angle: { min: 0, max: 360 }
+            });
+
+            particles.setDepth(100);
+
+            // Auto-destroy after short time
+            this.scene.time.delayedCall(500, () => {
+                particles.destroy();
+            });
+        }
     }
 
     /**

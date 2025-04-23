@@ -184,9 +184,12 @@ export class PlayerHealth {
     /**
      * Heal the player
      * @param {number} amount - Amount of health to restore
+     * @returns {number} The actual amount healed (may be less if at max health)
      */
     heal(amount) {
+        const oldHealth = this.currentHealth;
         this.currentHealth = Math.min(this.maxHealth, this.currentHealth + amount);
+        const actualHealed = this.currentHealth - oldHealth;
 
         // Update UI if available
         if (this.scene.uiManager) {
@@ -195,7 +198,7 @@ export class PlayerHealth {
 
         // Optional visual feedback for healing
         const playerSprite = this.scene.player?.graphics;
-        if (playerSprite) {
+        if (playerSprite && actualHealed > 0) {
             playerSprite.setTint(0x00ff00); // Green flash
             this.scene.time.delayedCall(
                 200,
@@ -204,6 +207,8 @@ export class PlayerHealth {
                 }
             );
         }
+
+        return actualHealed;
     }
 
     /**
