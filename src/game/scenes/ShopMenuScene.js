@@ -528,10 +528,11 @@ export default class ShopMenuScene extends Phaser.Scene {
         ).setOrigin(0.5, 0.5);
 
         // Weapon stats text - positioned with proper alignment and padding, reduced line spacing
+        // Create with placeholder text that will be immediately replaced by updateStatPanels
         const weaponStatsText = this.add.text(
             weaponPanelX - panelWidth/2 + textPadding,
             adjustedY + 30,
-            'Damage: 10\nRate: 5/sec\nRange: 300\nSpeed: 400\nCrit: 5%',
+            'Loading weapon stats...',
             {
                 fontFamily: 'Arial',
                 fontSize: '14px',
@@ -563,11 +564,11 @@ export default class ShopMenuScene extends Phaser.Scene {
             }
         ).setOrigin(0.5, 0.5);
 
-        // Player stats text
+        // Player stats text - create with placeholder text that will be immediately replaced by updateStatPanels
         const playerStatsText = this.add.text(
             playerPanelX - panelWidth/2 + textPadding,
             adjustedY + 30,
-            'Health: 100\nDefense: 0%\nSpeed: 150\nXP: 300\nLevel: 3',
+            'Loading player stats...',
             {
                 fontFamily: 'Arial',
                 fontSize: '14px',
@@ -756,11 +757,29 @@ export default class ShopMenuScene extends Phaser.Scene {
         // Get defense/damage resistance from health system
         let defense;
         if (player.scene && player.scene.playerHealth) {
-            defense = Math.round(player.scene.playerHealth.getDamageResistance() * 100);
+            // Ensure we're getting the raw damageResistance value and converting it to percentage
+            const resistanceDecimal = player.scene.playerHealth.getDamageResistance();
+            defense = Math.round(resistanceDecimal * 100);
+
+            if (this.scene.isDev) {
+                console.debug('Defense from playerHealth:', {
+                    raw: resistanceDecimal,
+                    percent: defense
+                });
+            }
         } else if (player.healthSystem) {
-            defense = Math.round(player.healthSystem.getDamageResistance() * 100);
+            // Ensure we're getting the raw damageResistance value and converting it to percentage
+            const resistanceDecimal = player.healthSystem.getDamageResistance();
+            defense = Math.round(resistanceDecimal * 100);
+
+            if (this.scene.isDev) {
+                console.debug('Defense from healthSystem:', {
+                    raw: resistanceDecimal,
+                    percent: defense
+                });
+            }
         } else {
-            defense = Math.round(player.defense || 0);
+            defense = Math.round((player.defense || 0) * 100);
         }
 
         // Get player credits/cash - check multiple possible sources
@@ -779,9 +798,22 @@ export default class ShopMenuScene extends Phaser.Scene {
         let nextLevelXP = 100;
 
         if (this.gameScene?.xpManager) {
-            currentLevel = this.gameScene.xpManager.currentLevel || 1;
-            currentXP = this.gameScene.xpManager.currentXP || 0;
-            nextLevelXP = this.gameScene.xpManager.nextLevelXP || 100;
+            // Use getter methods when available, fall back to direct properties
+            currentLevel = this.gameScene.xpManager.getCurrentLevel?.() || this.gameScene.xpManager.currentLevel || 1;
+            currentXP = this.gameScene.xpManager.getCurrentXP?.() || this.gameScene.xpManager.currentXP || 0;
+            nextLevelXP = this.gameScene.xpManager.getXPToNextLevel?.() || this.gameScene.xpManager.nextLevelXP || 100;
+
+            // Debug output to help identify XP values
+            if (this.scene.isDev) {
+                console.debug('XP Manager values:', {
+                    level: currentLevel,
+                    currentXP: currentXP,
+                    nextLevelXP: nextLevelXP,
+                    xpToNextLevel: this.gameScene.xpManager.xpToNextLevel,
+                    getXPToNextLevel: this.gameScene.xpManager.getXPToNextLevel?.(),
+                    nextLevelXPProperty: this.gameScene.xpManager.nextLevelXP
+                });
+            }
         } else if (player.level !== undefined) {
             currentLevel = player.level;
             currentXP = player.xp || 0;
@@ -848,6 +880,7 @@ export default class ShopMenuScene extends Phaser.Scene {
         if (this.scene.isDev) {
             console.debug('Stats Panel Update:', {
                 playerHealth: { current: health, max: maxHealth },
+                playerDefense: defense,
                 playerCredits: cash,
                 playerXP: { level: currentLevel, current: currentXP, next: nextLevelXP },
                 weaponStats: { damage: bulletDamage, fireRate }

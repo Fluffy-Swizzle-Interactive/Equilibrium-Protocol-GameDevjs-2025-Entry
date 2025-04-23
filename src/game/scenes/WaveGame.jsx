@@ -17,6 +17,7 @@ import { CashManager } from '../managers/CashManager';
 import { SpritePool } from '../entities/SpritePool';
 import { CollectibleManager } from '../managers/CollectibleManager';
 import ShopManager from '../managers/ShopManager';
+import { HealthRegenerationSystem } from '../systems/HealthRegenerationSystem';
 import { DEPTHS, CHAOS } from '../constants';
 
 /**
@@ -82,6 +83,7 @@ export class WaveGame extends Scene {
         this.setupWaveManager(); // Setup wave manager after other systems
         this.setupCollectibleManager(); // Setup collectible manager
         this.setupShopManager(); // Setup shop system
+        this.setupHealthRegenerationSystem(); // Setup health regeneration system
         this.setupInput();
 
         EventBus.emit('current-scene-ready', this);
@@ -359,6 +361,24 @@ export class WaveGame extends Scene {
     }
 
     /**
+     * Set up the health regeneration system
+     */
+    setupHealthRegenerationSystem() {
+        // Initialize health regeneration system
+        this.healthRegenSystem = new HealthRegenerationSystem(this);
+
+        // Initialize player health regen to 0
+        if (this.player && this.player.healthRegen === undefined) {
+            this.player.healthRegen = 0;
+        }
+
+        // Log initialization in dev mode
+        if (this.isDev) {
+            console.debug('HealthRegenerationSystem initialized');
+        }
+    }
+
+    /**
      * Set up the game map and boundaries
      */
     setupMap() {
@@ -607,6 +627,11 @@ export class WaveGame extends Scene {
         // Update collectible manager
         if (this.collectibleManager) {
             this.collectibleManager.update();
+        }
+
+        // Update health regeneration system
+        if (this.healthRegenSystem) {
+            this.healthRegenSystem.update(time, delta);
         }
 
         // Check for collisions

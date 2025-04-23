@@ -34,7 +34,7 @@ export const PLAYER_UPGRADES = [
         category: UPGRADE_CATEGORIES.HEALTH,
         rarity: RARITY.COMMON,
         price: 120,
-        description: 'Increases maximum health by 20 points, allowing you to survive longer in battle.',
+        description: 'Increases maximum health',
         stats: {
             maxHealth: 20 // +20 health points
         },
@@ -49,7 +49,7 @@ export const PLAYER_UPGRADES = [
         category: UPGRADE_CATEGORIES.HEALTH,
         rarity: RARITY.RARE,
         price: 200,
-        description: 'Significantly increases maximum health by 50 points.',
+        description: 'Significantly increases maximum health.',
         stats: {
             maxHealth: 50 // +50 health points
         },
@@ -325,6 +325,15 @@ export function getRandomPlayerUpgrades(count = 3, rng, playerLevel = 1, playerS
         if (playerStats.defense >= 25) {
             availableUpgrades = availableUpgrades.filter(upgrade =>
                 upgrade.category !== UPGRADE_CATEGORIES.DEFENSE);
+        }
+    }
+
+    // Filter out regeneration upgrades if player already has health regeneration
+    if (playerStats && playerStats.healthRegen !== undefined) {
+        // If player has any health regeneration, filter out all regeneration upgrades
+        if (playerStats.healthRegen > 0) {
+            availableUpgrades = availableUpgrades.filter(upgrade =>
+                !(upgrade.stats && upgrade.stats.healthRegen));
         }
     }
 

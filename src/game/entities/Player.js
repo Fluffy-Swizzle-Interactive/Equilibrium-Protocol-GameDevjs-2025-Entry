@@ -16,11 +16,18 @@ export class Player {
         this.createAnimations();
 
         // Initialize health system
-        this.healthSystem = new PlayerHealth(scene, {
-            maxHealth: 100,
-            invulnerabilityTime: 1000,
-            damageResistance: 0 // Start with 0% defense
-        });
+        // Use the scene's playerHealth if it exists, otherwise create a new one
+        if (scene.playerHealth) {
+            this.healthSystem = scene.playerHealth;
+            console.log('Player using existing scene.playerHealth');
+        } else {
+            this.healthSystem = new PlayerHealth(scene, {
+                maxHealth: 100,
+                invulnerabilityTime: 1000,
+                damageResistance: 0 // Start with 0% defense
+            });
+            console.log('Player created new healthSystem');
+        }
 
         // Collection properties
         // These are now just fallbacks in case collectibleManager isn't initialized
@@ -91,20 +98,45 @@ export class Player {
 
             case 'Armor':
                 // Decrease damage taken by 15%
+                // Get current resistance from the appropriate health system
+                let currentResistance = 0;
+                let healthSystemToUpdate = null;
+
+                // Check player's health system first
                 if (this.healthSystem) {
-                    const currentResistance = this.healthSystem.getDamageResistance() || 0;
+                    currentResistance = this.healthSystem.getDamageResistance() || 0;
+                    healthSystemToUpdate = this.healthSystem;
+                }
+                // Also check scene's playerHealth if it exists and is different
+                else if (this.scene.playerHealth && this.scene.playerHealth !== this.healthSystem) {
+                    currentResistance = this.scene.playerHealth.getDamageResistance() || 0;
+                    healthSystemToUpdate = this.scene.playerHealth;
+                }
 
-                    // Check if already at max defense (25%)
-                    if (currentResistance >= 0.25) {
-                        console.log('Player already at maximum defense (25%). Upgrade not applied.');
-                        return false; // Indicate upgrade wasn't applied
-                    }
+                // Check if already at max defense (25%)
+                if (currentResistance >= 0.25) {
+                    console.log('Player already at maximum defense (25%). Upgrade not applied.');
+                    return false; // Indicate upgrade wasn't applied
+                }
 
+                if (healthSystemToUpdate) {
                     const newResistance = currentResistance + 0.15; // 15% more damage resistance
-                    this.healthSystem.setDamageResistance(newResistance);
+
+                    // Update the player's health system
+                    healthSystemToUpdate.setDamageResistance(newResistance);
+
+                    // If scene has a separate playerHealth, update that too
+                    if (this.scene.playerHealth && this.scene.playerHealth !== this.healthSystem) {
+                        this.scene.playerHealth.setDamageResistance(newResistance);
+                        console.log('Updated scene.playerHealth with new resistance:', newResistance);
+                    }
 
                     // Track upgrade
                     this.upgrades.armor++;
+                    console.log('Armor upgrade applied. New resistance:', newResistance);
+                } else {
+                    console.warn('No health system found to apply armor upgrade');
+                    return false;
                 }
                 break;
 
