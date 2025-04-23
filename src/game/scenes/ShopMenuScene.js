@@ -791,13 +791,29 @@ export default class ShopMenuScene extends Phaser.Scene {
         // Get movement speed
         const speed = Math.round(player.speed || 150);
         
-        // Get weapon stats
-        const bulletDamage = Math.round(player.bulletDamage || 10);
-        const fireRate = player.fireRate ? Math.round(1000 / player.fireRate) : 3; // Convert ms delay to shots per second
-        const bulletRange = Math.round(player.bulletRange || 400);
-        const bulletSpeed = Math.round(player.bulletSpeed || 600);
-        const criticalHitChance = Math.round(player.criticalHitChance || 5);
-        const criticalDamageMultiplier = (player.criticalDamageMultiplier || 1.5).toFixed(1);
+        // Get weapon stats - Look for proper weapon stats from various possible locations
+        let bulletDamage, fireRate, bulletRange, bulletSpeed, criticalHitChance, criticalDamageMultiplier;
+        
+        // Check for WeaponManager first (most accurate source if it exists)
+        if (player.weaponManager) {
+            // Get stats directly from weapon manager using getStats() method
+            const weaponStats = player.weaponManager.getStats();
+            
+            bulletDamage = Math.round(weaponStats?.damage || player.bulletDamage || 10);
+            fireRate = Math.round(weaponStats?.fireRate ? (1000 / weaponStats.fireRate) : (player.fireRate ? (1000 / player.fireRate) : 3));
+            bulletRange = Math.round(weaponStats?.range || player.bulletRange || 400);
+            bulletSpeed = Math.round(weaponStats?.speed || player.bulletSpeed || 600);
+            criticalHitChance = Math.round(weaponStats?.criticalChance || player.criticalHitChance || 5);
+            criticalDamageMultiplier = (weaponStats?.criticalDamage || player.criticalDamageMultiplier || 1.5).toFixed(1);
+        } else {
+            // Fallback to direct properties on player
+            bulletDamage = Math.round(player.bulletDamage || 10);
+            fireRate = Math.round(player.fireRate ? (1000 / player.fireRate) : 3);  // Convert ms delay to shots per second
+            bulletRange = Math.round(player.bulletRange || 400);
+            bulletSpeed = Math.round(player.bulletSpeed || 600);
+            criticalHitChance = Math.round(player.criticalHitChance || 5);
+            criticalDamageMultiplier = (player.criticalDamageMultiplier || 1.5).toFixed(1);
+        }
         
         // Format player stats
         const playerStats = [
