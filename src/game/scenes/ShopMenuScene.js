@@ -63,6 +63,9 @@ export default class ShopMenuScene extends Phaser.Scene {
         // Listen for failures
         EventBus.on('shop-purchase-failed', this.handlePurchaseFailed, this);
         EventBus.on('shop-reroll-failed', this.handleRerollFailed, this);
+
+        // Listen for skill points updates
+        EventBus.on('skill-points-updated', this.updateStatPanels, this);
     }
 
     /**
@@ -128,6 +131,79 @@ export default class ShopMenuScene extends Phaser.Scene {
     }
 
     /**
+     * Calculate the actual value of an upgrade stat with scaling
+     * @param {Object} upgrade - The upgrade object
+     * @param {string} statKey - The stat key to calculate
+     * @returns {string} - Formatted string with the calculated value
+     */
+    calculateUpgradeValue(upgrade, statKey) {
+        if (!upgrade || !upgrade.stats || !upgrade.stats[statKey]) {
+            return '';
+        }
+
+        const value = upgrade.stats[statKey];
+        const rarityMultiplier = upgrade.rarity?.multiplier || 1.0;
+
+        // Different formatting based on stat type
+        switch (statKey) {
+            case 'damage':
+            case 'bulletRange':
+            case 'bulletSpeed':
+                // These are multiplicative stats (e.g., 1.1 = +10%)
+                if (value > 1) {
+                    // Calculate the actual percentage with rarity scaling
+                    const baseBonus = (value - 1) * 100; // Convert to percentage
+                    const scaledBonus = baseBonus * rarityMultiplier;
+                    return `+${Math.round(scaledBonus)}%`;
+                }
+                return '';
+
+            case 'fireRate':
+                // FireRate is inverted (lower is better)
+                // For values < 1, it's a direct percentage improvement
+                // For values > 1, we need to invert the calculation to show the correct bonus
+                let baseBonus;
+                if (value < 1) {
+                    baseBonus = (1 - value) * 100; // Convert to percentage
+                } else {
+                    // For values > 1, we need to show the equivalent percentage improvement
+                    // when dividing instead of multiplying
+                    baseBonus = ((value - 1) / value) * 100;
+                }
+                const scaledBonus = baseBonus * rarityMultiplier;
+                return `+${Math.round(scaledBonus)}%`;
+
+            case 'bulletPierce':
+            case 'criticalChance':
+            case 'aoeRadius':
+            case 'aoeDamage':
+            case 'droneCount':
+                // These are additive stats
+                const scaledValue = value * rarityMultiplier;
+                if (statKey === 'criticalChance') {
+                    return `+${Math.round(scaledValue)}%`;
+                } else if (statKey === 'bulletPierce') {
+                    return `+${Math.round(scaledValue)}`;
+                } else if (statKey === 'aoeDamage') {
+                    return `${Math.round(scaledValue * 100)}%`;
+                } else if (statKey === 'droneCount') {
+                    // Always return +1 for drone count regardless of rarity
+                    return `+1`;
+                } else {
+                    return `${Math.round(scaledValue)}`;
+                }
+
+            case 'criticalDamageMultiplier':
+                // This is an additive bonus to the multiplier
+                const scaledMultiplier = value * rarityMultiplier;
+                return `+${(scaledMultiplier).toFixed(1)}x`;
+
+            default:
+                return '';
+        }
+    }
+
+    /**
      * Create weapon upgrade cards display - horizontally arranged on left side
      * @param {Phaser.GameObjects.Container} container - Main container to add elements to
      * @param {Array} weaponUpgrades - Array of weapon upgrade options
@@ -158,9 +234,29 @@ export default class ShopMenuScene extends Phaser.Scene {
             // Create card container
             const card = this.add.container(x, startY);
 
-            // Get visual properties from upgrade or use defaults
-            const fillColor = upgrade.visualProperties?.fillColor || 0x000022;
-            const borderColor = upgrade.visualProperties?.borderColor || 0x3333aa;
+            // Set background color based on rarity
+            let fillColor, borderColor;
+
+            // Determine colors based on rarity
+            switch(upgrade.rarity?.name) {
+                case 'Legendary':
+                    fillColor = 0x332200; // Gold background
+                    borderColor = 0xffaa00; // Gold border
+                    break;
+                case 'Epic':
+                    fillColor = 0x220033; // Purple background
+                    borderColor = 0xaa44ff; // Purple border
+                    break;
+                case 'Rare':
+                    fillColor = 0x001133; // Blue background
+                    borderColor = 0x4488ff; // Blue border
+                    break;
+                case 'Common':
+                default:
+                    fillColor = 0x113300; // Green background
+                    borderColor = 0x44aa44; // Green border
+                    break;
+            }
 
             // Create card background with colored border
             const cardBg = this.add.rectangle(0, 0, cardWidth, cardHeight, fillColor, 0.6);
@@ -205,9 +301,55 @@ export default class ShopMenuScene extends Phaser.Scene {
             categoryText.setShadow(1, 1, 'rgba(0,0,0,0.7)', 2);
             rarityText.setShadow(1, 1, 'rgba(0,0,0,0.7)', 2);
 
-            // Add effects text with reduced spacing
+            // Get the main stat key and value from the upgrade
+            let mainStatKey = '';
+            let effectsString = '';
+
+            // Determine the main stat based on category
+            switch (upgrade.category) {
+                case 'Damage':
+                    mainStatKey = 'damage';
+                    break;
+                case 'Fire Rate':
+                    mainStatKey = 'fireRate';
+                    break;
+                case 'Range':
+                    mainStatKey = 'bulletRange';
+                    break;
+                case 'Pierce':
+                    mainStatKey = 'bulletPierce';
+                    break;
+                case 'Area of Effect':
+                    mainStatKey = 'aoeRadius';
+                    break;
+                case 'Critical':
+                    mainStatKey = upgrade.stats.criticalChance ? 'criticalChance' : 'criticalDamageMultiplier';
+                    break;
+                case 'Projectile':
+                    mainStatKey = 'bulletSpeed';
+                    break;
+                case 'Drone':
+                    // For drone upgrades, always show +1 Combat Drone
+                    if (upgrade.stats.droneCount) {
+                        effectsString = `+1 Combat Drone`;
+                    } else {
+                        effectsString = 'Combat Drone';
+                    }
+                    break;
+                default:
+                    // For other categories, use the original effects text
+                    effectsString = upgrade.effects;
+            }
+
+            // Calculate the actual value if we have a main stat key
+            if (mainStatKey && upgrade.stats[mainStatKey]) {
+                const calculatedValue = this.calculateUpgradeValue(upgrade, mainStatKey);
+                effectsString = `${calculatedValue} ${upgrade.category}`;
+            }
+
+            // Add effects text with reduced spacing - without the "Effects:" prefix
             const effectsText = this.add.text(0, -cardHeight/2 + 100,
-                `Effects: ${upgrade.effects}`, {
+                effectsString, {
                 fontFamily: 'Arial',
                 fontSize: '13px',
                 color: '#88ff88',
@@ -320,7 +462,7 @@ export default class ShopMenuScene extends Phaser.Scene {
         this.upgradeElements.playerButtons = [];
 
         // Define button dimensions to match reference image
-        const buttonWidth = 160;
+        const buttonWidth = 200; // Increased from 160 to 200
         const buttonHeight = 40;
         const spacing = 15;
 
@@ -339,9 +481,29 @@ export default class ShopMenuScene extends Phaser.Scene {
             // Create button container
             const button = this.add.container(rightSideX, y);
 
-            // Get visual properties from upgrade or use defaults
-            const fillColor = upgrade.visualProperties?.fillColor || 0x221111;
-            const borderColor = upgrade.visualProperties?.borderColor || 0xaa6666;
+            // Set background color based on rarity
+            let fillColor, borderColor;
+
+            // Determine colors based on rarity
+            switch(upgrade.rarity?.name) {
+                case 'Legendary':
+                    fillColor = 0x332200; // Gold background
+                    borderColor = 0xffaa00; // Gold border
+                    break;
+                case 'Epic':
+                    fillColor = 0x220033; // Purple background
+                    borderColor = 0xaa44ff; // Purple border
+                    break;
+                case 'Rare':
+                    fillColor = 0x001133; // Blue background
+                    borderColor = 0x4488ff; // Blue border
+                    break;
+                case 'Common':
+                default:
+                    fillColor = 0x113300; // Green background
+                    borderColor = 0x44aa44; // Green border
+                    break;
+            }
 
             // Create button background with colored border
             const btnBg = this.add.rectangle(0, 0, buttonWidth, buttonHeight, fillColor, 0.6);
@@ -350,19 +512,19 @@ export default class ShopMenuScene extends Phaser.Scene {
             btnBg.setOrigin(0.5);
             btnBorder.setOrigin(0.5);
 
-            // Create button text
-            const nameText = this.add.text(0, 0, upgrade.name, {
+            // Create button text - positioned closer to the left border
+            const nameText = this.add.text(-buttonWidth/2 + 10, 0, upgrade.name, {
                 fontFamily: 'Arial',
                 fontSize: '14px',
                 color: '#ffffff',
                 fontStyle: 'bold'
-            }).setOrigin(0.5, 0.5);
+            }).setOrigin(0, 0.5); // Left-aligned with small padding
 
-            // Create price text on the right side of the button
-            const priceText = this.add.text(buttonWidth/2 - 10, 0, `$${upgrade.price}`, {
+            // Create skill point cost text on the right side of the button
+            const priceText = this.add.text(buttonWidth/2 - 10, 0, `${upgrade.skillPointCost} SP`, {
                 fontFamily: 'Arial',
                 fontSize: '13px',
-                color: '#ffcc44',
+                color: '#44ccff', // Blue color for skill points
                 fontStyle: 'bold'
             }).setOrigin(1, 0.5);
 
@@ -379,28 +541,29 @@ export default class ShopMenuScene extends Phaser.Scene {
             const tooltipHeight = 80;
             const tooltipPadding = 10;
 
-            // Create tooltip container that will be shown on hover
-            const tooltip = this.add.container(buttonWidth/2 + 10, 0).setVisible(false);
+            // Create tooltip container that will be shown on hover - position to the left of the button
+            const tooltip = this.add.container(-buttonWidth/2 - tooltipWidth/2 - 10, 0).setVisible(false);
             button.add(tooltip);
 
-            // Create tooltip background with colored border to match upgrade
+            // Create tooltip background with colored border to match rarity
             const tooltipBg = this.add.rectangle(0, 0, tooltipWidth, tooltipHeight, 0x000000, 0.8);
             tooltipBg.setStrokeStyle(2, borderColor);
-            tooltipBg.setOrigin(0, 0.5);
+            tooltipBg.setOrigin(0.5, 0.5); // Center origin for left positioning
             tooltip.add(tooltipBg);
 
-            // Create tooltip text
+            // Create tooltip text - centered in the tooltip background
             const tooltipText = this.add.text(
-                tooltipPadding,
+                0,
                 0,
                 upgrade.description,
                 {
                     fontFamily: 'Arial',
                     fontSize: '13px',
                     color: '#ffffff',
-                    wordWrap: { width: tooltipWidth - (tooltipPadding * 2) }
+                    wordWrap: { width: tooltipWidth - (tooltipPadding * 2) },
+                    align: 'center'
                 }
-            ).setOrigin(0, 0.5);
+            ).setOrigin(0.5, 0.5);
             tooltip.add(tooltipText);
 
             // Add hover and click effects
@@ -434,10 +597,10 @@ export default class ShopMenuScene extends Phaser.Scene {
                     return;
                 }
 
-                // Check if player can afford it before visual feedback
+                // Check if player has enough skill points before visual feedback
                 const player = this.playerRef;
-                if (player && player.credits < upgrade.price) {
-                    this.showFloatingText(button.x, button.y, 'Not enough credits!', '#ff5555');
+                if (player && player.skillPoints < upgrade.skillPointCost) {
+                    this.showFloatingText(button.x, button.y, 'Not enough skill points!', '#ff5555');
                     return;
                 }
 
@@ -459,7 +622,7 @@ export default class ShopMenuScene extends Phaser.Scene {
                                 console.debug('Player upgrade purchase attempt:',
                                     purchaseSuccess ? 'SUCCESS' : 'FAILED',
                                     upgrade.name,
-                                    upgrade.price);
+                                    upgrade.skillPointCost);
                             }
                         }
                     }
@@ -489,7 +652,7 @@ export default class ShopMenuScene extends Phaser.Scene {
         const panelWidth = 220;
         const panelHeight = 180;
         const cardWidth = 160; // Width of a weapon upgrade card
-        const buttonWidth = 160; // Width of player upgrade buttons
+        const buttonWidth = 200; // Width of player upgrade buttons
         const textPadding = 20; // Padding for text inside panels
 
         // Apply 60px vertical offset to move panels up
@@ -847,6 +1010,9 @@ export default class ShopMenuScene extends Phaser.Scene {
             criticalDamageMultiplier = (player.criticalDamageMultiplier || 1.5).toFixed(1);
         }
 
+        // Get skill points
+        const skillPoints = player.skillPoints !== undefined ? player.skillPoints : 0;
+
         // Format player stats
         const playerStats = [
             `Health: ${Math.round(health)}/${Math.round(maxHealth)}`,
@@ -854,6 +1020,7 @@ export default class ShopMenuScene extends Phaser.Scene {
             `Defense: ${defense}%`,
             `XP Level: ${currentLevel}`,
             `XP Points: ${currentXP}/${nextLevelXP}`,
+            `Skill Points: ${skillPoints}`,
             `Cash: $${cash}`
         ].join('\n');
 
@@ -1012,6 +1179,8 @@ export default class ShopMenuScene extends Phaser.Scene {
 
         if (reason === 'insufficient-funds') {
             message = 'Not enough credits!';
+        } else if (reason === 'insufficient-skill-points') {
+            message = 'Not enough skill points!';
         }
 
         // Create failure message
@@ -1134,6 +1303,7 @@ export default class ShopMenuScene extends Phaser.Scene {
         EventBus.off('shop-rerolled', this.handleReroll);
         EventBus.off('shop-purchase-failed', this.handlePurchaseFailed);
         EventBus.off('shop-reroll-failed', this.handleRerollFailed);
+        EventBus.off('skill-points-updated', this.updateStatPanels);
 
         // Clear references
         this.upgradeElements = {

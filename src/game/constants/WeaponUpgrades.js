@@ -302,9 +302,16 @@ export function scaleUpgradeByLevel(upgrade, playerLevel) {
 
                 case 'fireRate':
                     // FireRate is inverted (lower is better)
-                    if (typeof value === 'number' && value < 1) {
-                        const improvement = 0.03 * levelTier;
-                        scaledUpgrade.stats[stat] = Math.max(0.5, value - improvement);
+                    if (typeof value === 'number') {
+                        if (value < 1) {
+                            // For values < 1, improve by reducing further
+                            const improvement = 0.03 * levelTier;
+                            scaledUpgrade.stats[stat] = Math.max(0.5, value - improvement);
+                        } else {
+                            // For values > 1, improve by increasing
+                            const improvement = 0.05 * levelTier;
+                            scaledUpgrade.stats[stat] = value + improvement;
+                        }
                     }
                     break;
 
@@ -455,8 +462,26 @@ export function getRandomWeaponUpgrades(count = 3, rng, playerLevel = 1) {
         if (upgradeCopy.stats) {
             Object.entries(upgradeCopy.stats).forEach(([stat, value]) => {
                 if (typeof value === 'number' && !isNaN(value)) {
+                    // Special handling for fireRate
+                    if (stat === 'fireRate') {
+                        // For fireRate < 1, we want to make it even smaller (better) with higher rarities
+                        if (value < 1) {
+                            // Calculate how much below 1 the value is
+                            const reduction = 1 - value;
+                            // Scale the reduction by the rarity multiplier
+                            const scaledReduction = reduction * rarityPriceMultiplier;
+                            // Apply the scaled reduction, ensuring it doesn't go below 0.5
+                            upgradeCopy.stats[stat] = Math.max(0.5, 1 - scaledReduction);
+                        } else {
+                            // For fireRate > 1, we want to make it even larger with higher rarities
+                            // since it will be inverted when applied
+                            const bonus = value - 1;
+                            const scaledBonus = bonus * rarityPriceMultiplier;
+                            upgradeCopy.stats[stat] = 1 + scaledBonus;
+                        }
+                    }
                     // For multiplicative stats (values > 1), scale the bonus portion
-                    if (value > 1) {
+                    else if (value > 1) {
                         // Extract the bonus portion (e.g., 1.1 has a 0.1 bonus)
                         const bonus = value - 1;
                         // Scale the bonus by the rarity multiplier

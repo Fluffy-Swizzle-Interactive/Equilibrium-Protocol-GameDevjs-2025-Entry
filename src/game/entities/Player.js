@@ -49,6 +49,9 @@ export class Player {
 
         // Initialize player credits
         this.credits = 100; // Starting credits
+
+        // Initialize skill points
+        this.skillPoints = 0; // Starting skill points
     }
 
     /**

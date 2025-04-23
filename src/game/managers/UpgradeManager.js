@@ -229,7 +229,15 @@ export default class UpgradeManager {
                     break;
 
                 case 'fireRate':
-                    this.player.fireRate *= value;
+                    // For fire rate, values < 1 make firing faster (reduce delay)
+                    // For values > 1, we need to invert the effect to still make firing faster
+                    if (value < 1) {
+                        this.player.fireRate *= value; // Reduce delay between shots
+                    } else {
+                        // If value > 1, we need to decrease fire rate (make it faster)
+                        // by dividing instead of multiplying
+                        this.player.fireRate /= value;
+                    }
                     break;
 
                 case 'bulletRange':

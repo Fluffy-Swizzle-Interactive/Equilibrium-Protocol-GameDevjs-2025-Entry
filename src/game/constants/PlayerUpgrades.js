@@ -22,7 +22,7 @@ export const UPGRADE_CATEGORIES = {
  * - name: Display name with emoji for visual appeal
  * - category: Type of upgrade (from UPGRADE_CATEGORIES)
  * - rarity: Rarity level affecting cost and power (from RARITY)
- * - price: Base cost in credits
+ * - skillPointCost: Base cost in skill points
  * - description: Detailed description of the upgrade effect
  * - stats: Actual stat changes to apply to the player
  * - visualProperties: Styling properties for the UI
@@ -33,7 +33,7 @@ export const PLAYER_UPGRADES = [
         name: '❤️ Health Boost',
         category: UPGRADE_CATEGORIES.HEALTH,
         rarity: RARITY.COMMON,
-        price: 120,
+        skillPointCost: 1,
         description: 'Increases maximum health',
         stats: {
             maxHealth: 20 // +20 health points
@@ -48,7 +48,7 @@ export const PLAYER_UPGRADES = [
         name: '❤️ Major Health',
         category: UPGRADE_CATEGORIES.HEALTH,
         rarity: RARITY.RARE,
-        price: 200,
+        skillPointCost: 1,
         description: 'Significantly increases maximum health.',
         stats: {
             maxHealth: 50 // +50 health points
@@ -63,7 +63,7 @@ export const PLAYER_UPGRADES = [
         name: '🛡️ Armor Plating',
         category: UPGRADE_CATEGORIES.DEFENSE,
         rarity: RARITY.COMMON,
-        price: 150,
+        skillPointCost: 1,
         description: 'Adds 5 defense points, reducing damage taken from all enemy attacks by 5%.',
         stats: {
             defense: 5 // +5% damage reduction
@@ -78,7 +78,7 @@ export const PLAYER_UPGRADES = [
         name: '🛡️ Heavy Armor',
         category: UPGRADE_CATEGORIES.DEFENSE,
         rarity: RARITY.RARE,
-        price: 240,
+        skillPointCost: 1,
         description: 'Adds 10 defense points, reducing damage taken from all enemy attacks by 10%.',
         stats: {
             defense: 10 // +10% damage reduction
@@ -93,7 +93,7 @@ export const PLAYER_UPGRADES = [
         name: '⚡ Speed Boost',
         category: UPGRADE_CATEGORIES.SPEED,
         rarity: RARITY.COMMON,
-        price: 100,
+        skillPointCost: 1,
         description: 'Increases movement speed by 15%, helping you dodge enemies more effectively.',
         stats: {
             speed: 1.15 // 15% speed multiplier
@@ -108,7 +108,7 @@ export const PLAYER_UPGRADES = [
         name: '⚡ Nitro Speed',
         category: UPGRADE_CATEGORIES.SPEED,
         rarity: RARITY.RARE,
-        price: 180,
+        skillPointCost: 1,
         description: 'Further increases movement speed by 25%, making you significantly faster.',
         stats: {
             speed: 1.25 // 25% speed multiplier
@@ -123,7 +123,7 @@ export const PLAYER_UPGRADES = [
         name: '🧲 Magnet Pull',
         category: UPGRADE_CATEGORIES.PICKUP,
         rarity: RARITY.COMMON,
-        price: 130,
+        skillPointCost: 1,
         description: 'Increases pickup collection radius by 25%, making it easier to collect drops.',
         stats: {
             pickupRadius: 1.25 // 25% increase to pickup radius
@@ -138,7 +138,7 @@ export const PLAYER_UPGRADES = [
         name: '💉 Regeneration',
         category: UPGRADE_CATEGORIES.HEALTH,
         rarity: RARITY.EPIC,
-        price: 180,
+        skillPointCost: 1,
         description: 'Slowly regenerate 1 health point every 2 seconds.',
         stats: {
             healthRegen: 0.5 // 0.5 health per second
@@ -153,7 +153,7 @@ export const PLAYER_UPGRADES = [
         name: '💨 Emergency Dash',
         category: UPGRADE_CATEGORIES.SPECIAL,
         rarity: RARITY.EPIC,
-        price: 220,
+        skillPointCost: 2,
         description: 'Adds a dash ability to quickly escape dangerous situations (Cooldown: 10s).',
         stats: {
             dash: true,
@@ -170,7 +170,7 @@ export const PLAYER_UPGRADES = [
         name: '🔰 Energy Shield',
         category: UPGRADE_CATEGORIES.SPECIAL,
         rarity: RARITY.LEGENDARY,
-        price: 300,
+        skillPointCost: 3,
         description: 'Creates a temporary shield that blocks all damage for 3 seconds (Cooldown: 30s).',
         stats: {
             shield: true,
@@ -285,10 +285,7 @@ export function scalePlayerUpgradeByLevel(upgrade, playerLevel) {
         scaledUpgrade.description += ` (Lv.${playerLevel} Bonus)`;
     }
 
-    // Scale price based on level tier - 5% increase per 10 levels
-    if (scaledUpgrade.price) {
-        scaledUpgrade.price = Math.round(scaledUpgrade.price * (1 + 0.05 * levelTier));
-    }
+    // Skill point cost doesn't scale with level
 
     return scaledUpgrade;
 }
@@ -402,32 +399,11 @@ export function getRandomPlayerUpgrades(count = 3, rng, playerLevel = 1, playerS
         // Apply the new rarity
         upgradeCopy.rarity = randomRarity;
 
-        // Adjust price based on new rarity
-        const rarityPriceMultiplier = randomRarity.multiplier;
-        upgradeCopy.price = Math.round(upgradeCopy.price * rarityPriceMultiplier);
+        // Skill point cost doesn't change with rarity
 
-        // Adjust stats based on new rarity if they are numeric
-        if (upgradeCopy.stats) {
-            Object.entries(upgradeCopy.stats).forEach(([stat, value]) => {
-                if (typeof value === 'number' && !isNaN(value)) {
-                    // For multiplicative stats (values > 1), scale the bonus portion
-                    if (value > 1) {
-                        // Extract the bonus portion (e.g., 1.15 has a 0.15 bonus)
-                        const bonus = value - 1;
-                        // Scale the bonus by the rarity multiplier
-                        const scaledBonus = bonus * rarityPriceMultiplier;
-                        // Apply the scaled bonus
-                        upgradeCopy.stats[stat] = 1 + scaledBonus;
-                    }
-                    // For additive stats, simply multiply by the rarity multiplier
-                    else {
-                        upgradeCopy.stats[stat] = value * rarityPriceMultiplier;
-                    }
-                }
-            });
-        }
+        // Player upgrade stats don't scale with rarity - they only use the base values
 
-        // Update the description to reflect the new rarity
+        // Update the description to reflect the new rarity (visual only)
         if (upgradeCopy.description) {
             // Extract the base description without any previous rarity or level indicators
             let baseDescription = upgradeCopy.description;
@@ -435,7 +411,7 @@ export function getRandomPlayerUpgrades(count = 3, rng, playerLevel = 1, playerS
                 baseDescription = baseDescription.substring(0, baseDescription.indexOf('(')).trim();
             }
 
-            // Add rarity indicator
+            // Add rarity indicator (visual only - stats don't change with rarity)
             upgradeCopy.description = `${baseDescription} (${randomRarity.name})`;
         }
 

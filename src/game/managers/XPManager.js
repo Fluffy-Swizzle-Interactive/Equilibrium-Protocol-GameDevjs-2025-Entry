@@ -71,7 +71,7 @@ export class XPManager {
 
     /**
      * Level up the player
-     * Updates level, recalculates XP requirements, and emits level-up event
+     * Updates level, recalculates XP requirements, grants skill points, and emits level-up event
      */
     levelUp() {
         // Adjust XP
@@ -83,11 +83,22 @@ export class XPManager {
         // Recalculate XP for next level
         this.xpToNextLevel = this.calculateXPForLevel(this.currentLevel);
 
-        // Emit level-up event
+        // Grant skill points to the player
+        if (this.scene.player && this.scene.player.skillPoints !== undefined) {
+            // Grant 1 skill point per level
+            this.scene.player.skillPoints += 1;
+
+            if (this.scene.isDev) {
+                console.debug(`Player granted 1 skill point. Total: ${this.scene.player.skillPoints}`);
+            }
+        }
+
+        // Emit level-up event with skill points info
         EventBus.emit('level-up', {
             level: this.currentLevel,
             xp: this.currentXP,
-            xpToNext: this.xpToNextLevel
+            xpToNext: this.xpToNextLevel,
+            skillPoints: this.scene.player ? this.scene.player.skillPoints : 0
         });
 
         if (this.scene.isDev) {
@@ -96,13 +107,14 @@ export class XPManager {
     }
 
     /**
-     * Emit XP update event with current status
+     * Emit XP update event with current status including skill points
      */
     emitXPUpdate() {
         EventBus.emit('xp-updated', {
             level: this.currentLevel,
             xp: this.currentXP,
-            xpToNext: this.xpToNextLevel
+            xpToNext: this.xpToNextLevel,
+            skillPoints: this.scene.player ? this.scene.player.skillPoints : 0
         });
     }
 
