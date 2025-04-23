@@ -186,7 +186,7 @@ export const WEAPON_UPGRADES = [
         name: '🎯 Homing Shot',
         category: UPGRADE_CATEGORIES.PROJECTILE,
         rarity: RARITY.LEGENDARY,
-        price: 300,
+        price: 1000,
         effects: 'Bullets seek enemies',
         stats: {
             homing: true,
