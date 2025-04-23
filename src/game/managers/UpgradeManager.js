@@ -243,7 +243,20 @@ export default class UpgradeManager {
                     break;
 
                 case 'defense':
+                    // Update player.defense property for tracking
                     this.player.defense = (this.player.defense || 0) + value;
+
+                    // Update the actual damage resistance in the health system
+                    // Convert defense points to percentage (e.g., 5 defense = 0.05 or 5% resistance)
+                    if (this.player.healthSystem) {
+                        const currentResistance = this.player.healthSystem.getDamageResistance() || 0;
+                        const newResistance = currentResistance + (value / 100);
+                        this.player.healthSystem.setDamageResistance(newResistance);
+                    } else if (this.player.scene.playerHealth) {
+                        const currentResistance = this.player.scene.playerHealth.getDamageResistance() || 0;
+                        const newResistance = currentResistance + (value / 100);
+                        this.player.scene.playerHealth.setDamageResistance(newResistance);
+                    }
                     break;
 
                 case 'speed':
