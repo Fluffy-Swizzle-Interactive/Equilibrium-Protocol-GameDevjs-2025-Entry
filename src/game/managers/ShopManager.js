@@ -127,18 +127,21 @@ export default class ShopManager {
     // Check if player can afford reroll
     const rerollCost = this.upgradeManager.getRerollCost();
 
-    if (this.player.credits < rerollCost) {
+    // Skip payment check if reroll is free
+    if (rerollCost > 0 && this.player.credits < rerollCost) {
       // Not enough credits
       EventBus.emit('shop-reroll-failed', { reason: 'insufficient-funds' });
       return false;
     }
 
-    // Process payment
-    this.player.credits -= rerollCost;
+    // Process payment (only if reroll costs something)
+    if (rerollCost > 0) {
+      this.player.credits -= rerollCost;
 
-    // Update cash display
-    if (this.scene.cashManager) {
-      this.scene.cashManager.setCash(this.player.credits);
+      // Update cash display
+      if (this.scene.cashManager) {
+        this.scene.cashManager.setCash(this.player.credits);
+      }
     }
 
     // Generate new upgrades

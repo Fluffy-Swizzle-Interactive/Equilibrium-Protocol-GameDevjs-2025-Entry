@@ -748,7 +748,7 @@ export default class ShopMenuScene extends Phaser.Scene {
         // Add separator lines between stat entries
         const weaponSeparator = this.add.graphics();
         weaponSeparator.lineStyle(1, 0x444444, 0.7);
-        for (let i = 1; i < 5; i++) {
+        for (let i = 1; i < 6; i++) { // Increased to 6 to accommodate the additional Pierce stat
             weaponSeparator.lineBetween(
                 weaponPanelX - panelWidth/2 + 10,
                 adjustedY + 30 + (i * 20),
@@ -803,10 +803,14 @@ export default class ShopMenuScene extends Phaser.Scene {
 
         // Create reroll button (green button on left)
         const rerollContainer = this.add.container(-buttonSpacing, buttonY);
-        const rerollBg = this.add.rectangle(0, 0, 100, 36, 0x2a4d2a);
+        const rerollBg = this.add.rectangle(0, 0, 120, 36, 0x2a4d2a);
         rerollBg.setStrokeStyle(2, 0x44aa44);
 
-        const rerollText = this.add.text(0, 0, 'Reroll', {
+        // Get the initial reroll cost from the shop manager
+        const initialRerollCost = this.shopManager ? this.shopManager.upgradeManager.getRerollCost() : 0;
+        const rerollButtonText = initialRerollCost === 0 ? 'Free Reroll' : `Reroll ($${initialRerollCost})`;
+
+        const rerollText = this.add.text(0, 0, rerollButtonText, {
             fontFamily: 'Arial',
             fontSize: '16px',
             color: '#ffffff',
@@ -987,7 +991,7 @@ export default class ShopMenuScene extends Phaser.Scene {
         const speed = Math.round(player.speed || 150);
 
         // Get weapon stats - Look for proper weapon stats from various possible locations
-        let bulletDamage, fireRate, bulletRange, bulletSpeed, criticalHitChance, criticalDamageMultiplier;
+        let bulletDamage, fireRate, bulletRange, bulletSpeed, criticalHitChance, criticalDamageMultiplier, bulletPierce;
 
         // Check for WeaponManager first (most accurate source if it exists)
         if (player.weaponManager) {
@@ -1000,6 +1004,7 @@ export default class ShopMenuScene extends Phaser.Scene {
             bulletSpeed = Math.round(weaponStats?.speed || player.bulletSpeed || 600);
             criticalHitChance = Math.round(weaponStats?.criticalChance || player.criticalHitChance || 5);
             criticalDamageMultiplier = (weaponStats?.criticalDamage || player.criticalDamageMultiplier || 1.5).toFixed(1);
+            bulletPierce = weaponStats?.pierce || player.bulletPierce || 1;
         } else {
             // Fallback to direct properties on player
             bulletDamage = Math.round(player.bulletDamage || 10);
@@ -1008,6 +1013,7 @@ export default class ShopMenuScene extends Phaser.Scene {
             bulletSpeed = Math.round(player.bulletSpeed || 600);
             criticalHitChance = Math.round(player.criticalHitChance || 5);
             criticalDamageMultiplier = (player.criticalDamageMultiplier || 1.5).toFixed(1);
+            bulletPierce = player.bulletPierce || 1;
         }
 
         // Get skill points
@@ -1030,6 +1036,7 @@ export default class ShopMenuScene extends Phaser.Scene {
             `Fire Rate: ${fireRate}/sec`,
             `Range: ${bulletRange}`,
             `Bullet Speed: ${bulletSpeed}`,
+            `Pierce: ${bulletPierce}`,
             `Critical Hit: ${criticalHitChance}%`,
             `Critical Damage: ${criticalDamageMultiplier}x`
         ].join('\n');
@@ -1050,7 +1057,7 @@ export default class ShopMenuScene extends Phaser.Scene {
                 playerDefense: defense,
                 playerCredits: cash,
                 playerXP: { level: currentLevel, current: currentXP, next: nextLevelXP },
-                weaponStats: { damage: bulletDamage, fireRate }
+                weaponStats: { damage: bulletDamage, fireRate, pierce: bulletPierce }
             });
         }
     }
@@ -1115,7 +1122,9 @@ export default class ShopMenuScene extends Phaser.Scene {
 
         // Update reroll button text to show new cost if available
         if (this.rerollButton && newRerollCost !== undefined) {
-            this.rerollButton.text.setText(`Reroll ($${newRerollCost})`);
+            // Show "Free Reroll" if the cost is 0, otherwise show the cost
+            const buttonText = newRerollCost === 0 ? 'Free Reroll' : `Reroll ($${newRerollCost})`;
+            this.rerollButton.text.setText(buttonText);
         }
 
         // Clear existing upgrade elements

@@ -150,7 +150,11 @@ export default class UpgradeManager {
      * @returns {number} Current reroll cost
      */
     getRerollCost() {
-        return this.baseRerollCost + (this.rerollCount * 25);
+        // First reroll is free
+        if (this.rerollCount === 0) {
+            return 0;
+        }
+        return this.baseRerollCost + ((this.rerollCount - 1) * 25);
     }
 
     /**
