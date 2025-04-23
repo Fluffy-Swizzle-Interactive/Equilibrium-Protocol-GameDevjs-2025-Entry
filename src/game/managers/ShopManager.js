@@ -23,21 +23,21 @@ export default class ShopManager {
     this.rng = rng;
     this.upgradeManager = new UpgradeManager(player, weapon, rng);
     this.isShopOpen = false;
-    
+
     // Register with scene for easier access
     scene.shopManager = this;
-    
+
     // Bind event handlers to maintain 'this' context
     this.onWaveCompleted = this.onWaveCompleted.bind(this);
-    
+
     // Listen for wave completed events to update the next wave button
     EventBus.on('wave-completed', this.onWaveCompleted);
-    
+
     // Clean up event listeners when scene is destroyed
     this.scene.events.once('shutdown', () => {
       EventBus.off('wave-completed', this.onWaveCompleted);
     });
-    
+
     // For debugging: Log when the shop manager is initialized
     if (scene.isDev) {
       console.debug('ShopManager initialized, listening for wave-completed events');
@@ -50,34 +50,34 @@ export default class ShopManager {
    */
   onWaveCompleted(data) {
     if (!this.scene || !this.scene.uiManager) return;
-    
+
     // For debugging in development mode
     if (this.scene.isDev) {
       console.debug('Wave completed event received in ShopManager', data);
     }
-    
+
     const nextWaveButton = this.scene.uiManager.elements.nextWaveButtonText;
     if (nextWaveButton) {
       nextWaveButton.setText('Open Shop');
-      
+
       // Change the click handler for the next wave button
       const nextWaveBg = this.scene.uiManager.elements.nextWaveButtonBg;
       if (nextWaveBg) {
         // Remove previous listeners
         nextWaveBg.off('pointerdown');
-        
+
         // Add new listener for opening shop
         nextWaveBg.on('pointerdown', () => {
           this.openShop();
         });
       }
-      
+
       // Do the same for the text element
       nextWaveButton.off('pointerdown');
       nextWaveButton.on('pointerdown', () => {
         this.openShop();
       });
-      
+
       // Make the button visible if it's not already
       if (!nextWaveBg.visible) {
         this.scene.uiManager.showNextWaveButton();
@@ -90,8 +90,17 @@ export default class ShopManager {
    */
   openShop() {
     if (this.isShopOpen) return;
-    
+
     this.isShopOpen = true;
+
+    // Sync player credits with cashManager before opening shop
+    if (this.scene.cashManager) {
+      this.player.credits = this.scene.cashManager.getCurrentCash();
+      if (this.scene.isDev) {
+        console.debug('Shop opened with player credits synced:', this.player.credits);
+      }
+    }
+
     const upgrades = this.upgradeManager.generateUpgrades();
 
     // Launch the shop scene and pass necessary data
@@ -101,7 +110,7 @@ export default class ShopManager {
       gameScene: this.scene,
       player: this.player
     });
-    
+
     // Pause the game while shop is open
     this.scene.scene.pause('WaveGame');
 
@@ -110,48 +119,51 @@ export default class ShopManager {
       console.debug('Shop opened with upgrades:', upgrades);
     }
   }
-  
+
   /**
    * Handle rerolling shop upgrades
    */
   handleReroll() {
     // Check if player can afford reroll
     const rerollCost = this.upgradeManager.getRerollCost();
-    
-    if (this.player.credits < rerollCost) {
+
+    // Skip payment check if reroll is free
+    if (rerollCost > 0 && this.player.credits < rerollCost) {
       // Not enough credits
       EventBus.emit('shop-reroll-failed', { reason: 'insufficient-funds' });
       return false;
     }
-    
-    // Process payment
-    this.player.credits -= rerollCost;
-    
-    // Update cash display
-    if (this.scene.cashManager) {
-      this.scene.cashManager.setCash(this.player.credits);
+
+    // Process payment (only if reroll costs something)
+    if (rerollCost > 0) {
+      this.player.credits -= rerollCost;
+
+      // Update cash display
+      if (this.scene.cashManager) {
+        this.scene.cashManager.setCash(this.player.credits);
+      }
     }
-    
+
     // Generate new upgrades
     const upgrades = this.upgradeManager.reroll();
-    
+
     // Emit event with new upgrades for the ShopMenuScene to update
-    EventBus.emit('shop-rerolled', { 
-      newUpgrades: upgrades, 
-      newRerollCost: this.upgradeManager.getRerollCost() 
+    EventBus.emit('shop-rerolled', {
+      newUpgrades: upgrades,
+      newRerollCost: this.upgradeManager.getRerollCost()
     });
-    
+
     // Play reroll sound
     if (this.scene.soundManager) {
-      this.scene.soundManager.playSoundEffect('shoot_minigun', { 
-        detune: -600, 
-        volume: 0.5 
+      this.scene.soundManager.playSoundEffect('shoot_minigun', {
+        detune: -600,
+        volume: 0.5
       });
     }
 
     return true;
   }
-  
+
   /**
    * Purchase a weapon upgrade
    * @param {Object} upgrade - Upgrade to purchase
@@ -163,73 +175,73 @@ export default class ShopManager {
       EventBus.emit('shop-purchase-failed', { reason: 'insufficient-funds' });
       return false;
     }
-    
+
     // Process payment
     this.player.credits -= upgrade.price;
-    
+
     // Update cash display
     if (this.scene.cashManager) {
       this.scene.cashManager.setCash(this.player.credits);
     }
-    
+
     // Apply the upgrade
     this.upgradeManager.applyWeaponUpgrade(upgrade);
-    
+
     // Emit event for UI update
-    EventBus.emit('shop-item-purchased', { 
+    EventBus.emit('shop-item-purchased', {
       itemType: 'weapon',
       itemId: upgrade.id,
       player: this.player,
       weapon: this.weapon
     });
-    
+
     // Play purchase sound
     if (this.scene.soundManager) {
-      this.scene.soundManager.playSoundEffect('levelUp', { 
-        volume: 0.5 
+      this.scene.soundManager.playSoundEffect('levelUp', {
+        volume: 0.5
       });
     }
-    
+
     return true;
   }
-  
+
   /**
    * Purchase a player upgrade
    * @param {Object} upgrade - Upgrade to purchase
    * @returns {boolean} - Whether purchase was successful
    */
   purchasePlayerUpgrade(upgrade) {
-    // Check if player can afford the upgrade
-    if (this.player.credits < upgrade.price) {
-      EventBus.emit('shop-purchase-failed', { reason: 'insufficient-funds' });
+    // Check if player has enough skill points for the upgrade
+    if (this.player.skillPoints < upgrade.skillPointCost) {
+      EventBus.emit('shop-purchase-failed', { reason: 'insufficient-skill-points' });
       return false;
     }
-    
-    // Process payment
-    this.player.credits -= upgrade.price;
-    
-    // Update cash display
-    if (this.scene.cashManager) {
-      this.scene.cashManager.setCash(this.player.credits);
-    }
-    
+
+    // Process skill point payment
+    this.player.skillPoints -= upgrade.skillPointCost;
+
+    // Emit event for skill points update
+    EventBus.emit('skill-points-updated', {
+      skillPoints: this.player.skillPoints
+    });
+
     // Apply the upgrade
     this.upgradeManager.applyPlayerUpgrade(upgrade);
-    
+
     // Emit event for UI update
-    EventBus.emit('shop-item-purchased', { 
+    EventBus.emit('shop-item-purchased', {
       itemType: 'player',
       itemId: upgrade.id,
       player: this.player
     });
-    
+
     // Play purchase sound
     if (this.scene.soundManager) {
-      this.scene.soundManager.playSoundEffect('levelUp', { 
-        volume: 0.5 
+      this.scene.soundManager.playSoundEffect('levelUp', {
+        volume: 0.5
       });
     }
-    
+
     return true;
   }
 

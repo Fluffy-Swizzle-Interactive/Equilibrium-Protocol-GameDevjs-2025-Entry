@@ -14,10 +14,10 @@ export class XPManager {
      * @param {number} levelMultiplier - Multiplier for XP requirements per level (default: 1.2)
      */
     constructor(
-        scene, 
-        initialXP = 0, 
-        initialLevel = 1, 
-        baseXPRequirement = 100, 
+        scene,
+        initialXP = 0,
+        initialLevel = 1,
+        baseXPRequirement = 100,
         levelMultiplier = 1.2
     ) {
         this.scene = scene;
@@ -28,14 +28,14 @@ export class XPManager {
 
         // Calculate XP required for next level
         this.xpToNextLevel = this.calculateXPForLevel(this.currentLevel);
-        
+
         // Register with scene for easier access
         scene.xpManager = this;
-        
+
         // Initial XP update event
         this.emitXPUpdate();
     }
-    
+
     /**
      * Calculate XP required for a specific level
      * @param {number} level - The level to calculate XP requirement for
@@ -45,7 +45,7 @@ export class XPManager {
         // Using exponential growth formula: baseXP * multiplier^(level-1)
         return Math.round(this.baseXPRequirement * Math.pow(this.levelMultiplier, level - 1));
     }
-    
+
     /**
      * Add XP to the player and handle level-up if necessary
      * @param {number} amount - Amount of XP to add
@@ -53,59 +53,71 @@ export class XPManager {
      */
     addXP(amount) {
         if (!amount || isNaN(amount) || amount <= 0) return false;
-        
+
         this.currentXP += amount;
         let leveledUp = false;
-        
+
         // Check for level-up
         while (this.currentXP >= this.xpToNextLevel) {
             leveledUp = true;
             this.levelUp();
         }
-        
+
         // Emit XP update event for UI
         this.emitXPUpdate();
-        
+
         return leveledUp;
     }
-    
+
     /**
      * Level up the player
-     * Updates level, recalculates XP requirements, and emits level-up event
+     * Updates level, recalculates XP requirements, grants skill points, and emits level-up event
      */
     levelUp() {
         // Adjust XP
         this.currentXP -= this.xpToNextLevel;
-        
+
         // Increase level
         this.currentLevel++;
-        
+
         // Recalculate XP for next level
         this.xpToNextLevel = this.calculateXPForLevel(this.currentLevel);
-        
-        // Emit level-up event
+
+        // Grant skill points to the player
+        if (this.scene.player && this.scene.player.skillPoints !== undefined) {
+            // Grant 1 skill point per level
+            this.scene.player.skillPoints += 1;
+
+            if (this.scene.isDev) {
+                console.debug(`Player granted 1 skill point. Total: ${this.scene.player.skillPoints}`);
+            }
+        }
+
+        // Emit level-up event with skill points info
         EventBus.emit('level-up', {
             level: this.currentLevel,
             xp: this.currentXP,
-            xpToNext: this.xpToNextLevel
+            xpToNext: this.xpToNextLevel,
+            skillPoints: this.scene.player ? this.scene.player.skillPoints : 0
         });
-        
+
         if (this.scene.isDev) {
             console.debug(`Player reached level ${this.currentLevel}!`);
         }
     }
-    
+
     /**
-     * Emit XP update event with current status
+     * Emit XP update event with current status including skill points
      */
     emitXPUpdate() {
         EventBus.emit('xp-updated', {
             level: this.currentLevel,
-            xp: this.currentXP, 
-            xpToNext: this.xpToNextLevel
+            xp: this.currentXP,
+            xpToNext: this.xpToNextLevel,
+            skillPoints: this.scene.player ? this.scene.player.skillPoints : 0
         });
     }
-    
+
     /**
      * Get the progress percentage towards the next level (0-1)
      * @returns {number} Progress as a value between 0 and 1
@@ -113,7 +125,7 @@ export class XPManager {
     getXPProgress() {
         return this.xpToNextLevel > 0 ? this.currentXP / this.xpToNextLevel : 0;
     }
-    
+
     /**
      * Get the current player level
      * @returns {number} Current level
@@ -121,7 +133,7 @@ export class XPManager {
     getCurrentLevel() {
         return this.currentLevel;
     }
-    
+
     /**
      * Get the current XP amount
      * @returns {number} Current XP
@@ -129,12 +141,20 @@ export class XPManager {
     getCurrentXP() {
         return this.currentXP;
     }
-    
+
     /**
      * Get the XP required for the next level
      * @returns {number} XP required for next level
      */
     getXPToNextLevel() {
+        return this.xpToNextLevel;
+    }
+
+    /**
+     * Getter for nextLevelXP (alias for xpToNextLevel for backward compatibility)
+     * @returns {number} XP required for next level
+     */
+    get nextLevelXP() {
         return this.xpToNextLevel;
     }
 }

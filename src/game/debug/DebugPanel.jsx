@@ -46,7 +46,7 @@ export function DebugPanel({ gameRef }) {
         gridCellSize: 0,
         spatialGridSize: 0,
     });
-    
+
     const styles = {
         panel: {
             width: '280px',
@@ -130,24 +130,24 @@ export function DebugPanel({ gameRef }) {
     };
 
     const [collapsedSections, setCollapsedSections] = useState({});
-    
+
     const toggleSection = (section) => {
         setCollapsedSections(prev => ({
             ...prev,
             [section]: !prev[section]
         }));
     };
-    
+
     useEffect(() => {
         const updateInterval = setInterval(updateDebugInfo, 100);
         return () => clearInterval(updateInterval);
     }, [gameRef]);
-    
+
     const updateDebugInfo = () => {
         if (gameRef.current && gameRef.current.scene) {
             const scene = gameRef.current.scene;
             const game = gameRef.current.game;
-            
+
             try {
                 const weaponManager = scene.player?.weaponManager || null;
                 const xpManager = scene.xpManager || null;
@@ -158,7 +158,7 @@ export function DebugPanel({ gameRef }) {
                 const collectibleManager = scene.collectibleManager || null;
                 const objectManager = scene.gameObjectManager || null;
                 const playerHealth = scene.playerHealth || scene.player?.playerHealth || null;
-                
+
                 const newInfo = {
                     fps: Math.round(game.loop.actualFps),
                     enemyCount: scene.enemies ? scene.enemies.getChildren().length : 0,
@@ -180,9 +180,9 @@ export function DebugPanel({ gameRef }) {
                     waveActive: waveManager ? waveManager.isWaveActive : false,
                     inPausePhase: waveManager ? (typeof waveManager.isInPausePhase === 'function' ? waveManager.isInPausePhase() : waveManager.inPausePhase) : false,
                     hasBoss: waveManager ? waveManager.hasBoss : false,
-                    xpLevel: xpManager ? xpManager.currentLevel : 0,
-                    currentXP: xpManager ? Math.floor(xpManager.currentXP) : 0,
-                    xpToNext: xpManager ? Math.floor(xpManager.nextLevelXP || xpManager.xpToNextLevel) : 100,
+                    xpLevel: xpManager ? (xpManager.getCurrentLevel?.() || xpManager.currentLevel) : 0,
+                    currentXP: xpManager ? Math.floor(xpManager.getCurrentXP?.() || xpManager.currentXP) : 0,
+                    xpToNext: xpManager ? Math.floor(xpManager.getXPToNextLevel?.() || xpManager.nextLevelXP || xpManager.xpToNextLevel) : 100,
                     cash: cashManager ? cashManager.cash || cashManager.currentCash : 0,
                     cashMultiplier: cashManager ? parseFloat(cashManager.cashMultiplier?.toFixed(2) || 1.0) : 1.0,
                     chaosValue: chaosManager ? (typeof chaosManager.getChaos === 'function' ? Math.round(chaosManager.getChaos()) : chaosManager.chaosValue || 0) : 0,
@@ -202,14 +202,14 @@ export function DebugPanel({ gameRef }) {
                     playerSpeed: scene.player ? Math.round(scene.player.speed || 0) : 0,
                     playerDefense: scene.player ? Math.round(scene.player.defense || 0) : 0,
                 };
-                
+
                 setDebugInfo(newInfo);
             } catch (error) {
                 console.error("Error updating debug info:", error);
             }
         }
     };
-    
+
     const openShop = () => {
         if (gameRef.current?.scene?.shopManager) {
             gameRef.current.scene.shopManager.openShop();
@@ -217,22 +217,22 @@ export function DebugPanel({ gameRef }) {
             console.warn('ShopManager not found in current scene');
         }
     };
-    
+
     const spawnDrone = () => {
         const scene = gameRef.current?.scene;
         if (!scene || !scene.player || !scene.player.weaponManager) {
             console.warn('Player or WeaponManager not found in current scene');
             return;
         }
-        
+
         const weaponManager = scene.player.weaponManager;
-        
+
         if (weaponManager.drones.length >= weaponManager.maxDrones) {
             weaponManager.maxDrones++;
         }
-        
+
         const newDrone = weaponManager.addDrone();
-        
+
         if (newDrone) {
             console.log('Debug drone added successfully');
         } else {
@@ -275,7 +275,7 @@ export function DebugPanel({ gameRef }) {
         if (chaosManager) {
             const currentValue = chaosManager.getChaos?.() || chaosManager.chaosValue || 0;
             const newValue = currentValue > 0 ? -50 : 50;
-            
+
             if (typeof chaosManager.setChaos === 'function') {
                 chaosManager.setChaos(newValue);
             } else if (typeof chaosManager.updateChaos === 'function') {
@@ -289,34 +289,34 @@ export function DebugPanel({ gameRef }) {
     const executeDebugAction = (action, e) => {
         const button = e.target;
         const originalBg = button.style.backgroundColor;
-        
+
         button.style.backgroundColor = '#3a5d3a';
-        
+
         action();
-        
+
         setTimeout(() => {
             button.style.backgroundColor = originalBg;
         }, 200);
     };
-    
+
     const formatPoolStats = (poolStats) => {
         if (!poolStats || typeof poolStats !== 'object') return 'No data';
-        
+
         return Object.entries(poolStats)
             .filter(([_, stats]) => stats && typeof stats === 'object')
             .map(([type, stats]) => `${type}: ${stats.active}/${stats.total}`)
             .join('\n');
     };
-    
+
     const renderSection = (title, children, id) => {
         const isCollapsed = collapsedSections[id];
-        
+
         return (
             <div style={styles.section}>
                 <div style={styles.sectionHeader}>
                     {title}
-                    <span 
-                        style={styles.sectionToggle} 
+                    <span
+                        style={styles.sectionToggle}
                         onClick={() => toggleSection(id)}
                     >
                         {isCollapsed ? '[+]' : '[-]'}
@@ -326,19 +326,19 @@ export function DebugPanel({ gameRef }) {
             </div>
         );
     };
-    
+
     const renderInfoItem = (label, value) => (
         <div style={styles.infoItem}>
             <span style={styles.label}>{label}:</span>
             <span style={styles.value}>{value}</span>
         </div>
     );
-    
+
     const renderProgressBar = (value, max, color = '#44aa44') => {
         const percentage = max > 0 ? Math.min(100, (value / max) * 100) : 0;
         return (
             <div style={styles.progressBar}>
-                <div 
+                <div
                     style={{
                         ...styles.progressFill,
                         width: `${percentage}%`,
@@ -348,61 +348,61 @@ export function DebugPanel({ gameRef }) {
             </div>
         );
     };
-    
+
     const renderActionButton = (label, action) => (
-        <button 
+        <button
             style={styles.button}
             onClick={(e) => executeDebugAction(action, e)}
         >
             {label}
         </button>
     );
-    
+
     return (
         <div style={styles.panel}>
             <div style={styles.panelHeader}>
                 Debug Panel
             </div>
-            
+
             {renderSection("Game Stats", <>
                 {renderInfoItem("FPS", debugInfo.fps)}
                 {renderInfoItem("Game Mode", debugInfo.gameMode)}
                 {renderInfoItem("Survival Time", `${debugInfo.survivalTime}s`)}
                 {renderInfoItem("Kills", debugInfo.killCount)}
             </>, "gameStats")}
-            
+
             {renderSection("Wave Info", <>
                 {renderInfoItem("Wave", `${debugInfo.currentWave}/${debugInfo.maxWaves}`)}
                 {renderInfoItem("Status", debugInfo.waveActive ? "Active" : (debugInfo.inPausePhase ? "Paused" : "Inactive"))}
                 {renderInfoItem("Enemies", `${debugInfo.activeEnemies}/${debugInfo.enemiesSpawned}/${debugInfo.enemiesToSpawn}`)}
                 {debugInfo.hasBoss && renderInfoItem("Boss Wave", "Yes")}
             </>, "waveInfo")}
-            
+
             {renderSection("XP & Level", <>
                 {renderInfoItem("Level", debugInfo.xpLevel)}
                 {renderInfoItem("XP", `${debugInfo.currentXP}/${debugInfo.xpToNext}`)}
                 {renderProgressBar(debugInfo.currentXP, debugInfo.xpToNext, '#00ff99')}
             </>, "xpLevel")}
-            
+
             {renderSection("Cash", <>
                 {renderInfoItem("Current Cash", `$${debugInfo.cash}`)}
                 {renderInfoItem("Cash Multiplier", `${debugInfo.cashMultiplier}x`)}
             </>, "cash")}
-            
+
             {renderSection("Chaos & Factions", <>
                 {renderInfoItem("Chaos", debugInfo.chaosValue)}
                 {renderInfoItem("AI Faction", debugInfo.aiFaction)}
                 {renderInfoItem("Coder Faction", debugInfo.coderFaction)}
                 {renderInfoItem("Neutral Faction", debugInfo.neutralFaction)}
             </>, "chaos")}
-            
+
             {renderSection("Player Stats", <>
                 {renderInfoItem("Health", `${debugInfo.playerHealth}/${debugInfo.playerMaxHealth}`)}
                 {renderProgressBar(debugInfo.playerHealth, debugInfo.playerMaxHealth, '#ff0000')}
                 {renderInfoItem("Speed", debugInfo.playerSpeed)}
                 {renderInfoItem("Defense", debugInfo.playerDefense)}
             </>, "playerStats")}
-            
+
             {renderSection("Weapon Stats", <>
                 {renderInfoItem("Damage", debugInfo.weaponDamage)}
                 {renderInfoItem("Fire Rate", debugInfo.weaponFireRate)}
@@ -410,7 +410,7 @@ export function DebugPanel({ gameRef }) {
                 {renderInfoItem("Crit Multiplier", `${debugInfo.critMultiplier}x`)}
                 {renderInfoItem("Drones", `${debugInfo.droneCount}/${debugInfo.maxDrones}`)}
             </>, "weaponStats")}
-            
+
             {renderSection("Entity Counts", <>
                 {renderInfoItem("Enemies", debugInfo.enemyCount)}
                 {renderInfoItem("Bullets", debugInfo.bulletCount)}
@@ -418,10 +418,10 @@ export function DebugPanel({ gameRef }) {
                 {debugInfo.spatialGridSize > 0 && renderInfoItem("Grid Cells", debugInfo.spatialGridSize)}
                 {debugInfo.gridCellSize > 0 && renderInfoItem("Cell Size", debugInfo.gridCellSize)}
             </>, "entities")}
-            
+
             {renderSection("Object Pools", <>
-                <pre style={{ 
-                    color: '#aaffaa', 
+                <pre style={{
+                    color: '#aaffaa',
                     fontSize: '11px',
                     margin: '0',
                     whiteSpace: 'pre-wrap'
@@ -429,12 +429,12 @@ export function DebugPanel({ gameRef }) {
                     {formatPoolStats(debugInfo.poolStats)}
                 </pre>
             </>, "pools")}
-            
+
             {renderSection("Position", <>
                 {renderInfoItem("Player", `${debugInfo.playerX}, ${debugInfo.playerY}`)}
                 {renderInfoItem("Mouse", `${debugInfo.mouseX}, ${debugInfo.mouseY}`)}
             </>, "position")}
-            
+
             {renderSection("Debug Actions", <>
                 {renderActionButton("Open Shop", openShop)}
                 {renderActionButton("Spawn Drone", spawnDrone)}

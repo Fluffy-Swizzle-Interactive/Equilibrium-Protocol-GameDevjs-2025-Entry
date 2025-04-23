@@ -17,6 +17,7 @@ import { CashManager } from '../managers/CashManager';
 import { SpritePool } from '../entities/SpritePool';
 import { CollectibleManager } from '../managers/CollectibleManager';
 import ShopManager from '../managers/ShopManager';
+import { HealthRegenerationSystem } from '../systems/HealthRegenerationSystem';
 import { DEPTHS, CHAOS } from '../constants';
 
 /**
@@ -26,20 +27,20 @@ import { DEPTHS, CHAOS } from '../constants';
 export class WaveGame extends Scene {
     constructor() {
         super({ key: 'WaveGame' });
-        
+
         // Initialize game state properties
         this.gameTime = 0; // Track game time for difficulty scaling
         this.enemyList = []; // Track all active enemies
         this.killCount = 0; // Track number of enemies killed (total)
         this.regularKillCount = 0; // Track number of regular enemies killed
         this.bossesKilled = 0; // Track number of boss enemies killed
-        
+
         // Available maps in the game
         this.availableMaps = ['level1', 'darkcave'];
-        
+
         // Check if we're in development mode
         this.isDev = import.meta.env.DEV;
-        
+
         // Spatial grid for collision optimization
         this.gridCellSize = 100; // Size of each grid cell in pixels
         this.spatialGrid = {}; // Will store enemies by grid cell for faster collision checks
@@ -50,9 +51,9 @@ export class WaveGame extends Scene {
 
     init(data) {
         // Store the weapon type received from menu selection
-        this.weaponType = data.weaponType || 'minigun'; 
+        this.weaponType = data.weaponType || 'minigun';
         this.startWave = data.startWave || 0;
-        
+
         // Reset game state for new game
         this.resetGameState();
     }
@@ -82,8 +83,9 @@ export class WaveGame extends Scene {
         this.setupWaveManager(); // Setup wave manager after other systems
         this.setupCollectibleManager(); // Setup collectible manager
         this.setupShopManager(); // Setup shop system
+        this.setupHealthRegenerationSystem(); // Setup health regeneration system
         this.setupInput();
-        
+
         EventBus.emit('current-scene-ready', this);
     }
 
@@ -93,24 +95,24 @@ export class WaveGame extends Scene {
     setupSoundManager() {
         // Create sound manager
         this.soundManager = new SoundManager(this);
-        
+
         // Initialize ambient music
         this.soundManager.initBackgroundMusic('ambient_music', {
             volume: 0.4,  // Slightly lower volume for ambient music
             loop: true
         });
-        
+
         // Initialize sound effects
         this.soundManager.initSoundEffect('shoot_minigun', {
             volume: 0.5,
             rate: 1.0
         });
-        
+
         this.soundManager.initSoundEffect('shoot_shotgun', {
             volume: 0.6,
             rate: 0.9
         });
-        
+
         // Try to unlock audio context as early as possible
         if (this.sound.locked) {
             console.debug('Audio system is locked. Attempting to unlock...');
@@ -135,18 +137,18 @@ export class WaveGame extends Scene {
     setupObjectManager() {
         // Create the global object manager
         this.gameObjectManager = new GameObjectManager(this);
-        
+
         // Create groups for game objects
         this.bullets = this.add.group();
         this.enemies = this.add.group();
-        
+
         // Initialize the bullet pool
         this.bulletPool = new BulletPool(this, {
             initialSize: 50,
             maxSize: 500,
             growSize: 20
         });
-        
+
         // Initialize the enemy manager with pools for different enemy types
         this.enemyManager = new EnemyManager(this, {
             initialSize: 20,
@@ -161,7 +163,7 @@ export class WaveGame extends Scene {
             growSize: 20
         });
     }
-    
+
     /**
      * Set up the group manager to track enemy factions
      */
@@ -169,7 +171,7 @@ export class WaveGame extends Scene {
         // Create the group manager to track enemy factions
         this.groupManager = new GroupManager(this);
     }
-    
+
     /**
      * Set up the chaos manager for chaos mechanics
      */
@@ -192,17 +194,17 @@ export class WaveGame extends Scene {
 
         // Initialize XP Manager
         this.xpManager = new XPManager(this);
-        
+
         // Initialize Cash Manager
         this.cashManager = new CashManager(this, 0, 1.0);
-        
+
         // Subscribe to XP events to update UI
         EventBus.on('xp-updated', (data) => {
             if (this.uiManager) {
                 this.uiManager.updateXPUI(data);
             }
         });
-        
+
         EventBus.on('level-up', (data) => {
             if (this.uiManager) {
                 this.uiManager.showLevelUpAnimation(data.level);
@@ -223,13 +225,13 @@ export class WaveGame extends Scene {
                 enemyCountGrowth: 1.2,
                 bossWaveInterval: 10
             });
-            
+
             // Override the currentWave in the manager after creation
             this.waveManager.currentWave = startWave;
-            
+
             // Initialize the wave manager with UI reference
             this.waveManager.init(this.uiManager);
-            
+
             // Update UI immediately to show starting at a later wave
             if (this.uiManager) {
                 this.uiManager.updateWaveUI(this.startWave, this.waveManager.maxWaves);
@@ -242,16 +244,16 @@ export class WaveGame extends Scene {
                 enemyCountGrowth: 1.2,
                 bossWaveInterval: 10
             });
-            
+
             // Initialize the wave manager with UI reference
             this.waveManager.init(this.uiManager);
         }
-        
+
         // Listen for wave events
         this.events.on('wave-start', this.onWaveStart, this);
         this.events.on('wave-completed', this.onWaveComplete, this);
         this.events.on('victory', this.onVictory, this);
-        
+
         // Show the Next Wave button at game start to initiate the first wave
         if (this.uiManager) {
             // Display welcome banner first
@@ -259,7 +261,7 @@ export class WaveGame extends Scene {
             this.uiManager.elements.waveBannerText.setText('Wave Mode\nClick "Start Next Wave" to begin!');
             this.uiManager.elements.waveBannerBg.setVisible(true);
             this.uiManager.elements.waveBannerText.setVisible(true);
-            
+
             // Animate the banner
             this.tweens.add({
                 targets: [this.uiManager.elements.waveBannerBg, this.uiManager.elements.waveBannerText],
@@ -270,7 +272,7 @@ export class WaveGame extends Scene {
                 onComplete: () => {
                     // Show next wave button after the banner animation
                     this.uiManager.showNextWaveButton();
-                    
+
                     // Hide the banner after a delay
                     this.time.delayedCall(3000, () => {
                         this.tweens.add({
@@ -301,16 +303,16 @@ export class WaveGame extends Scene {
             healthCollectionRadius: 30,
             collectionInterval: 100 // Check collectibles every 100ms
         });
-        
+
         // Register all managers with the collectible manager
         if (this.xpManager) {
             this.collectibleManager.registerManager('xpManager', this.xpManager);
         }
-        
+
         if (this.cashManager) {
             this.collectibleManager.registerManager('cashManager', this.cashManager);
         }
-        
+
         // Log initialization in dev mode
         if (this.isDev) {
             console.debug('CollectibleManager initialized with XP and Cash managers');
@@ -341,20 +343,38 @@ export class WaveGame extends Scene {
 
         // Initialize shop manager
         this.shopManager = new ShopManager(this, this.player, weapon, rng);
-        
+
         // Initialize player credits if not already set
         if (this.player.credits === undefined) {
             this.player.credits = 100; // Starting credits
-            
+
             // Update cash display
             if (this.cashManager) {
                 this.cashManager.setCash(this.player.credits);
             }
         }
-        
+
         // Log initialization in dev mode
         if (this.isDev) {
             console.debug('ShopManager initialized');
+        }
+    }
+
+    /**
+     * Set up the health regeneration system
+     */
+    setupHealthRegenerationSystem() {
+        // Initialize health regeneration system
+        this.healthRegenSystem = new HealthRegenerationSystem(this);
+
+        // Initialize player health regen to 0
+        if (this.player && this.player.healthRegen === undefined) {
+            this.player.healthRegen = 0;
+        }
+
+        // Log initialization in dev mode
+        if (this.isDev) {
+            console.debug('HealthRegenerationSystem initialized');
         }
     }
 
@@ -367,7 +387,7 @@ export class WaveGame extends Scene {
             scaleFactor: 1.5,
             enablePhysics: true
         });
-        
+
         // Register available maps
         this.mapManager.registerMaps([
             {
@@ -422,16 +442,16 @@ export class WaveGame extends Scene {
                 }
             }
         ]);
-        
+
         // Load the initial map (level1)
         const mapData = this.mapManager.loadMap('darkcave');
-        
+
         // Store the ground layer for easy access
         this.groundLayer = this.mapManager.getLayer('Tile Layer 1');
-        
+
         // Get map dimensions from the map manager
         this.mapDimensions = this.mapManager.getMapDimensions();
-        
+
         // Debug info for development mode
         if (this.isDev) {
             console.debug(`Map loaded: ${this.mapManager.currentMapKey}`);
@@ -447,16 +467,17 @@ export class WaveGame extends Scene {
         const playerX = this.mapDimensions.width / 2;
         const playerY = this.mapDimensions.height / 2;
         this.player = new Player(this, playerX, playerY);
-        
+
         // Initialize player's weapon system
         this.player.initWeaponSystem(this.weaponType);
-        
+
         // Setup player health system
         this.playerHealth = new PlayerHealth(this, {
             maxHealth: 100,
-            hitDamage: 34 // Dies in 3 hits
+            hitDamage: 34, // Dies in 3 hits
+            damageResistance: 0 // Start with 0% defense
         });
-        
+
         // Setup camera to follow player
         this.setupCamera();
     }
@@ -479,16 +500,16 @@ export class WaveGame extends Scene {
             this.mouseX = pointer.worldX;
             this.mouseY = pointer.worldY;
         });
-        
+
         // Track mouse states
         this.input.on('pointerdown', () => {
             this.isMouseDown = true;
         });
-        
+
         this.input.on('pointerup', () => {
             this.isMouseDown = false;
         });
-        
+
         // Set up WASD keys
         this.wasd = {
             up: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.W),
@@ -496,7 +517,7 @@ export class WaveGame extends Scene {
             left: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.A),
             right: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D)
         };
-        
+
         // Set up spacebar for pause
         this.pauseKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
     }
@@ -530,10 +551,10 @@ export class WaveGame extends Scene {
         if (this.isDev) {
             console.debug('Victory! All waves completed.');
         }
-        
+
         // Show victory UI
         this.uiManager.showVictoryUI();
-        
+
         // Set game over state
         this.isGameOver = true;
     }
@@ -545,25 +566,25 @@ export class WaveGame extends Scene {
      */
     setPauseState(isPaused, reason = 'toggle') {
         this.isPaused = isPaused;
-        
+
         // Show/hide pause overlay based on reason
         this.uiManager.elements.pauseOverlay?.setVisible(isPaused && reason === 'toggle');
         this.uiManager.elements.pauseText?.setVisible(isPaused && reason === 'toggle');
-        
+
         // Don't pause game if in wave pause phase (between waves)
         if (this.waveManager && this.waveManager.isInPausePhase()) return;
-        
+
         // Pause/resume all physics and timers
         if (isPaused) {
             this.physics.pause();
-            
+
             // Pause ambient music
             if (this.soundManager) {
                 this.soundManager.pauseMusic();
             }
         } else {
             this.physics.resume();
-            
+
             // Resume ambient music
             if (this.soundManager) {
                 this.soundManager.resumeMusic();
@@ -581,33 +602,38 @@ export class WaveGame extends Scene {
         if (Phaser.Input.Keyboard.JustDown(this.pauseKey)) {
             this.togglePause();
         }
-        
+
         // If game is paused or over, don't update game logic
         if (this.isPaused || this.isGameOver) {
             return;
         }
-        
+
         // Update game timers
         this.updateGameTimers(delta);
-        
+
         // Update player, bullets, and enemies
         this.updateGameObjects();
-        
+
         // Update wave manager
         if (this.waveManager) {
             this.waveManager.update();
         }
-        
+
         // Update UI manager
         if (this.uiManager) {
             this.uiManager.update();
         }
-        
+
         // Update collectible manager
         if (this.collectibleManager) {
             this.collectibleManager.update();
         }
-        
+
+        // Update health regeneration system
+        if (this.healthRegenSystem) {
+            this.healthRegenSystem.update(time, delta);
+        }
+
         // Check for collisions
         this.checkCollisions();
     }
@@ -619,7 +645,7 @@ export class WaveGame extends Scene {
     updateGameTimers(delta) {
         // Update game time for difficulty scaling
         this.gameTime += delta;
-        
+
         // Update survival time
         this.survivalTime += delta / 1000;
     }
@@ -630,20 +656,20 @@ export class WaveGame extends Scene {
     updateGameObjects() {
         // Update player
         this.player.update();
-        
+
         // Attempt to shoot if mouse is held down
         if (this.isMouseDown) {
             this.player.shoot();
         }
-        
+
         // Update cash animation position if cash manager exists
         if (this.cashManager) {
             this.cashManager.updateCashAnimationPosition();
         }
-        
+
         // Update bullets using the pooling system
         this.updateBullets();
-        
+
         // Update enemies using the enemy manager
         if (this.enemyManager) {
             this.enemyManager.update();
@@ -662,7 +688,7 @@ export class WaveGame extends Scene {
                 const dx = bullet.x - playerPos.x;
                 const dy = bullet.y - playerPos.y;
                 const distance = Math.sqrt(dx * dx + dy * dy);
-                
+
                 // Return true if bullet should be culled (too far or too old)
                 return distance > 1000 || bullet.lifetime > 3000;
             }
@@ -677,72 +703,85 @@ export class WaveGame extends Scene {
     checkBulletEnemyCollisions() {
         // Update spatial grid
         this.updateSpatialGrid();
-        
+
         // Check collisions with spatial optimization
         this.bullets.getChildren().forEach(bullet => {
             if (!bullet.active) return;
-            
+
             // Get bullet's cell and adjacent cells
             const cellX = Math.floor(bullet.x / this.gridCellSize);
             const cellY = Math.floor(bullet.y / this.gridCellSize);
-            
+
             // Check only enemies in relevant cells
             for (let x = cellX - 1; x <= cellX + 1; x++) {
                 for (let y = cellY - 1; y <= cellY + 1; y++) {
                     const cellKey = `${x},${y}`;
                     const enemiesInCell = this.spatialGrid[cellKey] || [];
-                    
+
                     // Check collisions with enemies in this cell
                     enemiesInCell.forEach(enemyGraphics => {
                         if (!enemyGraphics.active || !bullet.active) return;
-                        
+
                         const distance = Phaser.Math.Distance.Between(
                             bullet.x, bullet.y,
                             enemyGraphics.x, enemyGraphics.y
                         );
-                        
+
                         // Get enemy size and bullet properties
                         const enemySize = enemyGraphics.parentEnemy ? enemyGraphics.parentEnemy.size/2 : 12;
-                        
+
                         // Get bullet properties - either from the bullet itself or from the player's weapon
                         const bulletSize = bullet.radius || this.player.caliber || 5;
-                        const bulletDamage = bullet.damage || 
-                                            (this.player.weaponManager ? 
-                                             this.player.weaponManager.getDamage() : 
+                        const bulletDamage = bullet.damage ||
+                                            (this.player.weaponManager ?
+                                             this.player.weaponManager.getDamage() :
                                              this.player.bulletDamage || 10);
-                        
+
                         // Check if bullet hits enemy
                         if (distance < (bulletSize + enemySize)) {
-                            // Damage enemy with bullet's damage value
-                            if (enemyGraphics.parentEnemy && typeof enemyGraphics.parentEnemy.takeDamage === 'function') {
-                                enemyGraphics.parentEnemy.takeDamage(bulletDamage);
+                            // Check for critical hit
+                            let finalDamage = bulletDamage;
+                            let isCritical = false;
+
+                            // Apply critical hit if bullet has critical properties
+                            if (bullet.canCrit && bullet.critMultiplier) {
+                                isCritical = true;
+                                finalDamage *= bullet.critMultiplier;
+
+                                // Create critical hit effect
+                                this.createCriticalHitEffect(enemyGraphics.x, enemyGraphics.y, finalDamage);
                             }
-                            
+
+                            // Damage enemy with bullet's damage value (potentially critical)
+                            if (enemyGraphics.parentEnemy && typeof enemyGraphics.parentEnemy.takeDamage === 'function') {
+                                enemyGraphics.parentEnemy.takeDamage(finalDamage);
+                            }
+
                             // Reduce bullet health/pierce
                             if (bullet.health !== undefined) {
                                 bullet.health--;
                             } else if (bullet.pierce !== undefined) {
                                 bullet.pierce--;
                             }
-                            
+
                             // Track already hit enemies for bullets with pierce
                             if (bullet.pierce > 0 && bullet.penetratedEnemies) {
                                 bullet.penetratedEnemies.push(enemyGraphics.parentEnemy.id);
                             }
-                            
+
                             // Visual feedback - make bullet flash
                             const originalColor = bullet.fillColor || 0xffffff;
                             bullet.fillColor = 0xffffff;
-                            
+
                             // Reset bullet color after a short delay if it still exists
                             this.time.delayedCall(50, () => {
                                 if (bullet && bullet.active) {
                                     bullet.fillColor = originalColor;
                                 }
                             });
-                            
+
                             // Only release bullet back to pool if its health/pierce is depleted
-                            if ((bullet.health !== undefined && bullet.health <= 0) || 
+                            if ((bullet.health !== undefined && bullet.health <= 0) ||
                                 (bullet.pierce !== undefined && bullet.pierce <= 0)) {
                                 this.bulletPool.releaseBullet(bullet);
                             }
@@ -752,25 +791,25 @@ export class WaveGame extends Scene {
             }
         });
     }
-    
+
     /**
      * Check for collisions between player and enemies
      */
     checkPlayerEnemyCollisions() {
         if (!this.player || !this.playerHealth) return;
-        
+
         // Skip if player is invulnerable
         if (this.playerHealth.getInvulnerable()) return;
-        
+
         const playerPos = this.player.getPosition();
         const playerRadius = this.player.radius;
-        
+
         // Use the enemy manager's active enemies list
         const activeEnemies = this.enemyManager ? this.enemyManager.enemies : [];
-        
+
         for (const enemy of activeEnemies) {
             if (!enemy || !enemy.active || !enemy.graphics || !enemy.graphics.active) continue;
-            
+
             // Calculate distance between player and enemy
             const distance = Phaser.Math.Distance.Between(
                 playerPos.x, playerPos.y,
@@ -781,32 +820,32 @@ export class WaveGame extends Scene {
             if (distance < (playerRadius + enemy.size/2)) {
                 // Player takes damage
                 const died = this.playerHealth.takeDamage(enemyDamage);
-                
+
                 if (died == true) {
                     // Player died, handle game over
                     return;
                 }
-                
+
                 // Push player away from enemy for better gameplay feel
                 const angle = Phaser.Math.Angle.Between(
                     enemy.graphics.x, enemy.graphics.y,
                     playerPos.x, playerPos.y
                 );
-                
+
                 // Apply knockback
                 const knockbackDistance = 30;
                 const knockbackX = Math.cos(angle) * 30;
                 const knockbackY = Math.sin(angle) * 30;
-                
+
                 // Set player velocity
                 this.player.velX = knockbackX * 0.2;
                 this.player.velY = knockbackY * 0.2;
-                
+
                 break; // Process only one collision per frame
             }
         }
     }
-    
+
     /**
      * Update the spatial grid for efficient collision detection
      */
@@ -821,7 +860,7 @@ export class WaveGame extends Scene {
             const cellX = Math.floor(enemy.x / this.gridCellSize);
             const cellY = Math.floor(enemy.y / this.gridCellSize);
             const cellKey = `${cellX},${cellY}`;
-            
+
             if (!this.spatialGrid[cellKey]) {
                 this.spatialGrid[cellKey] = [];
             }
@@ -838,23 +877,23 @@ export class WaveGame extends Scene {
     playerDeath() {
         // Player is already dead
         if (this.isGameOver) return;
-        
+
         // Set game over state
         this.isGameOver = true;
-        
+
         // Stop any active waves
         if (this.waveManager) {
             // Reset wave state but don't start new wave
             this.waveManager.isPaused = true;
             this.waveManager.isWaveActive = false;
-            
+
             // Stop any ongoing enemy spawns
             if (this.waveManager.spawnTimer) {
                 this.waveManager.spawnTimer.destroy();
                 this.waveManager.spawnTimer = null;
             }
         }
-        
+
         // Stop ambient music with fade out
         if (this.soundManager) {
             this.soundManager.stopMusic(1000); // 1s fade out
@@ -878,37 +917,37 @@ export class WaveGame extends Scene {
     onEnemyKilled(isBoss, x, y, enemyType) {
         // Increment total kill count
         this.killCount++;
-        
+
         // Update the kill counter UI
         if (this.uiManager) {
             this.uiManager.updateScoreUI(this.killCount);
         }
-        
+
         // Create death effect at enemy position
         if (x !== undefined && y !== undefined) {
             this.createEnemyDeathEffect(x, y);
-            
+
             // Award XP directly based on enemy score value instead of spawning pickups
             if (this.xpManager) {
                 // Find the enemy by position
                 const deadEnemy = this.findEnemyByPosition(x, y, enemyType);
-                
+
                 // Calculate XP value based on enemy type and score
-                const xpValue = deadEnemy && deadEnemy.scoreValue ? 
-                    deadEnemy.scoreValue * (this.xpMultiplier || 1) : 
+                const xpValue = deadEnemy && deadEnemy.scoreValue ?
+                    deadEnemy.scoreValue * (this.xpMultiplier || 1) :
                     isBoss ? 500 : 100; // Default values if enemy not found
-                
+
                 // Award XP directly to the player
                 this.xpManager.addXP(xpValue);
-                
+
                 // Play XP gain sound effect
                 if (this.soundManager) {
                     // Use existing sound with different parameters for XP collection
-                    const soundKey = this.soundManager.soundEffects && 
-                                     this.soundManager.soundEffects['xp_collect'] ? 
-                                     'xp_collect' : 
+                    const soundKey = this.soundManager.soundEffects &&
+                                     this.soundManager.soundEffects['xp_collect'] ?
+                                     'xp_collect' :
                                      'shoot_minigun'; // Fallback to an existing sound
-                                     
+
                     this.soundManager.playSoundEffect(soundKey, {
                         detune: 1200, // Higher pitch for XP collection
                         volume: 0.3
@@ -916,11 +955,11 @@ export class WaveGame extends Scene {
                 }
             }
         }
-        
+
         if (isBoss) {
             // If a boss was killed, increment the boss kill counter
             this.bossesKilled++;
-            
+
             // Create special effects for boss death
             if (x !== undefined && y !== undefined) {
                 this.createBossDeathEffect(x, y);
@@ -929,12 +968,12 @@ export class WaveGame extends Scene {
             // If a regular enemy was killed, increment the regular kill counter
             this.regularKillCount++;
         }
-        
+
         // IMPORTANT: Register kill with ChaosManager
         if (this.chaosManager) {
             // Look up the enemy by position in the enemy manager, since we might not have the actual enemy object
             const deadEnemy = this.findEnemyByPosition(x, y, enemyType);
-            
+
             if (deadEnemy && deadEnemy.groupId) {
                 // If we found a reference to the enemy and it has a group, register the kill with that group
                 this.chaosManager.registerKill(deadEnemy.groupId);
@@ -944,13 +983,13 @@ export class WaveGame extends Scene {
                 this.chaosManager.registerKill(randomGroup);
             }
         }
-        
+
         // IMPORTANT: Notify the WaveManager about the killed enemy
         if (this.waveManager) {
             this.waveManager.onEnemyKilled(isBoss, enemyType);
         }
     }
-    
+
     /**
      * Find an enemy in the enemy list by approximate position
      * Used when we only have position data but need the enemy reference
@@ -964,21 +1003,21 @@ export class WaveGame extends Scene {
         if (!this.enemyManager || !this.enemyManager.enemies) {
             return null;
         }
-        
+
         // Search for enemies near this position (within a small tolerance)
         const tolerance = 5;
-        
+
         for (const enemy of this.enemyManager.enemies) {
-            if (enemy && enemy.graphics && 
+            if (enemy && enemy.graphics &&
                 Math.abs(enemy.graphics.x - x) <= tolerance &&
                 Math.abs(enemy.graphics.y - y) <= tolerance) {
                 return enemy;
             }
         }
-        
+
         return null;
     }
-    
+
     /**
      * Create particle effect for enemy death
      */
@@ -993,14 +1032,14 @@ export class WaveGame extends Scene {
             quantity: 5,
             angle: { min: 0, max: 360 }
         });
-        
+
         // Auto-destroy the emitter after it's done
         particles.setDepth(50);
         this.time.delayedCall(1000, () => {
             particles.destroy();
         });
     }
-    
+
     /**
      * Create special effect for boss death
      */
@@ -1012,7 +1051,7 @@ export class WaveGame extends Scene {
                 // Randomize positions slightly for each explosion
                 const offsetX = Phaser.Math.Between(-30, 30);
                 const offsetY = Phaser.Math.Between(-30, 30);
-                
+
                 // Create a particle emitter
                 const particles = this.add.particles(x + offsetX, y + offsetY, 'particle_texture', {
                     speed: { min: 100, max: 300 },
@@ -1023,7 +1062,7 @@ export class WaveGame extends Scene {
                     quantity: 30,
                     angle: { min: 0, max: 360 }
                 });
-                
+
                 // Auto-destroy the emitter after it's done
                 particles.setDepth(200);
                 this.time.delayedCall(1000, () => {
@@ -1031,5 +1070,63 @@ export class WaveGame extends Scene {
                 });
             });
         }
+    }
+
+    /**
+     * Create visual effect for critical hits
+     * @param {number} x - X position of the hit
+     * @param {number} y - Y position of the hit
+     * @param {number} damage - Amount of damage dealt
+     */
+    createCriticalHitEffect(x, y, damage) {
+        // Create a text effect showing the critical damage
+        const damageText = this.add.text(
+            x,
+            y - 20, // Position slightly above the enemy
+            `CRIT! ${Math.floor(damage)}`,
+            {
+                fontFamily: 'Arial',
+                fontSize: '18px',
+                fontStyle: 'bold',
+                color: '#ff0000', // Red color for critical hits
+                stroke: '#000000',
+                strokeThickness: 3,
+                align: 'center'
+            }
+        );
+
+        // Set depth to ensure it's visible above other elements
+        damageText.setDepth(150);
+
+        // Animate the text (float up and fade out)
+        this.tweens.add({
+            targets: damageText,
+            y: y - 50, // Float upward
+            alpha: 0,
+            scale: 1.5, // Grow slightly
+            duration: 800,
+            ease: 'Power2',
+            onComplete: () => {
+                damageText.destroy();
+            }
+        });
+
+        // Create a small particle burst for additional visual feedback
+        const particles = this.add.particles(x, y, 'particle_texture', {
+            speed: { min: 50, max: 150 },
+            scale: { start: 0.2, end: 0 },
+            alpha: { start: 1, end: 0 },
+            lifespan: 300,
+            blendMode: 'ADD',
+            quantity: 8,
+            tint: 0xff0000, // Red particles for critical hits
+            angle: { min: 0, max: 360 }
+        });
+
+        // Auto-destroy the emitter after it's done
+        particles.setDepth(100);
+        this.time.delayedCall(500, () => {
+            particles.destroy();
+        });
     }
 }

@@ -3,6 +3,9 @@
  * Defines all available player upgrades, their stats, costs, and effects
  */
 
+// Import rarity from WeaponUpgrades to maintain consistency
+import { RARITY } from './WeaponUpgrades';
+
 // Player upgrade categories
 export const UPGRADE_CATEGORIES = {
     HEALTH: 'Health',
@@ -18,7 +21,8 @@ export const UPGRADE_CATEGORIES = {
  * - id: Unique identifier
  * - name: Display name with emoji for visual appeal
  * - category: Type of upgrade (from UPGRADE_CATEGORIES)
- * - price: Base cost in credits
+ * - rarity: Rarity level affecting cost and power (from RARITY)
+ * - skillPointCost: Base cost in skill points
  * - description: Detailed description of the upgrade effect
  * - stats: Actual stat changes to apply to the player
  * - visualProperties: Styling properties for the UI
@@ -28,8 +32,9 @@ export const PLAYER_UPGRADES = [
         id: 'health_1',
         name: '❤️ Health Boost',
         category: UPGRADE_CATEGORIES.HEALTH,
-        price: 120,
-        description: 'Increases maximum health by 20 points, allowing you to survive longer in battle.',
+        rarity: RARITY.COMMON,
+        skillPointCost: 1,
+        description: 'Increases maximum health',
         stats: {
             maxHealth: 20 // +20 health points
         },
@@ -40,10 +45,11 @@ export const PLAYER_UPGRADES = [
     },
     {
         id: 'health_2',
-        name: '❤️❤️ Major Health',
+        name: '❤️ Major Health',
         category: UPGRADE_CATEGORIES.HEALTH,
-        price: 200,
-        description: 'Significantly increases maximum health by 50 points.',
+        rarity: RARITY.RARE,
+        skillPointCost: 1,
+        description: 'Significantly increases maximum health.',
         stats: {
             maxHealth: 50 // +50 health points
         },
@@ -56,7 +62,8 @@ export const PLAYER_UPGRADES = [
         id: 'defense_1',
         name: '🛡️ Armor Plating',
         category: UPGRADE_CATEGORIES.DEFENSE,
-        price: 150,
+        rarity: RARITY.COMMON,
+        skillPointCost: 1,
         description: 'Adds 5 defense points, reducing damage taken from all enemy attacks by 5%.',
         stats: {
             defense: 5 // +5% damage reduction
@@ -68,9 +75,10 @@ export const PLAYER_UPGRADES = [
     },
     {
         id: 'defense_2',
-        name: '🛡️🛡️ Heavy Armor',
+        name: '🛡️ Heavy Armor',
         category: UPGRADE_CATEGORIES.DEFENSE,
-        price: 240,
+        rarity: RARITY.RARE,
+        skillPointCost: 1,
         description: 'Adds 10 defense points, reducing damage taken from all enemy attacks by 10%.',
         stats: {
             defense: 10 // +10% damage reduction
@@ -84,7 +92,8 @@ export const PLAYER_UPGRADES = [
         id: 'speed_1',
         name: '⚡ Speed Boost',
         category: UPGRADE_CATEGORIES.SPEED,
-        price: 100,
+        rarity: RARITY.COMMON,
+        skillPointCost: 1,
         description: 'Increases movement speed by 15%, helping you dodge enemies more effectively.',
         stats: {
             speed: 1.15 // 15% speed multiplier
@@ -96,9 +105,10 @@ export const PLAYER_UPGRADES = [
     },
     {
         id: 'speed_2',
-        name: '⚡⚡ Nitro Speed',
+        name: '⚡ Nitro Speed',
         category: UPGRADE_CATEGORIES.SPEED,
-        price: 180,
+        rarity: RARITY.RARE,
+        skillPointCost: 1,
         description: 'Further increases movement speed by 25%, making you significantly faster.',
         stats: {
             speed: 1.25 // 25% speed multiplier
@@ -112,7 +122,8 @@ export const PLAYER_UPGRADES = [
         id: 'pickup_radius_1',
         name: '🧲 Magnet Pull',
         category: UPGRADE_CATEGORIES.PICKUP,
-        price: 130,
+        rarity: RARITY.COMMON,
+        skillPointCost: 1,
         description: 'Increases pickup collection radius by 25%, making it easier to collect drops.',
         stats: {
             pickupRadius: 1.25 // 25% increase to pickup radius
@@ -126,7 +137,8 @@ export const PLAYER_UPGRADES = [
         id: 'regen_1',
         name: '💉 Regeneration',
         category: UPGRADE_CATEGORIES.HEALTH,
-        price: 180,
+        rarity: RARITY.EPIC,
+        skillPointCost: 1,
         description: 'Slowly regenerate 1 health point every 2 seconds.',
         stats: {
             healthRegen: 0.5 // 0.5 health per second
@@ -140,7 +152,8 @@ export const PLAYER_UPGRADES = [
         id: 'dash_1',
         name: '💨 Emergency Dash',
         category: UPGRADE_CATEGORIES.SPECIAL,
-        price: 220,
+        rarity: RARITY.EPIC,
+        skillPointCost: 2,
         description: 'Adds a dash ability to quickly escape dangerous situations (Cooldown: 10s).',
         stats: {
             dash: true,
@@ -156,7 +169,8 @@ export const PLAYER_UPGRADES = [
         id: 'shield_1',
         name: '🔰 Energy Shield',
         category: UPGRADE_CATEGORIES.SPECIAL,
-        price: 300,
+        rarity: RARITY.LEGENDARY,
+        skillPointCost: 3,
         description: 'Creates a temporary shield that blocks all damage for 3 seconds (Cooldown: 30s).',
         stats: {
             shield: true,
@@ -171,29 +185,242 @@ export const PLAYER_UPGRADES = [
 ];
 
 /**
+ * Scale upgrade stats based on player level
+ * @param {Object} upgrade - The upgrade to scale
+ * @param {number} playerLevel - Current player level
+ * @returns {Object} - Scaled upgrade object
+ */
+export function scalePlayerUpgradeByLevel(upgrade, playerLevel) {
+    // If no level provided or level is less than 10, return original upgrade
+    if (!playerLevel || playerLevel < 10) {
+        return upgrade;
+    }
+
+    // Calculate level tier (increases every 10 levels)
+    const levelTier = Math.floor(playerLevel / 10);
+
+    // Create a deep copy of the upgrade to avoid modifying the original
+    const scaledUpgrade = JSON.parse(JSON.stringify(upgrade));
+
+    // Scale stats based on level tier
+    if (scaledUpgrade.stats) {
+        Object.entries(scaledUpgrade.stats).forEach(([stat, value]) => {
+            // Different scaling for different stat types
+            switch (stat) {
+                case 'speed':
+                case 'pickupRadius':
+                    // Multiplicative stats: increase by 5% per tier
+                    if (typeof value === 'number' && value > 1) {
+                        const increase = 0.05 * levelTier;
+                        scaledUpgrade.stats[stat] = value + increase;
+                    }
+                    break;
+
+                case 'maxHealth':
+                    // Health scales more aggressively
+                    if (typeof value === 'number') {
+                        const increase = value * 0.2 * levelTier;
+                        scaledUpgrade.stats[stat] = Math.round(value + increase);
+                    }
+                    break;
+
+                case 'defense':
+                    // Defense scales moderately
+                    if (typeof value === 'number') {
+                        const increase = value * 0.15 * levelTier;
+                        scaledUpgrade.stats[stat] = Math.round(value + increase);
+                    }
+                    break;
+
+                case 'healthRegen':
+                    // Health regen scales moderately
+                    if (typeof value === 'number') {
+                        const increase = value * 0.1 * levelTier;
+                        scaledUpgrade.stats[stat] = value + increase;
+                    }
+                    break;
+
+                case 'dashPower':
+                    // Dash power scales slightly
+                    if (typeof value === 'number') {
+                        const increase = value * 0.05 * levelTier;
+                        scaledUpgrade.stats[stat] = value + increase;
+                    }
+                    break;
+
+                case 'dashCooldown':
+                case 'shieldCooldown':
+                    // Cooldowns decrease (improve) slightly
+                    if (typeof value === 'number') {
+                        const reduction = value * 0.05 * levelTier;
+                        scaledUpgrade.stats[stat] = Math.max(value * 0.5, value - reduction);
+                    }
+                    break;
+
+                case 'shieldDuration':
+                    // Shield duration increases
+                    if (typeof value === 'number') {
+                        const increase = value * 0.1 * levelTier;
+                        scaledUpgrade.stats[stat] = value + increase;
+                    }
+                    break;
+
+                // Boolean values don't need scaling
+                case 'dash':
+                case 'shield':
+                    break;
+
+                default:
+                    // For any other stats, apply a small increase
+                    if (typeof value === 'number') {
+                        const increase = value * 0.05 * levelTier;
+                        scaledUpgrade.stats[stat] = value + increase;
+                    }
+            }
+        });
+    }
+
+    // Update the description to show it's been scaled
+    if (scaledUpgrade.description) {
+        scaledUpgrade.description += ` (Lv.${playerLevel} Bonus)`;
+    }
+
+    // Skill point cost doesn't scale with level
+
+    return scaledUpgrade;
+}
+
+/**
  * Get random player upgrades for the shop
  * @param {number} count - Number of upgrades to get
  * @param {Object} rng - Random number generator object with pick method
+ * @param {number} playerLevel - Current player level for scaling upgrades
+ * @param {Object} playerStats - Optional player stats to filter upgrades
  * @returns {Array} - Array of random player upgrades
  */
-export function getRandomPlayerUpgrades(count = 3, rng) {
-    if (!rng || typeof rng.pick !== 'function') {
+export function getRandomPlayerUpgrades(count = 3, rng, playerLevel = 1, playerStats = null) {
+    if (!rng || (typeof rng.pick !== 'function' && typeof rng.range !== 'function')) {
         // Fallback if no RNG is provided
         return PLAYER_UPGRADES.slice(0, count);
     }
-    
-    // Create a copy to avoid modifying the original array
-    const availableUpgrades = [...PLAYER_UPGRADES];
-    const selectedUpgrades = [];
-    
-    // Select random upgrades
-    for (let i = 0; i < count; i++) {
-        if (availableUpgrades.length === 0) break;
-        
-        const randomIndex = Math.floor(rng.pick(availableUpgrades));
-        const selected = availableUpgrades.splice(randomIndex, 1)[0];
-        selectedUpgrades.push(selected);
+
+    // Ensure we have a range function
+    if (!rng.range && rng.pick) {
+        // Add a range function if only pick is available
+        rng.range = (min, max) => {
+            return Math.random() * (max - min) + min;
+        };
     }
-    
+
+    // Create a copy to avoid modifying the original array
+    let availableUpgrades = [...PLAYER_UPGRADES];
+    const selectedUpgrades = [];
+
+    // Filter out defense upgrades if player has reached the defense cap (25%)
+    if (playerStats && playerStats.defense !== undefined) {
+        // If defense is 25% or higher, filter out all defense upgrades
+        if (playerStats.defense >= 25) {
+            availableUpgrades = availableUpgrades.filter(upgrade =>
+                upgrade.category !== UPGRADE_CATEGORIES.DEFENSE);
+        }
+    }
+
+    // Filter out regeneration upgrades if player already has health regeneration
+    if (playerStats && playerStats.healthRegen !== undefined) {
+        // If player has any health regeneration, filter out all regeneration upgrades
+        if (playerStats.healthRegen > 0) {
+            availableUpgrades = availableUpgrades.filter(upgrade =>
+                !(upgrade.stats && upgrade.stats.healthRegen));
+        }
+    }
+
+    // Create a weighted pool based on rarity
+    const weightedPool = [];
+
+    // Add each upgrade to the weighted pool based on its rarity weight
+    availableUpgrades.forEach((upgrade, index) => {
+        const rarityWeight = upgrade.rarity?.weight || 100; // Default to 100 if not specified
+
+        // Add this upgrade to the pool multiple times based on its weight
+        for (let i = 0; i < rarityWeight; i++) {
+            weightedPool.push(index);
+        }
+    });
+
+    // Create a map of upgrades by their index for safer access
+    const upgradeMap = new Map();
+    availableUpgrades.forEach((upgrade, index) => {
+        upgradeMap.set(index, upgrade);
+    });
+
+    // Select random upgrades from the weighted pool
+    for (let i = 0; i < count; i++) {
+        if (weightedPool.length === 0 || upgradeMap.size === 0) break;
+
+        // Get a random index from the weighted pool
+        const randomPoolIndex = Math.floor(rng.range(0, weightedPool.length - 1));
+        const selectedIndex = weightedPool[randomPoolIndex];
+
+        // Get the upgrade at this index
+        const selected = upgradeMap.get(selectedIndex);
+
+        // Skip if somehow the upgrade is undefined
+        if (!selected) continue;
+
+        // Remove all instances of this index from the weighted pool
+        for (let j = weightedPool.length - 1; j >= 0; j--) {
+            if (weightedPool[j] === selectedIndex) {
+                weightedPool.splice(j, 1);
+            }
+        }
+
+        // Remove the selected upgrade from the map
+        upgradeMap.delete(selectedIndex);
+
+        // Create a deep copy of the selected upgrade
+        const upgradeCopy = JSON.parse(JSON.stringify(selected));
+
+        // Randomly assign a new rarity using weights
+        const rarityValues = Object.values(RARITY);
+
+        // Create a weighted pool for rarities
+        const rarityPool = [];
+        rarityValues.forEach(rarity => {
+            // Add each rarity to the pool based on its weight
+            for (let i = 0; i < rarity.weight; i++) {
+                rarityPool.push(rarity);
+            }
+        });
+
+        // Select a random rarity from the weighted pool
+        const randomRarityIndex = Math.floor(rng.range(0, rarityPool.length - 1));
+        const randomRarity = rarityPool[randomRarityIndex];
+
+        // Apply the new rarity
+        upgradeCopy.rarity = randomRarity;
+
+        // Skill point cost doesn't change with rarity
+
+        // Player upgrade stats don't scale with rarity - they only use the base values
+
+        // Update the description to reflect the new rarity (visual only)
+        if (upgradeCopy.description) {
+            // Extract the base description without any previous rarity or level indicators
+            let baseDescription = upgradeCopy.description;
+            if (baseDescription.includes('(')) {
+                baseDescription = baseDescription.substring(0, baseDescription.indexOf('(')).trim();
+            }
+
+            // Add rarity indicator (visual only - stats don't change with rarity)
+            upgradeCopy.description = `${baseDescription} (${randomRarity.name})`;
+        }
+
+        // Scale the upgrade based on player level
+        const scaledUpgrade = scalePlayerUpgradeByLevel(upgradeCopy, playerLevel);
+
+        // Add to selected upgrades
+        selectedUpgrades.push(scaledUpgrade);
+    }
+
     return selectedUpgrades;
 }
