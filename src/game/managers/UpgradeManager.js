@@ -170,7 +170,9 @@ export default class UpgradeManager {
                     // Update health UI if player health component exists
                     if (this.player.scene.playerHealth) {
                         this.player.scene.playerHealth.setMaxHealth(this.player.maxHealth);
-                        this.player.scene.playerHealth.setHealth(this.player.health);
+                        // Use heal method instead of non-existent setHealth method
+                        const healthIncrease = value;
+                        this.player.scene.playerHealth.heal(healthIncrease);
                     }
                     break;
                     

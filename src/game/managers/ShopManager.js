@@ -92,6 +92,15 @@ export default class ShopManager {
     if (this.isShopOpen) return;
     
     this.isShopOpen = true;
+    
+    // Sync player credits with cashManager before opening shop
+    if (this.scene.cashManager) {
+      this.player.credits = this.scene.cashManager.getCurrentCash();
+      if (this.scene.isDev) {
+        console.debug('Shop opened with player credits synced:', this.player.credits);
+      }
+    }
+    
     const upgrades = this.upgradeManager.generateUpgrades();
 
     // Launch the shop scene and pass necessary data

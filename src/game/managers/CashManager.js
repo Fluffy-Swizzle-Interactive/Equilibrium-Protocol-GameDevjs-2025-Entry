@@ -217,6 +217,21 @@ export class CashManager {
     }
     
     /**
+     * Set the current cash amount directly
+     * @param {number} amount - The new cash amount to set
+     */
+    setCash(amount) {
+        if (isNaN(amount)) return;
+        
+        this.currentCash = Math.max(0, amount);
+        
+        // Emit cash update event for UI
+        this.emitCashUpdate();
+        
+        return this.currentCash;
+    }
+    
+    /**
      * Spawn a cash pickup at the specified position
      * @param {number} x - X position
      * @param {number} y - Y position

@@ -257,6 +257,23 @@ export default class ShopMenuScene extends Phaser.Scene {
             
             // Add click event
             card.on('pointerdown', () => {
+                // Find the card record in our tracking array
+                const cardRecord = this.upgradeElements.weaponCards.find(c => c.upgrade.id === upgrade.id);
+                
+                // Skip if already purchased
+                if (cardRecord && cardRecord.purchased) {
+                    // Show feedback that it's already purchased
+                    this.showFloatingText(card.x, card.y, 'Already purchased!', '#88ff88');
+                    return;
+                }
+                
+                // Check if player can afford it before visual feedback
+                const player = this.playerRef;
+                if (player && player.credits < upgrade.price) {
+                    this.showFloatingText(card.x, card.y, 'Not enough credits!', '#ff5555');
+                    return;
+                }
+                
                 // Visual feedback for click
                 this.tweens.add({
                     targets: card,
@@ -267,7 +284,16 @@ export default class ShopMenuScene extends Phaser.Scene {
                     onComplete: () => {
                         // Notify the ShopManager to handle the purchase
                         if (this.shopManager) {
-                            this.shopManager.purchaseWeaponUpgrade(upgrade);
+                            // Call the shopManager's purchaseWeaponUpgrade method directly
+                            const purchaseSuccess = this.shopManager.purchaseWeaponUpgrade(upgrade);
+                            
+                            // The event handling for success/failure will be handled by separate methods
+                            if (this.scene.isDev) {
+                                console.debug('Weapon upgrade purchase attempt:', 
+                                    purchaseSuccess ? 'SUCCESS' : 'FAILED', 
+                                    upgrade.name, 
+                                    upgrade.price);
+                            }
                         }
                     }
                 });
@@ -398,6 +424,23 @@ export default class ShopMenuScene extends Phaser.Scene {
             
             // Add click event with visual feedback
             btnBg.on('pointerdown', () => {
+                // Find the button record in our tracking array
+                const buttonRecord = this.upgradeElements.playerButtons.find(b => b.upgrade.id === upgrade.id);
+                
+                // Skip if already purchased
+                if (buttonRecord && buttonRecord.purchased) {
+                    // Show feedback that it's already purchased
+                    this.showFloatingText(button.x, button.y, 'Already purchased!', '#88ff88');
+                    return;
+                }
+                
+                // Check if player can afford it before visual feedback
+                const player = this.playerRef;
+                if (player && player.credits < upgrade.price) {
+                    this.showFloatingText(button.x, button.y, 'Not enough credits!', '#ff5555');
+                    return;
+                }
+                
                 // Visual feedback for click
                 this.tweens.add({
                     targets: button,
@@ -408,7 +451,16 @@ export default class ShopMenuScene extends Phaser.Scene {
                     onComplete: () => {
                         // Notify the ShopManager to handle the purchase
                         if (this.shopManager) {
-                            this.shopManager.purchasePlayerUpgrade(upgrade);
+                            // Call the shopManager's purchasePlayerUpgrade method directly
+                            const purchaseSuccess = this.shopManager.purchasePlayerUpgrade(upgrade);
+                            
+                            // The event handling for success/failure will be handled by separate methods
+                            if (this.scene.isDev) {
+                                console.debug('Player upgrade purchase attempt:', 
+                                    purchaseSuccess ? 'SUCCESS' : 'FAILED', 
+                                    upgrade.name, 
+                                    upgrade.price);
+                            }
                         }
                     }
                 });
@@ -680,48 +732,91 @@ export default class ShopMenuScene extends Phaser.Scene {
     updateStatPanels() {
         if (!this.upgradeElements.statPanels || this.upgradeElements.statPanels.length === 0) return;
         
-        const player = this.playerRef || { 
-            health: 100, 
-            maxHealth: 100, 
-            speed: 150,
-            defense: 0,
-            bulletDamage: 10,
-            fireRate: 300,
-            bulletRange: 400,
-            bulletSpeed: 600,
-            criticalHitChance: 5,
-            criticalDamageMultiplier: 1.5,
-            credits: 100
-        };
+        // Get actual player reference and properly access stats
+        const player = this.playerRef;
+        if (!player) return;
         
-        const xpManager = this.gameScene?.xpManager || { 
-            currentLevel: 1, 
-            currentXP: 0, 
-            nextLevelXP: 100
-        };
+        // Get health from player's health system
+        // Check both possible locations for the playerHealth instance
+        let health, maxHealth;
         
-        const cashManager = this.gameScene?.cashManager || {
-            cash: player.credits || 100
-        };
+        if (player.scene && player.scene.playerHealth) {
+            // Use the proper PlayerHealth instance methods
+            health = player.scene.playerHealth.getCurrentHealth();
+            maxHealth = player.scene.playerHealth.getMaxHealth();
+        } else if (player.healthSystem) {
+            health = player.healthSystem.getCurrentHealth();
+            maxHealth = player.healthSystem.getMaxHealth();
+        } else {
+            // Fallback to direct properties
+            health = player.health || 100;
+            maxHealth = player.maxHealth || 100;
+        }
+        
+        // Get defense/damage resistance from health system
+        let defense;
+        if (player.scene && player.scene.playerHealth) {
+            defense = Math.round(player.scene.playerHealth.getDamageResistance() * 100);
+        } else if (player.healthSystem) {
+            defense = Math.round(player.healthSystem.getDamageResistance() * 100);
+        } else {
+            defense = Math.round(player.defense || 0);
+        }
+        
+        // Get player credits/cash - check multiple possible sources
+        let cash = 0;
+        if (player.credits !== undefined) {
+            cash = player.credits;
+        } else if (this.gameScene?.cashManager?.cash !== undefined) {
+            cash = this.gameScene.cashManager.cash;
+        } else if (this.shopManager?.playerCredits !== undefined) {
+            cash = this.shopManager.playerCredits;
+        }
+        
+        // Get XP manager from game scene with better fallbacks
+        let currentLevel = 1;
+        let currentXP = 0;
+        let nextLevelXP = 100;
+        
+        if (this.gameScene?.xpManager) {
+            currentLevel = this.gameScene.xpManager.currentLevel || 1;
+            currentXP = this.gameScene.xpManager.currentXP || 0;
+            nextLevelXP = this.gameScene.xpManager.nextLevelXP || 100;
+        } else if (player.level !== undefined) {
+            currentLevel = player.level;
+            currentXP = player.xp || 0;
+            nextLevelXP = player.nextLevelXP || 100;
+        }
+        
+        // Get movement speed
+        const speed = Math.round(player.speed || 150);
+        
+        // Get weapon stats
+        const bulletDamage = Math.round(player.bulletDamage || 10);
+        const fireRate = player.fireRate ? Math.round(1000 / player.fireRate) : 3; // Convert ms delay to shots per second
+        const bulletRange = Math.round(player.bulletRange || 400);
+        const bulletSpeed = Math.round(player.bulletSpeed || 600);
+        const criticalHitChance = Math.round(player.criticalHitChance || 5);
+        const criticalDamageMultiplier = (player.criticalDamageMultiplier || 1.5).toFixed(1);
         
         // Format player stats
         const playerStats = [
-            `Health: ${Math.round(player.health || 100)}/${Math.round(player.maxHealth || 100)}`,
-            `Speed: ${Math.round(player.speed || 150)}`,
-            `Defense: ${Math.round(player.defense || 0)}`,
-            `XP Level: ${xpManager.currentLevel || 1}`,
-            `XP Points: ${xpManager.currentXP || 0}/${xpManager.nextLevelXP || 100}`,
-            `Cash: $${cashManager.cash || player.credits || 100}`
+            `Health: ${Math.round(health)}/${Math.round(maxHealth)}`,
+            `Speed: ${speed}`,
+            `Defense: ${defense}%`,
+            `XP Level: ${currentLevel}`,
+            `XP Points: ${currentXP}/${nextLevelXP}`,
+            `Cash: $${cash}`
         ].join('\n');
         
         // Format weapon stats
         const weaponStats = [
-            `Damage: ${Math.round(player.bulletDamage || 10)}`,
-            `Fire Rate: ${Math.round(player.fireRate || 300)}ms`,
-            `Range: ${Math.round(player.bulletRange || 400)}`,
-            `Bullet Speed: ${Math.round(player.bulletSpeed || 600)}`,
-            `Critical Hit: ${Math.round(player.criticalHitChance || 5)}%`,
-            `Critical Damage: ${(player.criticalDamageMultiplier || 1.5).toFixed(1)}x`
+            `Damage: ${bulletDamage}`,
+            `Fire Rate: ${fireRate}/sec`,
+            `Range: ${bulletRange}`,
+            `Bullet Speed: ${bulletSpeed}`,
+            `Critical Hit: ${criticalHitChance}%`,
+            `Critical Damage: ${criticalDamageMultiplier}x`
         ].join('\n');
         
         // Update the panel texts
@@ -732,6 +827,16 @@ export default class ShopMenuScene extends Phaser.Scene {
                 panel.statsText.setText(weaponStats);
             }
         });
+        
+        // Debug output to help identify where values are coming from
+        if (this.scene.isDev) {
+            console.debug('Stats Panel Update:', {
+                playerHealth: { current: health, max: maxHealth },
+                playerCredits: cash,
+                playerXP: { level: currentLevel, current: currentXP, next: nextLevelXP },
+                weaponStats: { damage: bulletDamage, fireRate }
+            });
+        }
     }
 
     /**
@@ -987,6 +1092,49 @@ export default class ShopMenuScene extends Phaser.Scene {
             playerButtons: [],
             statPanels: []
         };
+    }
+
+    /**
+     * Show a floating text message at a specific position
+     * @param {number} x - X position for the floating text
+     * @param {number} y - Y position for the floating text
+     * @param {string} message - Message to display
+     * @param {string} color - Text color (hex)
+     */
+    showFloatingText(x, y, message, color = '#ffffff') {
+        // Get the main container to get the correct position in the shop
+        const mainContainer = this.shopOverlay.getAt(1);
+        
+        if (!mainContainer) return;
+        
+        // Convert position to world space
+        const worldX = mainContainer.x + x;
+        const worldY = mainContainer.y + y;
+        
+        // Create the floating text with proper styling
+        const floatingText = this.add.text(worldX, worldY - 20, message, {
+            fontFamily: 'Arial',
+            fontSize: '16px',
+            color: color,
+            fontStyle: 'bold',
+            stroke: '#000000',
+            strokeThickness: 3
+        }).setOrigin(0.5, 0.5).setDepth(200);
+        
+        // Add to shop overlay to ensure proper layering
+        this.shopOverlay.add(floatingText);
+        
+        // Animate the text floating upward and fading out
+        this.tweens.add({
+            targets: floatingText,
+            y: worldY - 50,
+            alpha: 0,
+            duration: 1000,
+            ease: 'Power2',
+            onComplete: () => {
+                floatingText.destroy();
+            }
+        });
     }
 }
 

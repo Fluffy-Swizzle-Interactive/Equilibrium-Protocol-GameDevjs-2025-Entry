@@ -92,9 +92,9 @@ export const WEAPON_UPGRADES = [
         category: UPGRADE_CATEGORIES.RANGE,
         rarity: RARITY.COMMON,
         price: 80,
-        effects: '+20% Bullet Range',
+        effects: 'Increases length of player shooting line by 10%',
         stats: {
-            bulletRange: 1.2 // 20% range boost
+            bulletRange: 1.1 // 10% range boost
         },
         visualProperties: {
             borderColor: 0x33aa33,
@@ -228,7 +228,7 @@ export const WEAPON_UPGRADES = [
     },
     {
         id: 'drone_2',
-        name: '🤖🤖 Combat Drone II',
+        name: '🤖 Combat Drone II',
         category: UPGRADE_CATEGORIES.DRONE,
         rarity: RARITY.LEGENDARY,
         price: 500,
@@ -245,7 +245,7 @@ export const WEAPON_UPGRADES = [
     },
     {
         id: 'drone_3',
-        name: '🤖🤖🤖 Combat Drone III',
+        name: '🤖 Combat Drone III',
         category: UPGRADE_CATEGORIES.DRONE,
         rarity: RARITY.LEGENDARY,
         price: 750,
