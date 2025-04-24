@@ -21,6 +21,7 @@ When chaos reaches extreme values (above 85 or below -85):
 
 - **The dominated faction enters rage mode**: When chaos is high positive (>85), AI enemies enter rage mode and rush aggressively toward the player with increased speed and damage. When chaos is high negative (<-85), Coder enemies enter rage mode and do the same.
 - **The dominant faction gains power**: The dominant faction receives stat boosts.
+- **Maximum chaos cooldown period**: When either faction reaches maximum dominance (±100), the chaos meter locks for 5 seconds, preventing player influence and ensuring a sustained period of maximum faction advantage.
 
 ### Spawn Rate Adjustment
 
@@ -38,6 +39,7 @@ The chaos system has been carefully tuned to create an engaging but manageable c
 - **Momentum Decay**: 0.96 (increased from 0.98 for faster momentum dissipation)
 - **Maximum Momentum**: 3.5× (reduced from 5.0 for more manageable chaos shifts)
 - **Random Oscillations**: Disabled (removed for predictable, player-action-driven chaos)
+- **Max Chaos Cooldown**: 5 seconds of sustained maximum chaos before player influence can resume
 
 ## Implementation
 
@@ -60,6 +62,7 @@ Key methods:
 - `isEnraged(groupId)`: Checks if a faction should be in rage state
 - `getMultipliers(groupId)`: Gets stat multipliers for a faction
 - `triggerFactionSurge(factionId)`: Creates temporary dramatic surge in enemy spawns
+- `startExtremeChaosTimeout()`: Initiates the cooldown period when maximum chaos is reached
 
 ### GroupWeightManager
 
@@ -80,6 +83,24 @@ Key methods:
 - `registerKill(groupId)`: Records a kill and adjusts weights accordingly
 - `temporaryBoost(groupId, multiplier, duration)`: Creates a temporary surge for gameplay events
 
+## Maximum Chaos Cooldown Feature
+
+When the chaos meter reaches either extreme (±100), a cooldown period activates:
+
+- **Duration**: 5 seconds of sustained maximum chaos
+- **Effect**: Player actions cannot influence the chaos meter during this period
+- **Purpose**: Creates a significant game moment where players must endure the full impact of faction dominance
+- **Visual Feedback**: A visual indicator shows that the chaos meter is locked
+- **Grace Period**: When the cooldown ends, chaos resets to 25% of its extreme value (±25)
+  - Allows players a period of relative calm to recover and rebalance
+  - Prevents immediate return to extreme chaos conditions
+  - Creates a gameplay rhythm with peaks of intensity followed by recovery periods
+- **Events**: 
+  - `CHAOS_LOCKED`: Emitted when the cooldown begins
+  - `CHAOS_UNLOCKED`: Emitted when the cooldown ends, chaos resets, and player influence can resume
+
+This feature intensifies the consequences of allowing a faction to reach full dominance, requiring players to adapt their strategy during periods of extreme faction advantage.
+
 ## Randomized Initial Weights
 
 Each gameplay session now begins with randomized weight distribution between AI and Coder factions:
@@ -98,6 +119,7 @@ The chaos system has been refined to ensure players have direct and predictable 
 - **Clear Cause and Effect**: Every player action has a direct, predictable impact on game dynamics
 - **Player-Driven Gameplay**: All significant changes in faction balance are directly tied to player choices
 - **Randomized Initial Weights**: Adds variety and surprise to each session
+- **Intentional Cooldown**: The maximum chaos cooldown creates a strategic element where players must consider the consequences of pushing a faction to dominance
 
 ## Visual Feedback
 
@@ -107,6 +129,7 @@ The chaos system provides clear visual feedback to help players understand the c
 - Particle effects using faction colors during major events
 - Screen shake effects when crossing thresholds
 - Enemies visibly entering rage state with clear visual indicators (red pulsing and size changes)
+- Visual indicator when chaos meter is locked during maximum chaos cooldown
 
 ## Integrating with Other Systems
 
@@ -116,6 +139,7 @@ The chaos system integrates with these other game systems:
 - **Enemy Stats**: Modifies health, damage, and other stats based on chaos level
 - **Spawn System**: Affects the distribution of enemy groups
 - **Visual Effects**: Triggers appropriate visual feedback
+- **UI Manager**: Displays chaos meter and indicates when it's locked during cooldown
 
 ## Debugging
 
@@ -131,6 +155,7 @@ This will log:
 - Spawn weight adjustments
 - Major events and thresholds
 - Faction surges
+- Chaos cooldown start and end events
 
 ## Design Considerations
 
@@ -142,6 +167,7 @@ The chaos system encourages strategic target selection:
 - Paying attention to the chaos meter informs optimal strategy
 - Players can reliably predict game responses to their actions
 - When a faction enters rage mode, extra caution is needed as they become more dangerous
+- The maximum chaos cooldown forces players to deal with the consequences of their targeting choices for a sustained period
 
 ### Game Balance
 
@@ -151,6 +177,7 @@ The system has been tuned to achieve:
 - Dynamic but manageable difficulty that rewards strategic play
 - Predictable behavior that allows players to make informed decisions
 - More challenging gameplay when enemies enter rage mode, adding tension
+- Strategic depth through the chaos cooldown mechanic, creating high-stakes moments
 
 ---
 

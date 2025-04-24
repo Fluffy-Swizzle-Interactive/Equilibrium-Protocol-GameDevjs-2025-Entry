@@ -42,7 +42,7 @@ export class RageState {
         this.enemy.speed *= this.speedBoost;
         this.enemy.damage *= this.damageBoost;
         
-        // Visual indicator for rage (red outline glow)
+        // Visual indicator for rage (white outline glow)
         if (this.enemy.graphics) {
             // Create an outline graphic as a child of the enemy
             this.createRageOutline();
@@ -73,14 +73,14 @@ export class RageState {
     }
     
     /**
-     * Create a glowing red outline around the enemy
+     * Create a glowing white outline around the enemy
      * @private
      */
     createRageOutline() {
         // Remove any existing outline
         this.removeRageOutline();
         
-        // Create a slightly larger rectangle with red color for the outline
+        // Create a slightly larger rectangle with white color for the outline
         const outlineSize = this.enemy.size + 4; // Make outline 4px larger than the enemy
         
         // Create outline as a separate game object that follows the enemy
@@ -89,7 +89,7 @@ export class RageState {
             this.enemy.graphics.y,
             outlineSize,
             outlineSize,
-            0xff0000
+             0xffffff  // Changed from red (0xff0000) to white (0xffffff)
         );
         
         // Set depth to be behind the enemy

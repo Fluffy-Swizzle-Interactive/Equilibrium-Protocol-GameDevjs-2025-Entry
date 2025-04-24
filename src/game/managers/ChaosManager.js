@@ -71,6 +71,10 @@ export class ChaosManager {
         this.oscillationSpeed = 0;       // Set to zero
         this.lastOscillationTime = Date.now();
         
+        // NEW: Cooldown timer for extreme chaos values
+        this.extremeChaosTimeoutActive = false;
+        this.maxChaosCooldownDuration = 5000; // 5 seconds in milliseconds
+        
         // Register this manager with the scene for easy access
         scene.chaosManager = this;
         
@@ -120,6 +124,14 @@ export class ChaosManager {
     registerKill(groupId) {
         // Skip if invalid group
         if (!groupId || groupId === GroupId.NEUTRAL) {
+            return this.chaosValue;
+        }
+        
+        // NEW: Skip if we're in an extreme chaos cooldown period
+        if (this.extremeChaosTimeoutActive) {
+            if (this.isDev) {
+                console.debug('Chaos change blocked: Extreme chaos cooldown active');
+            }
             return this.chaosValue;
         }
         
@@ -443,12 +455,18 @@ export class ChaosManager {
         if (newValue === this.maxValue && !this.majorEventFired[this.maxValue]) {
             this.triggerMajorChaosEvent(GroupId.CODER);
             this.majorEventFired[this.maxValue] = true;
+            
+            // NEW: Start the extreme chaos cooldown timer for maximum CODER dominance
+            this.startExtremeChaosTimeout();
         }
         
         // Check for min value reached
         if (newValue === this.minValue && !this.majorEventFired[this.minValue]) {
             this.triggerMajorChaosEvent(GroupId.AI);
             this.majorEventFired[this.minValue] = true;
+            
+            // NEW: Start the extreme chaos cooldown timer for maximum AI dominance
+            this.startExtremeChaosTimeout();
         }
         
         // Reset fired flag if moving away from extremes
@@ -459,6 +477,54 @@ export class ChaosManager {
         if (oldValue === this.minValue && newValue > this.minValue) {
             this.majorEventFired[this.minValue] = false;
         }
+    }
+    
+    /**
+     * NEW: Start a timeout that prevents chaos changes while at extreme values
+     * @private
+     */
+    startExtremeChaosTimeout() {
+        // Set the flag to block chaos changes
+        this.extremeChaosTimeoutActive = true;
+        
+        if (this.isDev) {
+            console.debug(`Extreme chaos cooldown started. Duration: ${this.maxChaosCooldownDuration / 1000}s`);
+        }
+        
+        // Create a visual indicator that chaos is locked
+        EventBus.emit('CHAOS_LOCKED', {
+            duration: this.maxChaosCooldownDuration,
+            faction: this.chaosValue === this.maxValue ? GroupId.CODER : GroupId.AI
+        });
+        
+        // Store the current chaos value to calculate the reset value later
+        const extremeChaosValue = this.chaosValue;
+        
+        // After the timeout, allow chaos changes again
+        this.scene.time.delayedCall(this.maxChaosCooldownDuration, () => {
+            this.extremeChaosTimeoutActive = false;
+            
+            // Reset chaos to 25% of its extreme value to give the player grace
+            // If at max chaos (100), reset to 25
+            // If at min chaos (-100), reset to -25
+            const resetValue = extremeChaosValue > 0 ? 
+                Math.floor(this.maxValue * 0.25) : 
+                Math.ceil(this.minValue * 0.25);
+            
+            // Set the new chaos value and emit event
+            this.setChaos(resetValue);
+            
+            if (this.isDev) {
+                console.debug(`Extreme chaos cooldown ended. Chaos reset from ${extremeChaosValue} to ${resetValue}`);
+            }
+            
+            // Emit an event that chaos can be influenced again
+            EventBus.emit('CHAOS_UNLOCKED', {
+                value: resetValue,
+                previousValue: extremeChaosValue,
+                faction: extremeChaosValue === this.maxValue ? GroupId.CODER : GroupId.AI
+            });
+        });
     }
     
     /**
@@ -615,6 +681,14 @@ export class ChaosManager {
      * @returns {number} The new chaos value after adjustment and clamping
      */
     adjustChaos(amount, emitEvent = true) {
+        // NEW: Skip if extreme chaos cooldown is active
+        if (this.extremeChaosTimeoutActive) {
+            if (this.isDev) {
+                console.debug('Chaos adjustment blocked: Extreme chaos cooldown active');
+            }
+            return this.chaosValue;
+        }
+        
         return this.setChaos(this.chaosValue + amount, emitEvent);
     }
     
@@ -661,6 +735,9 @@ export class ChaosManager {
         this.currentMomentum = 0;
         this.consecutiveKillCount = 0;
         this.consecutiveKillType = null;
+        
+        // Clear any active chaos timeout
+        this.extremeChaosTimeoutActive = false;
         
         // Update multipliers
         this.updateMultiplierCache();
