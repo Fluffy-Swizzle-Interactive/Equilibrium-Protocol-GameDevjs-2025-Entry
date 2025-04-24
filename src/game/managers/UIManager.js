@@ -1240,11 +1240,15 @@ export class UIManager {
         // Listen for cash updates
         EventBus.on('cash-updated', this.updateCashUI, this);
         
+        // Listen for faction surge events
+        EventBus.on('faction-surge', this.showFactionSurgeNotification, this);
+        
         // Clean up listeners when scene changes
         this.scene.events.once('shutdown', () => {
             EventBus.off('xp-updated', this.updateXPUI, this);
             EventBus.off('level-up');
             EventBus.off('cash-updated', this.updateCashUI, this);
+            EventBus.off('faction-surge', this.showFactionSurgeNotification, this);
         });
     }
     
@@ -1266,6 +1270,107 @@ export class UIManager {
         
         // Update chaos meter
         this.updateChaosMeter();
+    }
+    
+    /**
+     * Display a faction surge notification when a dramatic shift in spawn rates occurs
+     * @param {Object} data - Surge data including group ID and strength
+     */
+    showFactionSurgeNotification(data) {
+        const { groupId, strength } = data;
+        
+        // Determine faction name and color based on groupId
+        let factionName = groupId === 'ai' ? 'AI' : 'Coder';
+        let color = groupId === 'ai' ? 0x00aaff : 0xff5500;
+        
+        // Create notification background
+        const surgeBackground = this.scene.add.rectangle(
+            this.scene.cameras.main.width / 2,
+            this.scene.cameras.main.height * 0.2,
+            400,
+            100,
+            0x000000,
+            0.8
+        ).setScrollFactor(0).setDepth(100);
+        
+        // Create notification text
+        const surgeText = this.scene.add.text(
+            this.scene.cameras.main.width / 2,
+            this.scene.cameras.main.height * 0.2,
+            `${factionName} SURGE!\nMassive reinforcements incoming!`,
+            {
+                fontFamily: 'Arial',
+                fontSize: '24px',
+                color: `#${color.toString(16).padStart(6, '0')}`,
+                align: 'center',
+                stroke: '#000000',
+                strokeThickness: 4
+            }
+        ).setOrigin(0.5).setScrollFactor(0).setDepth(101);
+        
+        // Create particle effect
+        if (this.scene.particles) {
+            const particles = this.scene.particles.createEmitter({
+                x: this.scene.cameras.main.width / 2,
+                y: this.scene.cameras.main.height * 0.2 + 30,
+                speed: { min: 100, max: 200 },
+                angle: { min: 230, max: 310 },
+                scale: { start: 0.6, end: 0 },
+                blendMode: 'ADD',
+                lifespan: 800,
+                quantity: 2,
+                tint: color
+            });
+            
+            // Stop after a short time
+            this.scene.time.delayedCall(1500, () => {
+                particles.stop();
+            });
+        }
+        
+        // Create dramatic animation
+        this.scene.tweens.add({
+            targets: [surgeBackground, surgeText],
+            scaleX: { from: 0, to: 1 },
+            scaleY: { from: 0, to: 1 },
+            duration: 300,
+            ease: 'Back.easeOut',
+            onComplete: () => {
+                // Add pulsing effect
+                this.scene.tweens.add({
+                    targets: [surgeBackground, surgeText],
+                    scale: { from: 1, to: 1.05 },
+                    yoyo: true,
+                    repeat: 3,
+                    duration: 150,
+                    onComplete: () => {
+                        // Fade out after delay
+                        this.scene.time.delayedCall(1500, () => {
+                            this.scene.tweens.add({
+                                targets: [surgeBackground, surgeText],
+                                alpha: 0,
+                                y: '-=50',
+                                duration: 500,
+                                onComplete: () => {
+                                    surgeBackground.destroy();
+                                    surgeText.destroy();
+                                }
+                            });
+                        });
+                    }
+                });
+            }
+        });
+        
+        // Camera shake effect
+        if (this.scene.cameras && this.scene.cameras.main) {
+            this.scene.cameras.main.shake(300, 0.005);
+        }
+        
+        // Play dramatic sound if available
+        if (this.scene.soundManager) {
+            this.scene.soundManager.playSoundEffect('surge_alert', { volume: 0.7 });
+        }
     }
     
     /**

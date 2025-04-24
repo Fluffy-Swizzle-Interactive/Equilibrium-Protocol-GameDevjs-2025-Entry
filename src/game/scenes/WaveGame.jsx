@@ -12,6 +12,7 @@ import { UIManager } from '../managers/UIManager';
 import { PlayerHealth } from '../entities/PlayerHealth';
 import { GroupManager } from '../managers/GroupManager';
 import { ChaosManager } from '../managers/ChaosManager';
+import { GroupWeightManager } from '../managers/GroupWeightManager';
 import { XPManager } from '../managers/XPManager';
 import { CashManager } from '../managers/CashManager';
 import { SpritePool } from '../entities/SpritePool';
@@ -78,6 +79,7 @@ export class WaveGame extends Scene {
         this.setupObjectManager(); // Initialize object pooling system
         this.setupGroupManager(); // Initialize group management system
         this.setupChaosManager(); // Initialize chaos management system
+        this.setupGroupWeightManager(); // Initialize group weight management system
         this.setupUIManager(); // Setup UI before game objects
         this.setupGameObjects(); // Then create player and other objects
         this.setupWaveManager(); // Setup wave manager after other systems
@@ -181,6 +183,19 @@ export class WaveGame extends Scene {
             initialValue: CHAOS.DEFAULT_VALUE,
             autoAdjust: false // Start with auto-adjust disabled
         });
+    }
+
+    /**
+     * Set up the group weight manager for faction weights
+     */
+    setupGroupWeightManager() {
+        // Create the group weight manager
+        this.groupWeightManager = new GroupWeightManager(this);
+
+        // Connect the group weight manager with the chaos manager
+        if (this.chaosManager) {
+            this.chaosManager.setGroupWeightManager(this.groupWeightManager);
+        }
     }
 
     /**

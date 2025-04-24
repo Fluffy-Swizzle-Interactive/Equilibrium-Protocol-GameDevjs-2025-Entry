@@ -1,6 +1,6 @@
 import { DEPTHS, GroupId } from '../constants';
 import { EventBus } from '../EventBus';
-import { PanicFleeState } from './ai/PanicFleeState';
+import { RageState } from './ai/RageState';
 
 /**
  * Base class for all enemy types in the game
@@ -267,13 +267,13 @@ export class BaseEnemy {
             return;
         }
 
-        // Check if we should be panicking
-        this.checkPanicState();
+        // Check if we should be enraged
+        this.checkRageState();
 
-        // If currently in panic state, execute that behavior
-        if (this.panicState) {
-            if (this.panicState.execute()) {
-                // Panic state handling movement, skip usual movement
+        // If currently in rage state, execute that behavior
+        if (this.rageState) {
+            if (this.rageState.execute()) {
+                // Rage state handling movement, skip usual movement
 
                 // Still check player collision
                 const playerPos = this.scene.player.getPosition();
@@ -286,8 +286,8 @@ export class BaseEnemy {
 
                 return;
             } else {
-                // Panic state finished, exit it
-                this.exitPanicState();
+                // Rage state finished, exit it
+                this.exitRageState();
             }
         }
 
@@ -306,33 +306,33 @@ export class BaseEnemy {
     }
 
     /**
-     * Check if this enemy should enter or exit panic state
+     * Check if this enemy should enter or exit rage state
      * @private
      */
-    checkPanicState() {
-        const shouldPanic = PanicFleeState.shouldPanic(this);
+    checkRageState() {
+        const shouldRage = RageState.shouldRage(this);
 
-        // If already in panic state and should not be, exit it
-        if (this.panicState && !shouldPanic) {
-            this.exitPanicState();
+        // If already in rage state and should not be, exit it
+        if (this.rageState && !shouldRage) {
+            this.exitRageState();
         }
-        // If not in panic state but should be, enter it
-        else if (!this.panicState && shouldPanic) {
-            this.enterPanicState();
+        // If not in rage state but should be, enter it
+        else if (!this.rageState && shouldRage) {
+            this.enterRageState();
         }
     }
 
     /**
-     * Enter panic state
+     * Enter rage state
      * @private
      */
-    enterPanicState() {
-        // Create new panic state
-        this.panicState = new PanicFleeState(this);
-        this.panicState.enter();
+    enterRageState() {
+        // Create new rage state
+        this.rageState = new RageState(this);
+        this.rageState.enter();
 
-        // Emit panic started event
-        EventBus.emit('enemy-panic-started', {
+        // Emit rage started event
+        EventBus.emit('enemy-rage-started', {
             enemy: this,
             groupId: this.groupId,
             position: {
@@ -343,16 +343,16 @@ export class BaseEnemy {
     }
 
     /**
-     * Exit panic state
+     * Exit rage state
      * @private
      */
-    exitPanicState() {
-        if (this.panicState) {
-            this.panicState.exit();
-            this.panicState = null;
+    exitRageState() {
+        if (this.rageState) {
+            this.rageState.exit();
+            this.rageState = null;
 
-            // Emit panic ended event
-            EventBus.emit('enemy-panic-ended', {
+            // Emit rage ended event
+            EventBus.emit('enemy-rage-ended', {
                 enemy: this,
                 groupId: this.groupId,
                 position: {
@@ -364,11 +364,11 @@ export class BaseEnemy {
     }
 
     /**
-     * Check if this enemy is currently panicking
-     * @returns {boolean} True if in panic state
+     * Check if this enemy is currently enraged
+     * @returns {boolean} True if in rage state
      */
-    isPanicking() {
-        return !!this.panicState;
+    isEnraged() {
+        return !!this.rageState;
     }
 
     /**
@@ -443,14 +443,16 @@ export class BaseEnemy {
 
         this.health -= damage;
 
+        // Store the current fill style before flashing
+        const currentFill = this.graphics.fillColor;
+
         // Flash the enemy to white to indicate hit
         this.graphics.setFillStyle(0xffffff);
         this.scene.time.delayedCall(100, () => {
             if (this.active && this.graphics && this.graphics.active) {
-                // Only restore original color if not in panic state
-                if (!this.isPanicking()) {
-                    this.graphics.setFillStyle(this.color);
-                }
+                // Always restore to the original color even during rage state
+                // Since rage now uses an outline instead of color change
+                this.graphics.setFillStyle(currentFill);
             }
         });
 
@@ -464,9 +466,9 @@ export class BaseEnemy {
      * Handle enemy death
      */
     die() {
-        // Exit panic state if active
-        if (this.panicState) {
-            this.exitPanicState();
+        // Exit rage state if active
+        if (this.rageState) {
+            this.exitRageState();
         }
 
         // Skip if already marked inactive to prevent double-counting

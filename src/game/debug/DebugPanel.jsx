@@ -274,7 +274,7 @@ export function DebugPanel({ gameRef }) {
         const chaosManager = gameRef.current?.scene?.chaosManager;
         if (chaosManager) {
             const currentValue = chaosManager.getChaos?.() || chaosManager.chaosValue || 0;
-            const newValue = currentValue > 0 ? -50 : 50;
+            const newValue = currentValue > 0 ? -100 : 100; // Changed from 50 to 100
 
             if (typeof chaosManager.setChaos === 'function') {
                 chaosManager.setChaos(newValue);
