@@ -617,16 +617,7 @@ export class WaveGame extends Scene {
                         }
                         this.playerColliders.push(collider);
 
-                        // Debug visualization for collision layer
-                        if (this.isDev || true) { // Always show for now
-                            const debugGraphics = this.add.graphics();
-                            layer.renderDebug(debugGraphics, {
-                                tileColor: null, // Non-colliding tiles
-                                collidingTileColor: new Phaser.Display.Color(243, 134, 48, 128), // Colliding tiles
-                                faceColor: new Phaser.Display.Color(40, 39, 37, 255) // Colliding face edges
-                            });
-                            debugGraphics.setDepth(DEPTHS.DEBUG);
-                        }
+                        // Debug visualization removed
                     } else {
                         console.warn(`Layer not found: ${layerName}`);
                     }

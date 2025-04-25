@@ -313,16 +313,7 @@ export class MapManager {
                         // Use collision groups defined in Tiled
                         layer.setCollisionFromCollisionGroup();
 
-                        // Debug collision areas if in development mode
-                        if (this.scene.isDev) {
-                            const debugGraphics = this.scene.add.graphics();
-                            layer.renderDebug(debugGraphics, {
-                                tileColor: null,
-                                collidingTileColor: new Phaser.Display.Color(243, 134, 48, 128),
-                                faceColor: new Phaser.Display.Color(40, 39, 37, 255)
-                            });
-                            debugGraphics.setDepth(DEPTHS.DEBUG);
-                        }
+                        // Debug collision visualization removed
                     }
                     // If specific properties are defined for collision, use them
                     else if (mapConfig.collisionProperties) {

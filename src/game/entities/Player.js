@@ -269,9 +269,7 @@ export class Player {
             // Set the body to be a circle with the player's radius
             // We'll set the actual circle in adjustSpriteScale() after the sprite is scaled
 
-            // Create debug graphics for the physics body
-            this.debugGraphics = this.scene.add.graphics();
-            this.debugGraphics.setDepth(DEPTHS.DEBUG);
+            // Debug graphics removed
 
             // Log for debugging
             console.log(`Player physics body initialized with radius: ${this.radius}`);
@@ -460,7 +458,6 @@ export class Player {
         this.updateMovement();
         this.updateAiming();
         this.updateAnimation();
-        this.updateDebugGraphics();
 
         // Update weapon manager if it exists
         if (this.weaponManager) {
@@ -477,88 +474,10 @@ export class Player {
 
     /**
      * Update debug graphics to visualize the physics body
+     * @deprecated Debug graphics have been removed
      */
     updateDebugGraphics() {
-        if (this.debugGraphics && this.graphics && this.graphics.body) {
-            try {
-                this.debugGraphics.clear();
-
-                // Draw the physics body outline
-                this.debugGraphics.lineStyle(2, 0xff0000);
-
-                // Draw the actual physics body bounds
-                const body = this.graphics.body;
-
-                // Draw the physics body circle (red)
-                this.debugGraphics.lineStyle(2, 0xff0000);
-                if (body.isCircle) {
-                    // Calculate the center of the physics body circle
-                    // We need to account for the offset we applied to the physics body
-                    const centerX = this.graphics.x; // Centered horizontally
-                    const centerY = this.graphics.y + 20; // Add 20 pixels to match the Y offset
-
-                    // Draw the physics body circle
-                    this.debugGraphics.strokeCircle(
-                        centerX,
-                        centerY,
-                        this.radius
-                    );
-                }
-
-                // Draw the sprite bounds (blue)
-                this.debugGraphics.lineStyle(1, 0x0000ff, 0.5);
-                this.debugGraphics.strokeRect(
-                    this.graphics.x - this.graphics.displayWidth / 2,
-                    this.graphics.y - this.graphics.displayHeight / 2,
-                    this.graphics.displayWidth,
-                    this.graphics.displayHeight
-                );
-
-                // Draw the physics body bounds (green)
-                this.debugGraphics.lineStyle(1, 0x00ff00);
-                this.debugGraphics.strokeRect(
-                    body.x,
-                    body.y,
-                    body.width,
-                    body.height
-                );
-
-                // Draw a cross at the center of the player for reference
-                this.debugGraphics.lineStyle(1, 0xffff00);
-                this.debugGraphics.beginPath();
-                this.debugGraphics.moveTo(this.graphics.x - 5, this.graphics.y);
-                this.debugGraphics.lineTo(this.graphics.x + 5, this.graphics.y);
-                this.debugGraphics.moveTo(this.graphics.x, this.graphics.y - 5);
-                this.debugGraphics.lineTo(this.graphics.x, this.graphics.y + 5);
-                this.debugGraphics.strokePath();
-
-                // Draw a cross at the center of the physics body for reference
-                const physicsBodyCenterX = this.graphics.x;
-                const physicsBodyCenterY = this.graphics.y + 20;
-                this.debugGraphics.lineStyle(1, 0xff00ff); // Magenta
-                this.debugGraphics.beginPath();
-                this.debugGraphics.moveTo(physicsBodyCenterX - 5, physicsBodyCenterY);
-                this.debugGraphics.lineTo(physicsBodyCenterX + 5, physicsBodyCenterY);
-                this.debugGraphics.moveTo(physicsBodyCenterX, physicsBodyCenterY - 5);
-                this.debugGraphics.lineTo(physicsBodyCenterX, physicsBodyCenterY + 5);
-                this.debugGraphics.strokePath();
-
-                // Draw velocity vector
-                if (body.velocity.x !== 0 || body.velocity.y !== 0) {
-                    const velocityScale = 0.1; // Scale down the velocity for visualization
-                    this.debugGraphics.lineStyle(2, 0x0000ff);
-                    this.debugGraphics.beginPath();
-                    this.debugGraphics.moveTo(this.graphics.x, this.graphics.y);
-                    this.debugGraphics.lineTo(
-                        this.graphics.x + body.velocity.x * velocityScale,
-                        this.graphics.y + body.velocity.y * velocityScale
-                    );
-                    this.debugGraphics.strokePath();
-                }
-            } catch (error) {
-                console.error('Error updating debug graphics:', error);
-            }
-        }
+        // Debug graphics have been removed
     }
 
     /**
@@ -919,6 +838,12 @@ export class Player {
 
         if (this.cursorCircle) {
             this.cursorCircle.destroy();
+        }
+
+        // Clean up debug graphics if it exists
+        if (this.debugGraphics) {
+            this.debugGraphics.destroy();
+            this.debugGraphics = null;
         }
 
         // Clean up any active tweens related to this player
