@@ -2,12 +2,12 @@
     "preload": {
         "files": [
             {
-                "url": "assets/logo.png",
+                "url": "assets/images/logo.png",
                 "type": "image",
                 "key": "logo"
             },
             {
-                "url": "assets/star.png",
+                "url": "assets/images/star.png",
                 "type": "image",
                 "key": "star"
             }
