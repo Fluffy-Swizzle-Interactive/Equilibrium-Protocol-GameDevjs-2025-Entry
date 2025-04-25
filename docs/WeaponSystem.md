@@ -55,10 +55,14 @@ PlayerDrone represents combat drones that:
 ```javascript
 class BulletPool {
   constructor(scene, options = {})
-  createMinigunBullet(x, y, dirX, dirY, speed, health, color, size)
-  createShotgunBullets(x, y, dirX, dirY, speed, health, color, size, count, spreadAngle)
+  createMinigunBullet(x, y, dirX, dirY, speed, health, color, size, bulletType, weaponType)
+  createShotgunBullets(x, y, dirX, dirY, speed, health, color, size, count, spreadAngle, bulletType, weaponType)
   releaseBullet(bullet)
   updateBullets(updateFunc, cullFunc)
+  applyHomingBehavior(bullet)
+  updateHomingTrail(bullet, targetEnemy)
+  createFallbackParticleTexture()
+  findClosestEnemy(bullet)
   getStats()
 }
 ```
@@ -66,6 +70,7 @@ class BulletPool {
 BulletPool implements object pooling for bullets to optimize performance by:
 - Reusing bullet objects instead of creating new ones
 - Managing different bullet types (minigun, shotgun)
+- Supporting both sprite-based and circle-based bullets
 - Handling bullet lifecycle (creation, updating, destruction)
 
 ## Weapon Types
@@ -74,13 +79,58 @@ BulletPool implements object pooling for bullets to optimize performance by:
 - Fast firing single bullets
 - Medium damage per shot
 - High rate of fire
-- Yellow bullet color
+- Uses blue bullet sprites (bullet_1, bullet_4, bullet_7)
 
 ### Shotgun
 - Multiple bullets fired in a spread pattern
 - Lower damage per individual bullet
 - Lower rate of fire
-- Orange bullet color
+- Uses red bullet sprites (bullet_2, bullet_5, bullet_8)
+
+### Plasma (Future Expansion)
+- Uses green bullet sprites (bullet_3, bullet_6, bullet_9, bullet_10)
+
+## Bullet System
+
+### Sprite-Based Bullets
+The game now uses sprite-based bullets instead of simple colored circles. This provides:
+
+- More visually appealing projectiles
+- Better collision detection using circle-to-circle physics
+- Weapon-specific bullet appearance
+- Configurable collision radius for each bullet type
+- Support for bullet tinting/coloring
+
+The bullet sprite system includes:
+- 10 different bullet sprites (bullet_1 through bullet_10)
+- Automatic mapping of weapon types to appropriate bullet sprites
+- Fallback to circle bullets if sprite assets aren't available
+- Physics bodies for potential collision with map objects
+- Proper rotation to match bullet direction
+
+```javascript
+// Bullet sprite configuration example
+this.bulletSprites = {
+  'bullet_1': { key: 'bullet_1', scale: 0.8, radius: 4 },
+  'bullet_2': { key: 'bullet_2', scale: 0.8, radius: 5 },
+  // etc.
+};
+
+// Mapping weapons to bullet sprites
+this.weaponBulletMap = {
+  'minigun': ['bullet_1', 'bullet_4', 'bullet_7'],
+  'shotgun': ['bullet_2', 'bullet_5', 'bullet_8'],
+  'plasma': ['bullet_3', 'bullet_6', 'bullet_9', 'bullet_10']
+};
+```
+
+### Bullet Collision Detection
+Bullet collisions with enemies use an optimized detection system:
+
+- Circle-to-circle detection for more accurate sprite-based collisions
+- For sprite-based enemies, uses the enemy's bodyRadius property for precise collisions
+- For all other enemies, uses distance-based collision detection
+- Uses spatial grid optimization to reduce collision checks
 
 ## Drone System
 
@@ -142,6 +192,20 @@ this.player.weaponManager.applyUpgrade(upgrade);
 // Adding a drone:
 this.player.weaponManager.upgradeDrones();
 ```
+
+## Asset Requirements
+
+### Bullet Sprites
+The bullet system requires the following sprite assets to be loaded in the preload function:
+
+```javascript
+// In scene's preload method:
+for (let i = 1; i <= 10; i++) {
+  this.load.image(`bullet_${i}`, `assets/sprites/bullets/bullet_${i}.png`);
+}
+```
+
+Bullets should be placed in: `public/assets/sprites/bullets/`
 
 ## Integration with Other Systems
 

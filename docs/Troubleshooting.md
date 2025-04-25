@@ -468,167 +468,166 @@ The particle configuration options remain the same, only the method of creating 
    }
    ```
 
-### Input Issues
+### Bullet Sprite and Collision Issues
 
 **Symptoms:**
-- Controls not responding
-- Delayed or inconsistent input
-- Multiple inputs triggered from a single press
+- Bullet sprites not visible but still interacting with the game
+- Bullet-enemy collisions not registering correctly
+- Inconsistent bullet behavior across different weapons
 
 **Possible Causes and Solutions:**
 
-1. **Input configuration issues**
-   - Check input configuration and key bindings
-   - Verify that input is enabled
+1. **Bullet sprite path issues**
+   - Check for case sensitivity in folder names (e.g., 'bullets' vs 'BULLETS')
+   - Verify correct asset path in preload method
 
    ```javascript
-   // Debug input configuration
-   create() {
-       // Log all input configurations
-       console.log('Input config:', this.input.keyboard.bindings);
-       
-       // Ensure input is enabled
-       this.input.keyboard.enabled = true;
-       this.input.mouse.enabled = true;
+   // Correct way to preload bullet sprites
+   preload() {
+       // Make sure to use the correct case for folder names
+       for (let i = 1; i <= 10; i++) {
+           const bulletKey = `bullet_${i}`;
+           const bulletPath = `assets/sprites/BULLETS/${bulletKey}.png`;
+           this.load.image(bulletKey, bulletPath);
+       }
    }
    ```
 
-2. **Event handling issues**
-   - Use appropriate event handlers (down vs. up vs. press)
-   - Check for conflicting event handlers
+2. **Bullet pool configuration issues**
+   - Ensure bullet properties are correctly applied when creating bullets
+   - Configure proper radius and scale for sprite-based bullets
 
    ```javascript
-   // Proper input handling
-   create() {
-       // For single press actions (like shooting)
-       this.input.keyboard.on('keydown-SPACE', this.fireWeapon, this);
+   // Configure bullet sprites properly in BulletPool constructor
+   constructor(scene, options = {}) {
+       // ...other initialization code...
        
-       // For continuous actions (like movement), check in update
-       this.keys = this.input.keyboard.addKeys({
-           up: 'W',
-           down: 'S',
-           left: 'A',
-           right: 'D'
+       // Configure bullet sprites with correct scale and collision radius
+       this.bulletSprites = {
+           'bullet_1': { scale: 0.8, radius: 4 },
+           'bullet_2': { scale: 0.8, radius: 5 },
+           // Define all bullet types with appropriate properties
+       };
+       
+       // Map weapon types to bullet sprites
+       this.weaponBulletMap = {
+           'minigun': ['bullet_1', 'bullet_4', 'bullet_7'],
+           'shotgun': ['bullet_2', 'bullet_5', 'bullet_8'],
+           // Map weapon types to appropriate bullet sprites
+       };
+   }
+   ```
+
+3. **Bullet-enemy collision detection problems**
+   - Use appropriate collision detection methods (circle-to-circle for better accuracy)
+   - Ensure bullet radius and enemy hitbox radius are properly defined
+
+   ```javascript
+   // Improved circle-to-circle collision detection
+   checkCollision(bullet, enemy) {
+       // Get bullet radius (use stored radius property or default to 5)
+       const bulletRadius = bullet.radius || 5;
+       
+       // Get enemy radius (use bodyRadius property if available)
+       let enemyRadius;
+       if (enemy.bodyRadius !== undefined) {
+           enemyRadius = enemy.bodyRadius;
+       } else if (enemy.body && enemy.body.isCircle) {
+           enemyRadius = enemy.body.radius;
+       } else {
+           // Fall back to approximating circle from body size
+           enemyRadius = Math.min(enemy.width, enemy.height) / 2;
+       }
+       
+       // Calculate distance between centers
+       const dx = bullet.x - enemy.x;
+       const dy = bullet.y - enemy.y;
+       const distance = Math.sqrt(dx * dx + dy * dy);
+       
+       // Circle-to-circle intersection test
+       return distance < (bulletRadius + enemyRadius);
+   }
+   ```
+
+4. **Bullet persistence and penetration issues**
+   - Track which enemies have already been hit by penetrating bullets
+   - Use proper bullet health/pierce mechanics for bullet lifetime
+
+   ```javascript
+   // Handle bullet penetration through enemies
+   handleBulletEnemyCollision(bullet, enemy) {
+       // Skip if this enemy was already hit by this bullet
+       if (bullet.penetratedEnemies && 
+           bullet.penetratedEnemies.includes(enemy.id)) {
+           return;
+       }
+       
+       // Apply damage to enemy
+       enemy.takeDamage(bullet.damage);
+       
+       // Track this enemy as hit
+       if (!bullet.penetratedEnemies) {
+           bullet.penetratedEnemies = [];
+       }
+       bullet.penetratedEnemies.push(enemy.id);
+       
+       // Reduce bullet health/pierce
+       if (bullet.health !== undefined) {
+           bullet.health--;
+       } else if (bullet.pierce !== undefined) {
+           bullet.pierce--;
+       }
+       
+       // Only destroy bullet if its health/pierce is depleted
+       if ((bullet.health !== undefined && bullet.health <= 0) ||
+           (bullet.pierce !== undefined && bullet.pierce <= 0)) {
+           bullet.destroy();
+       }
+   }
+   ```
+
+5. **Spatial partitioning optimization issues**
+   - Ensure spatial grid is correctly updated and used for collision checks
+   - Only check collisions in relevant grid cells for performance
+
+   ```javascript
+   // Update spatial grid for efficient collision detection
+   updateSpatialGrid() {
+       this.spatialGrid = {};
+       
+       // Add each enemy to its corresponding grid cell
+       this.enemies.getChildren().forEach(enemy => {
+           const cellX = Math.floor(enemy.x / this.gridCellSize);
+           const cellY = Math.floor(enemy.y / this.gridCellSize);
+           const cellKey = `${cellX},${cellY}`;
+           
+           if (!this.spatialGrid[cellKey]) {
+               this.spatialGrid[cellKey] = [];
+           }
+           this.spatialGrid[cellKey].push(enemy);
        });
    }
    
-   update() {
-       // Handle continuous input
-       if (this.keys.up.isDown) {
-           this.player.moveUp();
-       }
-   }
-   ```
-
-3. **Game focus issues**
-   - Check if game has focus
-   - Handle focus/blur events
-
-   ```javascript
-   // Handle game focus
-   create() {
-       // Pause game when window loses focus
-       this.game.events.on('blur', () => {
-           this.scene.pause();
-       });
+   // Check collisions only in relevant grid cells
+   checkBulletCollisions(bullet) {
+       // Get bullet's grid cell and adjacent cells
+       const cellX = Math.floor(bullet.x / this.gridCellSize);
+       const cellY = Math.floor(bullet.y / this.gridCellSize);
        
-       // Resume game when window gains focus
-       this.game.events.on('focus', () => {
-           this.scene.resume();
-       });
-   }
-   ```
-
-### Audio Issues
-
-**Symptoms:**
-- No sound playing
-- Sound effects cutting out
-- Audio distortion or incorrect playback
-
-**Possible Causes and Solutions:**
-
-1. **Audio not loaded properly**
-   - Check that audio files are properly preloaded
-   - Verify audio format support in the browser
-
-   ```javascript
-   // Load audio with fallbacks
-   preload() {
-       this.load.audio('explosion', [
-           'assets/audio/sfx/explosion.mp3',
-           'assets/audio/sfx/explosion.ogg'
-       ]);
-   }
-   ```
-
-2. **Browser autoplay policies**
-   - Require user interaction before playing audio
-   - Initialize audio system after user input
-
-   ```javascript
-   // Handle autoplay restrictions
-   create() {
-       // Create a "Click to Start" button
-       const startButton = this.add.text(512, 384, 'Click to Start', {
-           fontFamily: 'Arial',
-           fontSize: 32,
-           color: '#ffffff',
-           backgroundColor: '#333333',
-           padding: { x: 20, y: 10 }
-       }).setOrigin(0.5).setInteractive();
-       
-       // Initialize audio after user interaction
-       startButton.once('pointerdown', () => {
-           startButton.destroy();
-           this.soundManager.init();
-           this.startGame();
-       });
-   }
-   ```
-
-3. **Too many sounds playing simultaneously**
-   - Implement sound pooling
-   - Prioritize important sounds
-
-   ```javascript
-   // Sound pooling
-   playSound(key, config = {}) {
-       // Check if we've reached the maximum instances for this sound
-       if (!this.soundInstances[key]) {
-           this.soundInstances[key] = 0;
-       }
-       
-       if (this.soundInstances[key] >= this.maxInstancesPerSound) {
-           // Find the oldest instance and stop it
-           const oldestSound = this.activeSounds[key].shift();
-           if (oldestSound && oldestSound.isPlaying) {
-               oldestSound.stop();
+       // Check a 3x3 area of cells around the bullet
+       for (let x = cellX - 1; x <= cellX + 1; x++) {
+           for (let y = cellY - 1; y <= cellY + 1; y++) {
+               const cellKey = `${x},${y}`;
+               const enemiesInCell = this.spatialGrid[cellKey] || [];
+               
+               // Check collisions only with enemies in this cell
+               enemiesInCell.forEach(enemy => {
+                   if (this.checkCollision(bullet, enemy)) {
+                       this.handleBulletEnemyCollision(bullet, enemy);
+                   }
+               });
            }
-       } else {
-           this.soundInstances[key]++;
        }
-       
-       // Play the sound
-       const sound = this.scene.sound.add(key, config);
-       sound.play();
-       
-       // Track active sounds
-       if (!this.activeSounds[key]) {
-           this.activeSounds[key] = [];
-       }
-       this.activeSounds[key].push(sound);
-       
-       // Clean up when sound finishes
-       sound.once('complete', () => {
-           this.soundInstances[key]--;
-           const index = this.activeSounds[key].indexOf(sound);
-           if (index !== -1) {
-               this.activeSounds[key].splice(index, 1);
-           }
-       });
-       
-       return sound;
    }
    ```
 

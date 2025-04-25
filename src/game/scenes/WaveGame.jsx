@@ -61,6 +61,25 @@ export class WaveGame extends Scene {
     }
 
     /**
+     * Preload assets needed for the WaveGame scene
+     */
+    preload() {
+        console.log("WaveGame preload: Loading bullet sprite images...");
+        
+        // Preload bullet sprite images
+        for (let i = 1; i <= 10; i++) {
+            const bulletKey = `bullet_${i}`;
+            const bulletPath = `assets/sprites/BULLETS/${bulletKey}.png`;
+            console.log(`Loading bullet sprite: ${bulletKey} from path: ${bulletPath}`);
+            this.load.image(bulletKey, bulletPath);
+        }
+        
+        // Add more preloading here as needed
+        
+        console.log("WaveGame preload complete");
+    }
+
+    /**
      * Reset all game state variables for a new game
      */
     resetGameState() {
@@ -937,6 +956,9 @@ export class WaveGame extends Scene {
             const cellX = Math.floor(bullet.x / this.gridCellSize);
             const cellY = Math.floor(bullet.y / this.gridCellSize);
 
+            // Get bullet radius (use stored radius property or default to 5)
+            const bulletRadius = bullet.radius || 5;
+
             // Check only enemies in relevant cells
             for (let x = cellX - 1; x <= cellX + 1; x++) {
                 for (let y = cellY - 1; y <= cellY + 1; y++) {
@@ -947,117 +969,95 @@ export class WaveGame extends Scene {
                     enemiesInCell.forEach(enemyGraphics => {
                         if (!enemyGraphics.active || !bullet.active) return;
 
-                        // Check collision using multiple methods for compatibility
-                        let hasCollision = false;
-                        let targetEnemy = null;
-
-                        // Find the actual enemy instance
-                        if (enemyGraphics.parentEnemy) {
-                            targetEnemy = enemyGraphics.parentEnemy;
-                        } else if (this.enemyManager) {
-                            // Find enemy by position if parentEnemy isn't set
-                            targetEnemy = this.findEnemyByPosition(enemyGraphics.x, enemyGraphics.y);
+                        // Check for penetration - skip enemies already hit by this bullet
+                        const targetEnemy = enemyGraphics.parentEnemy;
+                        if (bullet.penetratedEnemies && 
+                            targetEnemy && 
+                            bullet.penetratedEnemies.includes(targetEnemy.id)) {
+                            return; // Skip this enemy
                         }
 
-                        // Method 1: Phaser Physics body detection (for sprite-based enemies)
-                        if (enemyGraphics.body) {
-                            // If enemy has a physics body, use circle-to-circle collision for more accuracy
-                            const bulletRadius = bullet.radius || 5;
-                            
-                            // Get enemy body radius - either from the stored bodyRadius property or calculate from body size
-                            let enemyRadius;
-                            
-                            if (targetEnemy && targetEnemy.bodyRadius !== undefined) {
-                                // Use the bodyRadius property set in SpriteEnemy.js
-                                enemyRadius = targetEnemy.bodyRadius;
-                            } else if (enemyGraphics.body.isCircle) {
-                                // For circular physics bodies, use the radius directly
-                                enemyRadius = enemyGraphics.body.radius;
-                            } else {
-                                // Fallback: approximate a circle from the body size
-                                enemyRadius = Math.min(enemyGraphics.body.width, enemyGraphics.body.height) / 2;
-                            }
-                            
-                            // Use circle-to-circle intersection test for more accurate collision detection
-                            hasCollision = Phaser.Geom.Intersects.CircleToCircle(
-                                new Phaser.Geom.Circle(bullet.x, bullet.y, bulletRadius),
-                                new Phaser.Geom.Circle(
-                                    enemyGraphics.x + enemyGraphics.body.offset.x,
-                                    enemyGraphics.y + enemyGraphics.body.offset.y,
-                                    enemyRadius
-                                )
-                            );
-                            
-                            // Debug visualization in development mode
-                            if (this.isDev && hasCollision && Math.random() < 0.01) { // Only show 1% of collisions to avoid spam
-                                console.debug(`Bullet hit enemy: bullet(${bullet.x}, ${bullet.y}, r:${bulletRadius}), enemy(${enemyGraphics.x}, ${enemyGraphics.y}, r:${enemyRadius})`);
-                            }
-                        } 
-                        // Method 2: Traditional distance-based detection (fallback)
-                        else {
-                            const distance = Phaser.Math.Distance.Between(
-                                bullet.x, bullet.y,
-                                enemyGraphics.x, enemyGraphics.y
-                            );
-                            
-                            // Get enemy size and bullet properties
-                            const enemySize = targetEnemy ? targetEnemy.size/2 : 12; // Default fallback size
-                            const bulletSize = bullet.radius || this.player.caliber || 5;
-                            
-                            hasCollision = distance < (bulletSize + enemySize);
+                        // Get enemy size and calculate collision
+                        let enemyRadius;
+                        
+                        // For sprite-based enemies, use bodyRadius property
+                        if (targetEnemy && targetEnemy.bodyRadius !== undefined) {
+                            enemyRadius = targetEnemy.bodyRadius;
+                        } else if (enemyGraphics.body && enemyGraphics.body.isCircle) {
+                            // For physics bodies, use the radius
+                            enemyRadius = enemyGraphics.body.radius;
+                        } else if (enemyGraphics.body) {
+                            // For rectangle bodies, approximate a circle
+                            enemyRadius = Math.min(enemyGraphics.body.width, enemyGraphics.body.height) / 2;
+                        } else {
+                            // Fallback to a reasonable size
+                            enemyRadius = targetEnemy ? targetEnemy.size/2 : 12;
                         }
-
-                        // Process collision if detected
-                        if (hasCollision) {
-                            // Get bullet properties
+                        
+                        // Calculate distance between bullet and enemy
+                        const dx = bullet.x - enemyGraphics.x;
+                        const dy = bullet.y - enemyGraphics.y;
+                        const distance = Math.sqrt(dx * dx + dy * dy);
+                        
+                        // Check if collision occurred
+                        const hasCollision = distance < (bulletRadius + enemyRadius);
+                        
+                        if (hasCollision && targetEnemy) {
+                            // Calculate damage based on bullet properties
                             const bulletDamage = bullet.damage ||
                                 (this.player.weaponManager ?
                                 this.player.weaponManager.getDamage() :
                                 this.player.bulletDamage || 10);
 
-                            // Check for critical hit
                             let finalDamage = bulletDamage;
-
-                            // Apply critical hit if bullet has critical properties
+                            
+                            // Apply critical hit if applicable
                             if (bullet.canCrit && bullet.critMultiplier) {
-                                // Apply critical hit multiplier
                                 finalDamage *= bullet.critMultiplier;
-
+                                
                                 // Create critical hit effect
                                 this.createCriticalHitEffect(enemyGraphics.x, enemyGraphics.y, finalDamage);
                             }
-
-                            // Damage enemy with bullet's damage value (potentially critical)
+                            
+                            // Damage enemy with bullet's damage value
                             if (targetEnemy && typeof targetEnemy.takeDamage === 'function') {
                                 targetEnemy.takeDamage(finalDamage);
                             }
-
+                            
+                            // Track this enemy as hit for penetrating bullets
+                            if (bullet.penetratedEnemies) {
+                                bullet.penetratedEnemies.push(targetEnemy.id);
+                            }
+                            
                             // Reduce bullet health/pierce
                             if (bullet.health !== undefined) {
                                 bullet.health--;
                             } else if (bullet.pierce !== undefined) {
                                 bullet.pierce--;
                             }
-
-                            // Track already hit enemies for bullets with pierce
-                            if (bullet.pierce > 0 && bullet.penetratedEnemies) {
-                                if (targetEnemy) {
-                                    bullet.penetratedEnemies.push(targetEnemy.id);
-                                }
+                            
+                            // Make bullet flash for visual feedback
+                            if (bullet.isSprite) {
+                                // Flash sprite bullet
+                                bullet.setTint(0xffffff);
+                                this.time.delayedCall(50, () => {
+                                    if (bullet && bullet.active) {
+                                        // Restore original tint
+                                        bullet.clearTint();
+                                    }
+                                });
+                            } else {
+                                // Flash circle bullet
+                                const originalColor = bullet.fillColor;
+                                bullet.setFillStyle(0xffffff);
+                                this.time.delayedCall(50, () => {
+                                    if (bullet && bullet.active) {
+                                        bullet.setFillStyle(originalColor);
+                                    }
+                                });
                             }
-
-                            // Visual feedback - make bullet flash
-                            const originalColor = bullet.fillColor || 0xffffff;
-                            bullet.fillColor = 0xffffff;
-
-                            // Reset bullet color after a short delay if it still exists
-                            this.time.delayedCall(50, () => {
-                                if (bullet && bullet.active) {
-                                    bullet.fillColor = originalColor;
-                                }
-                            });
-
-                            // Only release bullet back to pool if its health/pierce is depleted
+                            
+                            // Only release bullet if its health/pierce is depleted
                             if ((bullet.health !== undefined && bullet.health <= 0) ||
                                 (bullet.pierce !== undefined && bullet.pierce <= 0)) {
                                 this.bulletPool.releaseBullet(bullet);

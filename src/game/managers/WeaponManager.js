@@ -270,15 +270,20 @@ export class WeaponManager {
      * @param {number} dirX - Direction X component
      * @param {number} dirY - Direction Y component
      * @param {number} damageMultiplier - Optional damage multiplier
-     * @returns {Phaser.GameObjects.Arc} The bullet object
+     * @returns {Phaser.GameObjects.Arc|Phaser.GameObjects.Sprite} The bullet object
      */
     createMinigunBullet(spawnX, spawnY, dirX, dirY, damageMultiplier = 1.0) {
         // Use bullet pool instead of direct creation
         if (this.scene.bulletPool) {
+            // Select a bullet sprite type based on weapon
+            const bulletTypeToUse = 'bullet_1'; // Default sprite
+            
             const bullet = this.scene.bulletPool.createMinigunBullet(
                 spawnX, spawnY, dirX, dirY,
                 this.bulletSpeed, this.bulletHealth,
-                this.bulletColor, this.caliber
+                this.bulletColor, this.caliber,
+                bulletTypeToUse, // Pass bullet sprite type
+                this.weaponType   // Pass weapon type for bullet selection
             );
 
             if (bullet) {
@@ -340,6 +345,9 @@ export class WeaponManager {
                     bullet.pierce = this.bulletPierce;
                     bullet.range = this.bulletRange;
                     bullet.penetratedEnemies = [];
+                    
+                    // Set the weapon type for proper bullet sprite selection
+                    bullet.weaponType = this.weaponType;
 
                     // Add critical hit chance
                     bullet.canCrit = Math.random() < (this.criticalHitChance / 100);
