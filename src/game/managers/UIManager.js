@@ -577,7 +577,7 @@ export class UIManager {
         // Create particle emitter
         if (this.scene.add && this.scene.add.particles) {
             // Use default particle texture if available, otherwise use a circle
-            const particles = this.scene.add.particles(centerX, centerY, 'particle_texture', {
+            const particleManager = this.scene.add.particles(centerX, centerY, 'particle_texture', {
                 speed: { min: 100, max: 300 },
                 scale: { start: 0.5, end: 0 },
                 alpha: { start: 1, end: 0 },
@@ -590,7 +590,7 @@ export class UIManager {
             
             // Auto-destroy after effect completes
             this.scene.time.delayedCall(1000, () => {
-                if (particles) particles.destroy();
+                if (particleManager) particleManager.destroy();
             });
         }
     }
@@ -632,25 +632,37 @@ export class UIManager {
      * Update chaos meter with current level
      */
     updateChaosMeter() {
-        if (!this.scene.chaosManager || !this.elements.aiBar || !this.elements.coderBar) return;
+        // First check if the chaos manager exists and if all required elements are available
+        if (!this.scene || !this.scene.chaosManager || 
+            !this.elements.aiBar || !this.elements.coderBar || 
+            !this.elements.chaosValue || !this.elements.chaosValue.setText) {
+            return;
+        }
         
-        const chaosValue = this.scene.chaosManager.getChaos();
-        const maxWidth = 150; // Half of the total bar width (300/2)
-        
-        // Update the value text
-        this.elements.chaosValue.setText(Math.round(chaosValue));
-        
-        // Update AI bar (left side, negative values)
-        const aiWidth = Math.max(0, -chaosValue) / Math.abs(CHAOS.MIN_VALUE) * maxWidth;
-        this.elements.aiBar.width = aiWidth;
-        this.elements.aiBar.x = -aiWidth;
-        
-        // Update Coder bar (right side, positive values)
-        const coderWidth = Math.max(0, chaosValue) / CHAOS.MAX_VALUE * maxWidth;
-        this.elements.coderBar.width = coderWidth;
-        
-        // Update faction count text beneath the meter
-        this.updateGroupCountText();
+        try {
+            const chaosValue = this.scene.chaosManager.getChaos();
+            const maxWidth = 150; // Half of the total bar width (300/2)
+            
+            // Update the value text - wrap in try/catch to handle potential null data
+            this.elements.chaosValue.setText(Math.round(chaosValue));
+            
+            // Update AI bar (left side, negative values)
+            const aiWidth = Math.max(0, -chaosValue) / Math.abs(CHAOS.MIN_VALUE) * maxWidth;
+            this.elements.aiBar.width = aiWidth;
+            this.elements.aiBar.x = -aiWidth;
+            
+            // Update Coder bar (right side, positive values)
+            const coderWidth = Math.max(0, chaosValue) / CHAOS.MAX_VALUE * maxWidth;
+            this.elements.coderBar.width = coderWidth;
+            
+            // Update faction count text beneath the meter - only if available
+            if (this.elements.groupText && this.elements.groupText.setText) {
+                this.updateGroupCountText();
+            }
+        } catch (error) {
+            // Silently handle any error that might occur during update
+            console.debug("Error updating chaos meter:", error);
+        }
     }
     
     /**

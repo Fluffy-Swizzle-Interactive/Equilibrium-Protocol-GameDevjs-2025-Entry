@@ -624,13 +624,12 @@ export class ChaosManager {
         const color = CHAOS.COLORS[factionId.toUpperCase()] || 0xffffff;
         
         // Create particle emitter if we have a particle manager
-        if (this.scene.particles) {
+        if (this.scene.add && this.scene.add.particles) {
             const centerX = this.scene.cameras.main.width / 2;
             const centerY = this.scene.cameras.main.height / 2;
             
-            const particles = this.scene.particles.createEmitter({
-                x: centerX,
-                y: centerY,
+            // Use the updated Phaser particle API
+            const particleManager = this.scene.add.particles(centerX, centerY, 'particle_texture', {
                 speed: { min: -800 * scale, max: 800 * scale },
                 angle: { min: 0, max: 360 },
                 scale: { start: 0.6 * scale, end: 0 },
@@ -643,7 +642,8 @@ export class ChaosManager {
             
             // Stop emitting after a short time
             this.scene.time.delayedCall(300 * scale, () => {
-                particles.stop();
+                // In newer Phaser versions, we need to remove the entire manager
+                particleManager.destroy();
             });
         }
     }
