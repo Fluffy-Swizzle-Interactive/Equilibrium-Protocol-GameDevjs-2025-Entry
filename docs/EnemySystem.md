@@ -290,3 +290,93 @@ die() {
     super.die();
 }
 ```
+
+## Sprite Animations for Enemies
+
+The game includes a robust sprite animation system for enemies that handles frame sequencing and animation playback.
+
+### Animation Frame Sequence System
+
+Enemy sprite animations are handled through a frame sequencing system that ensures proper playback regardless of how frames are packed in texture atlases:
+
+```javascript
+// Animation frames are automatically sorted by their numeric indices
+createAnimations() {
+    // Create a map to store frames by their numeric index
+    const indexedFrames = new Map();
+    
+    // Extract actual frame index from filename (e.g. "enemy1_idle_3.png" → 3)
+    for (const frameName of textureFrames) {
+        if (frameName.startsWith(basePattern)) {
+            const indexStr = frameName.slice(basePattern.length, -4);
+            const index = parseInt(indexStr);
+            indexedFrames.set(index, { key: this.spriteConfig.key, frame: frameName });
+        }
+    }
+    
+    // Get frames in proper numeric order
+    const sortedIndices = Array.from(indexedFrames.keys()).sort((a, b) => a - b);
+    for (const index of sortedIndices) {
+        animationFrames.push(indexedFrames.get(index));
+    }
+}
+```
+
+### Animation Configuration
+
+Each enemy type defines its own animation sets in its respective class:
+
+```javascript
+const spriteConfig = {
+    key: 'enemy1',
+    scale: 1.2,
+    animations: {
+        idle: {
+            frames: [0, 1, 2, 3].map(i => `enemy1_idle_${i}.png`),
+            frameRate: 5,
+            repeat: -1  // -1 means loop indefinitely
+        },
+        run: {
+            frames: [0, 1, 2, 3].map(i => `enemy1_run_${i}.png`),
+            frameRate: 8,
+            repeat: -1
+        },
+        death: {
+            frames: [0, 1, 2, 3, 4, 5, 6, 7].map(i => `enemy1_death_${i}.png`),
+            frameRate: 10,
+            repeat: 0  // 0 means play once and stop
+        },
+        attack: {
+            frames: [0, 1, 2, 3].map(i => `enemy1_attack_${i}.png`),
+            frameRate: 12,
+            repeat: 0
+        }
+    }
+};
+```
+
+### Animation Fallbacks
+
+The system includes fallback mechanisms for graceful degradation when animations or frames are missing:
+
+1. If a specific animation is missing, the system falls back to the idle animation
+2. If frames are missing, the system generates a warning and attempts to use available frames
+3. If all else fails, the system will use a default frame to ensure enemies remain visible
+
+### Troubleshooting Enemy Animations
+
+If enemy animations appear incorrect:
+
+1. Check console for animation-related warnings or errors
+2. Verify that all required frames exist in the texture atlas
+3. Ensure frame names follow the expected format (`enemy1_idle_0.png`, `enemy1_run_1.png`, etc.)
+4. Verify that frame numbers are sequential (0, 1, 2, etc.) and match the animation configuration
+
+### Debug Mode
+
+When development mode is enabled, the animation system provides detailed logging:
+
+- Available frames for each texture
+- Created animations and their frame counts
+- Frame sequence for each animation
+- Animation playback status and durations

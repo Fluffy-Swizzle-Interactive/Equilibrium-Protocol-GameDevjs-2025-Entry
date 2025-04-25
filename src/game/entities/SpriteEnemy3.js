@@ -19,22 +19,22 @@ export class SpriteEnemy3 extends SpriteEnemy {
             scale: 1.3,
             animations: {
                 idle: {
-                    frames: [0, 1, 2, 3].map(i => `enemy3_idle_${i}`),
+                    frames: [0, 1, 2, 3].map(i => `enemy3_idle_${i}.png`),
                     frameRate: 5,
                     repeat: -1
                 },
                 run: {
-                    frames: [0, 1, 2, 3].map(i => `enemy3_run_${i}`),
+                    frames: [0, 1, 2, 3].map(i => `enemy3_run_${i}.png`),
                     frameRate: 8,
                     repeat: -1
                 },
                 death: {
-                    frames: [0, 1, 2, 3, 4, 5].map(i => `enemy3_death_${i}`),
+                    frames: [0, 1, 2, 3, 4, 5, 6, 7].map(i => `enemy3_death_${i}.png`),
                     frameRate: 10,
                     repeat: 0
                 },
                 shoot: {
-                    frames: [0, 1, 2, 3].map(i => `enemy3_shoot_${i}`),
+                    frames: [0, 1, 2, 3].map(i => `enemy3_shoot_${i}.png`),
                     frameRate: 12,
                     repeat: 0
                 }

@@ -414,14 +414,31 @@ export class BaseEnemy {
         // Skip if collision is disabled (neutralized enemy)
         if (this._collisionDisabled) return;
 
-        const playerDistance = Phaser.Math.Distance.Between(
-            this.graphics.x, this.graphics.y,
-            playerPos.x, playerPos.y
-        );
+        let collision = false;
 
-        // If enemy touches player (sum of radii), apply damage
-        const playerRadius = this.scene.player.radius;
-        if (playerDistance < (this.size/2 + playerRadius)) {
+        // Method 1: Physics-based collision detection (for sprite-based enemies with physics bodies)
+        if (this.graphics.body && this.scene.player.graphics.body) {
+            // Use Phaser's built-in physics collision detection
+            collision = Phaser.Physics.Arcade.Collider.prototype.collide(
+                this.scene.physics.world,
+                this.graphics.body,
+                this.scene.player.graphics.body
+            );
+        } 
+        // Method 2: Distance-based collision detection (fallback for primitive shape enemies)
+        else {
+            const playerDistance = Phaser.Math.Distance.Between(
+                this.graphics.x, this.graphics.y,
+                playerPos.x, playerPos.y
+            );
+
+            // If enemy touches player (sum of radii), collision occurs
+            const playerRadius = this.scene.player.radius;
+            collision = playerDistance < (this.size/2 + playerRadius);
+        }
+
+        // If collision detected, apply damage
+        if (collision) {
             // Apply damage using health system if available
             if (this.scene.playerHealth) {
                 // Scene has centralized health system (typically in WaveGame)

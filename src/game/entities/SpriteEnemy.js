@@ -81,6 +81,15 @@ export class SpriteEnemy extends BaseEnemy {
                 (this.graphics.width - bodyRadius * 2) * 0.5, 
                 (this.graphics.height - bodyRadius * 2) * 0.5
             );
+            
+            // Configure physics body properties
+            this.graphics.body.setCollideWorldBounds(true);
+            this.graphics.body.setBounce(0);
+            this.graphics.body.setFriction(0, 0);
+            this.graphics.body.setImmovable(false); // Enemies should be moved by collisions
+            
+            // Store body size for debugging
+            this.bodyRadius = bodyRadius;
         }
     }
     
@@ -111,6 +120,12 @@ export class SpriteEnemy extends BaseEnemy {
         if (!this.spriteConfig.animations || !this.scene.textures.exists(this.spriteConfig.key)) {
             return;
         }
+
+        // Debug: Log available frames in texture
+        if (this.scene.isDev) {
+            const frames = this.scene.textures.get(this.spriteConfig.key).getFrameNames();
+            console.debug(`Available frames for ${this.spriteConfig.key}:`, frames);
+        }
         
         // Create each animation
         Object.entries(this.spriteConfig.animations).forEach(([animKey, config]) => {
@@ -125,36 +140,123 @@ export class SpriteEnemy extends BaseEnemy {
                 repeat: config.repeat !== undefined ? config.repeat : -1
             };
             
-            // Handle direct frame references vs generated frames
-            if (Array.isArray(config.frames) && typeof config.frames[0] === 'string') {
-                // Direct frame references (e.g. ['enemy1_idle_0', 'enemy1_idle_1'])
-                animConfig.frames = this.scene.anims.generateFrameNames(this.spriteConfig.key, {
-                    frames: config.frames
-                });
-            } else if (Array.isArray(config.frames) && typeof config.frames[0] === 'number') {
-                // Frame indices (e.g. [0, 1, 2, 3])
-                animConfig.frames = config.frames.map(frameIndex => {
-                    return { key: this.spriteConfig.key, frame: frameIndex };
-                });
-            } else {
-                // Frame name pattern with prefix (e.g. {prefix: 'idle_', start: 0, end: 3})
-                const start = config.start || 0;
-                const end = config.end || 0;
-                const prefix = config.prefix || '';
-                const zeroPad = config.zeroPad || 0;
+            // Get all texture frames that match the pattern for this animation
+            const textureFrames = this.scene.textures.get(this.spriteConfig.key).getFrameNames();
+            const animationFrames = [];
+            
+            // For frames specified in array
+            if (Array.isArray(config.frames)) {
+                // Create a map to store frames by their numeric index
+                const indexedFrames = new Map();
                 
-                animConfig.frames = this.scene.anims.generateFrameNames(this.spriteConfig.key, {
-                    prefix: prefix,
-                    start: start, 
-                    end: end,
-                    zeroPad: zeroPad
-                });
+                for (const frameName of textureFrames) {
+                    // Check if this frame belongs to the current animation
+                    const basePattern = `${this.spriteConfig.key}_${animKey}_`;
+                    
+                    if (frameName.startsWith(basePattern) || 
+                        (frameName.endsWith('.png') && frameName.slice(0, -4).startsWith(basePattern))) {
+                        
+                        // Extract the numeric index from the frame name
+                        let indexStr;
+                        if (frameName.endsWith('.png')) {
+                            indexStr = frameName.slice(basePattern.length, -4);
+                        } else {
+                            indexStr = frameName.slice(basePattern.length);
+                        }
+                        
+                        const index = parseInt(indexStr);
+                        if (!isNaN(index) && index >= 0) {
+                            indexedFrames.set(index, {
+                                key: this.spriteConfig.key,
+                                frame: frameName
+                            });
+                        }
+                    }
+                }
+                
+                // Get the frames in proper numeric order
+                const sortedIndices = Array.from(indexedFrames.keys()).sort((a, b) => a - b);
+                for (const index of sortedIndices) {
+                    animationFrames.push(indexedFrames.get(index));
+                }
+                
+                if (this.scene.isDev) {
+                    console.debug(`Created animation ${animName} with ${animationFrames.length} sorted frames`);
+                }
+            } 
+            // If no frames were found by pattern but frames were specified as array of indices
+            else if (config.frames && config.frames.length > 0) {
+                // Try to match explicit frame indices with their .png extension
+                for (const index of config.frames) {
+                    const framePattern = `${this.spriteConfig.key}_${animKey}_${index}`;
+                    const framePNG = `${framePattern}.png`;
+                    
+                    // Try different frame name patterns
+                    if (textureFrames.includes(framePNG)) {
+                        animationFrames.push({
+                            key: this.spriteConfig.key,
+                            frame: framePNG
+                        });
+                    } else if (textureFrames.includes(framePattern)) {
+                        animationFrames.push({
+                            key: this.spriteConfig.key,
+                            frame: framePattern
+                        });
+                    }
+                }
+            }
+            
+            // Use the collected frames or fall back to prefix generation
+            if (animationFrames.length > 0) {
+                animConfig.frames = animationFrames;
+            } else {
+                // Fall back to generic frame generation
+                const framesPattern = `${this.spriteConfig.key}_${animKey}_`;
+                const matchingFrames = textureFrames.filter(frame => 
+                    frame.includes(framesPattern) || 
+                    (frame.endsWith('.png') && frame.slice(0, -4).includes(framesPattern))
+                );
+                
+                if (matchingFrames.length > 0) {
+                    // Sort frames by numeric index
+                    matchingFrames.sort((a, b) => {
+                        const aMatch = a.match(/(\d+)\.png$/) || a.match(/(\d+)$/);
+                        const bMatch = b.match(/(\d+)\.png$/) || b.match(/(\d+)$/);
+                        const aIndex = aMatch ? parseInt(aMatch[1]) : 0;
+                        const bIndex = bMatch ? parseInt(bMatch[1]) : 0;
+                        return aIndex - bIndex;
+                    });
+                    
+                    animConfig.frames = matchingFrames.map(frame => ({
+                        key: this.spriteConfig.key,
+                        frame
+                    }));
+                } else {
+                    // Final fallback to basic frame generation
+                    const start = config.start || 0;
+                    const end = config.end || 3;
+                    const prefix = `${this.spriteConfig.key}_${animKey}_`;
+                    const zeroPad = config.zeroPad || 0;
+                    
+                    animConfig.frames = this.scene.anims.generateFrameNames(this.spriteConfig.key, {
+                        prefix: prefix,
+                        start: start, 
+                        end: end,
+                        zeroPad: zeroPad,
+                        suffix: '.png'
+                    });
+                }
             }
             
             // Only create animation if frames were properly generated
             if (animConfig.frames && animConfig.frames.length > 0) {
-                // Create the animation
                 this.scene.anims.create(animConfig);
+                if (this.scene.isDev) {
+                    console.debug(`Created animation ${animName} with ${animConfig.frames.length} frames: `, 
+                      animConfig.frames.map(f => f.frame).join(', '));
+                }
+            } else {
+                console.warn(`Failed to create animation ${animName}: No valid frames found`);
             }
         });
     }
@@ -171,6 +273,21 @@ export class SpriteEnemy extends BaseEnemy {
         
         // Check if animation exists
         if (!this.scene.anims.exists(animName)) {
+            // If trying to play death animation and it doesn't exist, log a more detailed error
+            if (key === 'death') {
+                console.warn(`Death animation for ${this.spriteConfig.key} not found (${animName})`);
+                console.debug(`Available animations:`, 
+                    Array.from(this.scene.anims.anims.keys())
+                    .filter(name => name.startsWith(this.spriteConfig.key))
+                    .join(', '));
+                
+                // Try a fallback to generic death animation if available
+                if (this.scene.anims.exists('death')) {
+                    this.graphics.play('death', ignoreIfPlaying);
+                    return;
+                }
+            }
+            
             // Fall back to idle if available
             if (key !== 'idle' && this.scene.anims.exists(`${this.spriteConfig.key}_idle`)) {
                 this.graphics.play(`${this.spriteConfig.key}_idle`, ignoreIfPlaying);
@@ -275,9 +392,19 @@ export class SpriteEnemy extends BaseEnemy {
             const dirX = dx / distance;
             const dirY = dy / distance;
             
-            // Move towards player
-            this.graphics.x += dirX * this.speed;
-            this.graphics.y += dirY * this.speed;
+            // Use physics body for movement when available
+            if (this.graphics.body) {
+                // Convert speed to velocity (pixels per second)
+                const velocity = this.speed * 60; // Assuming 60fps as base speed
+                this.graphics.body.setVelocity(
+                    dirX * velocity,
+                    dirY * velocity
+                );
+            } else {
+                // Fallback to direct position manipulation
+                this.graphics.x += dirX * this.speed;
+                this.graphics.y += dirY * this.speed;
+            }
         }
     }
     
@@ -347,23 +474,80 @@ export class SpriteEnemy extends BaseEnemy {
      * Handle death
      */
     die() {
-        // Play death animation if available
-        if (this.graphics && !this.graphics.anims.currentAnim?.key.includes('death')) {
-            // Try to play death animation
+        // Skip if already dead or no graphics object
+        if (!this.active || !this.graphics) {
+            super.die();
+            return;
+        }
+
+        // Disable player targeting and physics collisions
+        this._targetingDisabled = true;
+        this._collisionDisabled = true;
+        
+        // Stop any ongoing movement by setting velocity to zero if using physics
+        if (this.graphics.body) {
+            this.graphics.body.setVelocity(0, 0);
+            this.graphics.body.enable = false; // Disable physics body to prevent further collisions
+        }
+        
+        // Try to play death animation
+        if (!this.graphics.anims.currentAnim?.key.includes('death')) {
+            // Log which animations are available for debugging
+            if (this.scene.isDev) {
+                const availableAnims = Array.from(this.scene.anims.anims.keys())
+                    .filter(name => name.startsWith(this.spriteConfig.key))
+                    .join(', ');
+                console.debug(`Available animations for ${this.spriteConfig.key}: ${availableAnims}`);
+            }
+            
             this.playAnimation('death', false);
             
-            // Check if death animation exists
-            if (this.graphics.anims.currentAnim?.key.includes('death')) {
-                // If death animation exists, wait for it to complete
-                this.scene.time.delayedCall(1000, () => {
+            // Check if death animation played successfully
+            if (this.graphics.anims.currentAnim && this.graphics.anims.currentAnim.key.includes('death')) {
+                // If death animation exists and is playing, wait for it to complete
+                const animDuration = this.graphics.anims.currentAnim.duration;
+                const waitTime = animDuration > 0 ? animDuration + 100 : 1000; // Add a small buffer
+                
+                // Create a death effect at the enemy position if available
+                if (this.scene.spritePool && typeof this.scene.spritePool.createDeathEffect === 'function') {
+                    this.scene.spritePool.createDeathEffect(this.graphics.x, this.graphics.y, {
+                        scale: this.spriteConfig.scale * 1.2,
+                        tint: 0xFFFFFF
+                    });
+                }
+                
+                // Log animation being played in dev mode
+                if (this.scene.isDev) {
+                    console.debug(`Playing death animation for ${this.spriteConfig.key}: ${this.graphics.anims.currentAnim.key}, duration: ${waitTime}ms`);
+                }
+                
+                this.scene.time.delayedCall(waitTime, () => {
                     super.die();
                 });
                 return;
             }
         }
         
-        // If no death animation, just die immediately
-        super.die();
+        // If we get here, no death animation was played successfully
+        // Create a death effect if available
+        if (this.scene.spritePool && typeof this.scene.spritePool.createDeathEffect === 'function') {
+            this.scene.spritePool.createDeathEffect(this.graphics.x, this.graphics.y, {
+                scale: this.spriteConfig.scale * 1.2,
+                tint: 0xFFFFFF
+            });
+        }
+        
+        // Create a simple fade out effect 
+        this.scene.tweens.add({
+            targets: this.graphics,
+            alpha: 0,
+            scale: this.graphics.scale * 1.3, // Slightly expand while fading
+            duration: 300,
+            ease: 'Power2',
+            onComplete: () => {
+                super.die();
+            }
+        });
     }
     
     /**

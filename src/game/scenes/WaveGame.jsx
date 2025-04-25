@@ -947,23 +947,74 @@ export class WaveGame extends Scene {
                     enemiesInCell.forEach(enemyGraphics => {
                         if (!enemyGraphics.active || !bullet.active) return;
 
-                        const distance = Phaser.Math.Distance.Between(
-                            bullet.x, bullet.y,
-                            enemyGraphics.x, enemyGraphics.y
-                        );
+                        // Check collision using multiple methods for compatibility
+                        let hasCollision = false;
+                        let targetEnemy = null;
 
-                        // Get enemy size and bullet properties
-                        const enemySize = enemyGraphics.parentEnemy ? enemyGraphics.parentEnemy.size/2 : 12;
+                        // Find the actual enemy instance
+                        if (enemyGraphics.parentEnemy) {
+                            targetEnemy = enemyGraphics.parentEnemy;
+                        } else if (this.enemyManager) {
+                            // Find enemy by position if parentEnemy isn't set
+                            targetEnemy = this.findEnemyByPosition(enemyGraphics.x, enemyGraphics.y);
+                        }
 
-                        // Get bullet properties - either from the bullet itself or from the player's weapon
-                        const bulletSize = bullet.radius || this.player.caliber || 5;
-                        const bulletDamage = bullet.damage ||
-                                            (this.player.weaponManager ?
-                                             this.player.weaponManager.getDamage() :
-                                             this.player.bulletDamage || 10);
+                        // Method 1: Phaser Physics body detection (for sprite-based enemies)
+                        if (enemyGraphics.body) {
+                            // If enemy has a physics body, use circle-to-circle collision for more accuracy
+                            const bulletRadius = bullet.radius || 5;
+                            
+                            // Get enemy body radius - either from the stored bodyRadius property or calculate from body size
+                            let enemyRadius;
+                            
+                            if (targetEnemy && targetEnemy.bodyRadius !== undefined) {
+                                // Use the bodyRadius property set in SpriteEnemy.js
+                                enemyRadius = targetEnemy.bodyRadius;
+                            } else if (enemyGraphics.body.isCircle) {
+                                // For circular physics bodies, use the radius directly
+                                enemyRadius = enemyGraphics.body.radius;
+                            } else {
+                                // Fallback: approximate a circle from the body size
+                                enemyRadius = Math.min(enemyGraphics.body.width, enemyGraphics.body.height) / 2;
+                            }
+                            
+                            // Use circle-to-circle intersection test for more accurate collision detection
+                            hasCollision = Phaser.Geom.Intersects.CircleToCircle(
+                                new Phaser.Geom.Circle(bullet.x, bullet.y, bulletRadius),
+                                new Phaser.Geom.Circle(
+                                    enemyGraphics.x + enemyGraphics.body.offset.x,
+                                    enemyGraphics.y + enemyGraphics.body.offset.y,
+                                    enemyRadius
+                                )
+                            );
+                            
+                            // Debug visualization in development mode
+                            if (this.isDev && hasCollision && Math.random() < 0.01) { // Only show 1% of collisions to avoid spam
+                                console.debug(`Bullet hit enemy: bullet(${bullet.x}, ${bullet.y}, r:${bulletRadius}), enemy(${enemyGraphics.x}, ${enemyGraphics.y}, r:${enemyRadius})`);
+                            }
+                        } 
+                        // Method 2: Traditional distance-based detection (fallback)
+                        else {
+                            const distance = Phaser.Math.Distance.Between(
+                                bullet.x, bullet.y,
+                                enemyGraphics.x, enemyGraphics.y
+                            );
+                            
+                            // Get enemy size and bullet properties
+                            const enemySize = targetEnemy ? targetEnemy.size/2 : 12; // Default fallback size
+                            const bulletSize = bullet.radius || this.player.caliber || 5;
+                            
+                            hasCollision = distance < (bulletSize + enemySize);
+                        }
 
-                        // Check if bullet hits enemy
-                        if (distance < (bulletSize + enemySize)) {
+                        // Process collision if detected
+                        if (hasCollision) {
+                            // Get bullet properties
+                            const bulletDamage = bullet.damage ||
+                                (this.player.weaponManager ?
+                                this.player.weaponManager.getDamage() :
+                                this.player.bulletDamage || 10);
+
                             // Check for critical hit
                             let finalDamage = bulletDamage;
 
@@ -977,8 +1028,8 @@ export class WaveGame extends Scene {
                             }
 
                             // Damage enemy with bullet's damage value (potentially critical)
-                            if (enemyGraphics.parentEnemy && typeof enemyGraphics.parentEnemy.takeDamage === 'function') {
-                                enemyGraphics.parentEnemy.takeDamage(finalDamage);
+                            if (targetEnemy && typeof targetEnemy.takeDamage === 'function') {
+                                targetEnemy.takeDamage(finalDamage);
                             }
 
                             // Reduce bullet health/pierce
@@ -990,7 +1041,9 @@ export class WaveGame extends Scene {
 
                             // Track already hit enemies for bullets with pierce
                             if (bullet.pierce > 0 && bullet.penetratedEnemies) {
-                                bullet.penetratedEnemies.push(enemyGraphics.parentEnemy.id);
+                                if (targetEnemy) {
+                                    bullet.penetratedEnemies.push(targetEnemy.id);
+                                }
                             }
 
                             // Visual feedback - make bullet flash
@@ -1031,8 +1084,18 @@ export class WaveGame extends Scene {
         for (const enemy of activeEnemies) {
             if (!enemy || !enemy.active || !enemy.graphics || !enemy.graphics.active) continue;
 
-            // Use Phaser's built-in physics overlap check
-            // Adjust the player's collision circle to match the physics body position (bottom half of player)
+            // Get the enemy's radius - for sprite enemies use bodyRadius
+            let enemyRadius;
+            
+            if (enemy.graphics.body && enemy.bodyRadius !== undefined) {
+                // Use the bodyRadius property for accurate sprite enemy collision
+                enemyRadius = enemy.bodyRadius;
+            } else {
+                // Fall back to enemy size if bodyRadius not available
+                enemyRadius = enemy.size / 2;
+            }
+            
+            // Use circle-to-circle intersection for consistent collision detection
             const isOverlapping = Phaser.Geom.Intersects.CircleToCircle(
                 new Phaser.Geom.Circle(
                     this.player.graphics.x,
@@ -1042,7 +1105,7 @@ export class WaveGame extends Scene {
                 new Phaser.Geom.Circle(
                     enemy.graphics.x,
                     enemy.graphics.y,
-                    enemy.size/2
+                    enemyRadius
                 )
             );
 

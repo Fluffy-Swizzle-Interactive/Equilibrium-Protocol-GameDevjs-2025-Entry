@@ -24,18 +24,22 @@ export class Enemy2 extends BaseEnemy {
      * @override
      */
     initProperties() {
-        // Slower but tougher
-        this.speed = 0.4; // Slower than base
-        this.size = 18;   // Larger than base
+        // Tougher but slower enemies
+        this.speed = 0.4;
+        this.size = 18;
         this.color = 0x0000ff; // Blue color
-        this.health = 20;  // More health
+        this.health = 20;
         this.baseHealth = 20;
         this.damage = 40;
         this.scoreValue = 25;
-        this.dashSpeed = 2.0; // Speed during dash
-        this.chargeTime = 1500; // Increased time to prepare dash
-        this.dashTime = 500; // Dash duration in ms
-        this.dashCooldownTime = 5000; // Increased time between dashes
+        
+        // Dash attack properties
+        this.dashSpeed = 2.0;
+        this.chargeTime = 1500;
+        this.dashTime = 500;
+        this.dashCooldownTime = 5000;
+        this.dashDirection = { x: 0, y: 0 };
+        this.dashStartTime = 0;
     }
     
     /**
@@ -44,6 +48,8 @@ export class Enemy2 extends BaseEnemy {
      */
     reset(x, y, options = {}) {
         super.reset(x, y, options);
+        
+        // Reset dash state
         this.dashCooldown = 0;
         this.dashState = 'ready';
     }
@@ -67,37 +73,72 @@ export class Enemy2 extends BaseEnemy {
             // Start charging dash when player is within specific range
             this.dashState = 'charging';
             this.dashDirection = { x: dx / distance, y: dy / distance };
-            this.dashTarget = { x: playerPos.x, y: playerPos.y };
-            this.chargeStartTime = currentTime;
+            this.dashStartTime = currentTime;
             
-            // Flash to indicate charging
-            this.graphics.setFillStyle(0xffff00); // Yellow when charging
+            // Visual charge-up effect
+            if (this.graphics.setFillStyle) {
+                this.graphics.setFillStyle(0xff0000);
+            } else if (this.graphics.setTint) {
+                this.graphics.setTint(0xff0000);
+            }
             
         } else if (this.dashState === 'charging') {
-            // Hold position while charging
-            if (currentTime > this.chargeStartTime + this.chargeTime) {
-                // Start dash after charge time
+            // During charge phase, slow movement and prepare for dash
+            if (currentTime > this.dashStartTime + this.chargeTime) {
+                // Switch to dash state
                 this.dashState = 'dashing';
                 this.dashStartTime = currentTime;
-                this.graphics.setFillStyle(0xff0000); // Red during dash
+                
+                // Visual indicator for dash
+                if (this.graphics.setFillStyle) {
+                    this.graphics.setFillStyle(0xff6600);
+                } else if (this.graphics.setTint) {
+                    this.graphics.setTint(0xff6600);
+                }
             } else {
-                // Move very slowly while charging
-                const dirX = dx / distance;
-                const dirY = dy / distance;
-                this.graphics.x += dirX * (this.speed * 0.3);
-                this.graphics.y += dirY * (this.speed * 0.3);
+                // Minimal movement during charging
+                // Use the physics body if available
+                if (this.graphics.body) {
+                    const velocity = this.speed * 60 * 0.3; // 30% normal speed
+                    this.graphics.body.setVelocity(
+                        this.dashDirection.x * velocity,
+                        this.dashDirection.y * velocity
+                    );
+                } else {
+                    // Fallback to direct position manipulation
+                    const dirX = dx / distance;
+                    const dirY = dy / distance;
+                    this.graphics.x += dirX * (this.speed * 0.3);
+                    this.graphics.y += dirY * (this.speed * 0.3);
+                }
             }
             
         } else if (this.dashState === 'dashing') {
             // Execute dash
-            this.graphics.x += this.dashDirection.x * this.dashSpeed;
-            this.graphics.y += this.dashDirection.y * this.dashSpeed;
+            // Use the physics body if available
+            if (this.graphics.body) {
+                const dashVelocity = this.dashSpeed * 60; // Convert to pixels per second
+                this.graphics.body.setVelocity(
+                    this.dashDirection.x * dashVelocity,
+                    this.dashDirection.y * dashVelocity
+                );
+            } else {
+                // Fallback to direct position manipulation
+                this.graphics.x += this.dashDirection.x * this.dashSpeed;
+                this.graphics.y += this.dashDirection.y * this.dashSpeed;
+            }
             
             if (currentTime > this.dashStartTime + this.dashTime) {
                 // End dash
                 this.dashState = 'ready';
                 this.dashCooldown = currentTime + this.dashCooldownTime;
-                this.graphics.setFillStyle(this.color); // Reset color
+                
+                // Reset visual
+                if (this.graphics.setFillStyle) {
+                    this.graphics.setFillStyle(this.color);
+                } else if (this.graphics.setTint) {
+                    this.graphics.clearTint();
+                }
             }
             
         } else if (distance > 0) {
@@ -105,9 +146,18 @@ export class Enemy2 extends BaseEnemy {
             const dirX = dx / distance;
             const dirY = dy / distance;
             
-            // Move toward player
-            this.graphics.x += dirX * this.speed;
-            this.graphics.y += dirY * this.speed;
+            // Use the physics body if available
+            if (this.graphics.body) {
+                const velocity = this.speed * 60; // Convert to pixels per second
+                this.graphics.body.setVelocity(
+                    dirX * velocity,
+                    dirY * velocity
+                );
+            } else {
+                // Fallback to direct position manipulation
+                this.graphics.x += dirX * this.speed;
+                this.graphics.y += dirY * this.speed;
+            }
         }
     }
 }

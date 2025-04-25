@@ -1,7 +1,7 @@
 {
 	"textures": [
 		{
-			"image": "BOSS1.png",
+			"image": "assets/sprites/BOSS1.png",
 			"format": "RGBA8888",
 			"size": {
 				"w": 124,

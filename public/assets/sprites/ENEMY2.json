@@ -1,7 +1,7 @@
 {
 	"textures": [
 		{
-			"image": "ENEMY2.png",
+			"image": "assets/sprites/ENEMY2.png",
 			"format": "RGBA8888",
 			"size": {
 				"w": 345,

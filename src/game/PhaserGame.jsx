@@ -3,6 +3,7 @@ import { forwardRef, useEffect, useLayoutEffect, useRef } from 'react';
 import StartGame from './main';
 import { EventBus } from './EventBus';
 
+
 /**
  * PhaserGame component that integrates the Phaser game engine with React
  * 

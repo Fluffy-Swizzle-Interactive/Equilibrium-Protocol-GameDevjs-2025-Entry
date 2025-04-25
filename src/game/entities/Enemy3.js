@@ -73,13 +73,29 @@ export class Enemy3 extends BaseEnemy {
         // Movement behavior based on distance
         if (distance < this.retreatRange) {
             // Too close - back away
-            this.graphics.x -= dirX * this.speed * 1.2; // Move away faster
-            this.graphics.y -= dirY * this.speed * 1.2;
+            if (this.graphics.body) {
+                const velocity = this.speed * 60 * 1.2; // 120% speed when retreating
+                this.graphics.body.setVelocity(
+                    -dirX * velocity,
+                    -dirY * velocity
+                );
+            } else {
+                this.graphics.x -= dirX * this.speed * 1.2;
+                this.graphics.y -= dirY * this.speed * 1.2;
+            }
             
         } else if (distance > this.preferredRange) {
             // Too far - approach slowly
-            this.graphics.x += dirX * this.speed * 0.8; // Move towards more slowly
-            this.graphics.y += dirY * this.speed * 0.8;
+            if (this.graphics.body) {
+                const velocity = this.speed * 60 * 0.8; // 80% speed when approaching
+                this.graphics.body.setVelocity(
+                    dirX * velocity,
+                    dirY * velocity
+                );
+            } else {
+                this.graphics.x += dirX * this.speed * 0.8;
+                this.graphics.y += dirY * this.speed * 0.8;
+            }
             
         } else {
             // At preferred range - strafe sideways
@@ -89,8 +105,16 @@ export class Enemy3 extends BaseEnemy {
             // Strafe direction changes every few seconds
             const strafeDir = Math.floor(this.scene.time.now / 3000) % 2 === 0 ? 1 : -1;
             
-            this.graphics.x += perpX * this.speed * strafeDir;
-            this.graphics.y += perpY * this.speed * strafeDir;
+            if (this.graphics.body) {
+                const velocity = this.speed * 60; // Regular speed for strafing
+                this.graphics.body.setVelocity(
+                    perpX * velocity * strafeDir,
+                    perpY * velocity * strafeDir
+                );
+            } else {
+                this.graphics.x += perpX * this.speed * strafeDir;
+                this.graphics.y += perpY * this.speed * strafeDir;
+            }
         }
     }
     
@@ -111,12 +135,21 @@ export class Enemy3 extends BaseEnemy {
         const dirY = dy / distance;
         
         // Flash the enemy to indicate firing
-        this.graphics.setFillStyle(0xffff00);
-        this.scene.time.delayedCall(100, () => {
-            if (this.active && this.graphics && this.graphics.active) {
-                this.graphics.setFillStyle(this.color);
-            }
-        });
+        if (this.graphics.setFillStyle) {
+            this.graphics.setFillStyle(0xffff00);
+            this.scene.time.delayedCall(100, () => {
+                if (this.active && this.graphics && this.graphics.active) {
+                    this.graphics.setFillStyle(this.color);
+                }
+            });
+        } else if (this.graphics.setTint) {
+            this.graphics.setTint(0xffff00);
+            this.scene.time.delayedCall(100, () => {
+                if (this.active && this.graphics && this.graphics.active) {
+                    this.graphics.clearTint();
+                }
+            });
+        }
         
         // Spawn the projectile
         this.scene.enemyManager.spawnProjectile(

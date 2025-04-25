@@ -107,6 +107,7 @@ export class SpritePool {
                     value: 1, // Default value (for XP, etc.)
                     depth: 50,
                     onExpire: null, // Callback when sprite expires
+                    enablePhysics: false,
                     gravity: 0, // Optional gravity for items that should fall
                     bounce: 0, // Bounce factor for physics-enabled sprites
                     drag: 0, // Drag factor for physics-enabled sprites
@@ -206,34 +207,83 @@ export class SpritePool {
      * @returns {Phaser.GameObjects.Sprite} - The created death sprite
      */
     createDeathEffect(x, y, options = {}) {
-        const deathOptions = {
-            texture: 'particle_texture',
-            scale: 0.5,
-            tint: 0xFF6666, // Red tint
-            lifespan: 800,
-            rotation: Math.random() * 360,
-            angularVelocity: Math.random() * 200 - 100,
-            velocityX: Math.random() * 100 - 50,
-            velocityY: Math.random() * 100 - 50,
-            type: 'death_effect',
-            ...options
-        };
-
-        // Create the sprite
-        const sprite = this.createSprite(x, y, deathOptions);
-
-        // Optional: Apply a fade-out effect
-        if (this.scene.tweens && sprite) {
-            this.scene.tweens.add({
-                targets: sprite,
-                alpha: { from: 1, to: 0 },
-                scale: { from: deathOptions.scale, to: 0 },
-                duration: deathOptions.lifespan,
-                ease: 'Power2'
-            });
+        // Create multiple particle effects for a more dramatic death
+        const particleCount = options.particleCount || 5;
+        const particles = [];
+        
+        // Create particle emitter if available
+        if (this.scene.add.particles) {
+            try {
+                // Ensure particle texture exists
+                const textureKey = this.ensureTextureExists('particle_texture');
+                
+                // Create particle emitter
+                const emitter = this.scene.add.particles(x, y, textureKey, {
+                    speed: { min: 50, max: 200 },
+                    scale: { start: 0.4, end: 0 },
+                    alpha: { start: 1, end: 0 },
+                    lifespan: 800,
+                    blendMode: 'ADD',
+                    quantity: 10,
+                    angle: { min: 0, max: 360 }
+                });
+                
+                // Set depth and cleanup
+                emitter.setDepth(50);
+                this.scene.time.delayedCall(1000, () => {
+                    emitter.destroy();
+                });
+                
+                // Return early since we've created a particle effect
+                return null;
+            } catch (e) {
+                console.warn('Failed to create particle emitter for death effect:', e);
+                // Continue with fallback sprite effect
+            }
         }
+        
+        // Fallback to sprite-based particles if emitter creation failed
+        for (let i = 0; i < particleCount; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const speed = 20 + Math.random() * 40;
+            const distance = Math.random() * 10;
+            
+            const deathOptions = {
+                texture: 'particle_texture',
+                scale: (options.scale || 0.5) * (0.5 + Math.random() * 0.5),
+                tint: options.tint || 0xFF6666, // Red tint by default
+                lifespan: 500 + Math.random() * 300,
+                rotation: Math.random() * 360,
+                angularVelocity: Math.random() * 200 - 100,
+                velocityX: Math.cos(angle) * speed,
+                velocityY: Math.sin(angle) * speed,
+                type: 'death_effect',
+                ...options
+            };
+            
+            // Position each particle slightly differently
+            const particleX = x + Math.cos(angle) * distance;
+            const particleY = y + Math.sin(angle) * distance;
 
-        return sprite;
+            // Create the sprite
+            const sprite = this.createSprite(particleX, particleY, deathOptions);
+            
+            if (sprite && this.scene.tweens) {
+                // Optional: Apply a fade-out effect
+                this.scene.tweens.add({
+                    targets: sprite,
+                    alpha: { from: 1, to: 0 },
+                    scale: { from: deathOptions.scale, to: 0 },
+                    duration: deathOptions.lifespan,
+                    ease: 'Power2'
+                });
+                
+                particles.push(sprite);
+            }
+        }
+        
+        // Return the first particle (for compatibility)
+        return particles.length > 0 ? particles[0] : null;
     }
 
     /**

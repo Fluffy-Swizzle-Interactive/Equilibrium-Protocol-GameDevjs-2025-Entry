@@ -23,10 +23,10 @@ export class Enemy1 extends BaseEnemy {
      */
     initProperties() {
         // Fast but weak enemies
-        this.speed = 0.7; // Faster than base
-        this.size = 12;   // Smaller than base
+        this.speed = 0.7;
+        this.size = 12;
         this.color = 0x00ff00; // Green color
-        this.health = 10;  // Less health
+        this.health = 10;
         this.baseHealth = 10;
         this.damage = 30;
         this.scoreValue = 10;
@@ -57,9 +57,19 @@ export class Enemy1 extends BaseEnemy {
             const perpX = -dirY;
             const perpY = dirX;
             
-            // Move toward player with subtle zigzag
-            this.graphics.x += (dirX + perpX * offset) * this.speed;
-            this.graphics.y += (dirY + perpY * offset) * this.speed;
+            // Use physics body for movement when available
+            if (this.graphics.body) {
+                // Convert speed to velocity (pixels per second)
+                const velocity = this.speed * 60; // Assuming 60fps as base speed
+                this.graphics.body.setVelocity(
+                    (dirX + perpX * offset) * velocity,
+                    (dirY + perpY * offset) * velocity
+                );
+            } else {
+                // Fallback to direct position manipulation
+                this.graphics.x += (dirX + perpX * offset) * this.speed;
+                this.graphics.y += (dirY + perpY * offset) * this.speed;
+            }
         }
     }
 }
