@@ -52,7 +52,6 @@ export class Preloader extends Scene
         });
 
         // Load player sprite atlas
-
         this.load.atlas('player', 'assets/sprites/TESTPLAYER1.png', 'assets/sprites/TESTPLAYER1.json');
 
         // Also load individual sprite frames as fallback
@@ -77,6 +76,9 @@ export class Preloader extends Scene
         // Also keep the legacy testplayer for compatibility
         this.load.atlas('testplayer', 'assets/sprites/testplayer.png', 'assets/sprites/testplayer.json');
 
+        // Load enemy sprite atlases
+        this.loadEnemySprites();
+
         // Load all map assets
         this.loadMapAssets();
 
@@ -99,6 +101,69 @@ export class Preloader extends Scene
         graphics.fillCircle(8, 8, 8);
         graphics.generateTexture('particle_texture', 16, 16);
         graphics.destroy();
+    }
+
+    /**
+     * Load all enemy sprite assets
+     * Loads sprite sheets for different enemy types
+     */
+    loadEnemySprites() {
+        // Load Enemy1 sprite atlas
+        this.load.atlas('enemy1', 'assets/sprites/ENEMY1.png', 'assets/sprites/ENEMY1.json');
+        
+        // Load Enemy2 sprite atlas
+        this.load.atlas('enemy2', 'assets/sprites/ENEMY2.png', 'assets/sprites/ENEMY2.json');
+        
+        // Load Enemy3 sprite atlas
+        this.load.atlas('enemy3', 'assets/sprites/ENEMY3.png', 'assets/sprites/ENEMY3.json');
+        
+        // Load Boss1 sprite atlas
+        this.load.atlas('boss1', 'assets/sprites/BOSS1.png', 'assets/sprites/BOSS1.json');
+        
+        // Handle error fallbacks for enemy sprites
+        this.load.on('fileerror', (key, file) => {
+            if (key.startsWith('enemy') || key === 'boss1') {
+                console.warn(`Failed to load ${key} sprite. Creating fallback.`);
+                this.createFallbackEnemySprite(key);
+            }
+        });
+    }
+    
+    /**
+     * Create fallback sprites for enemies when original assets can't load
+     * @param {string} key - The texture key to create a fallback for
+     */
+    createFallbackEnemySprite(key) {
+        // Create a colored circle as fallback based on enemy type
+        const graphics = this.make.graphics();
+        
+        // Choose color based on enemy type
+        let color = 0xFFFFFF;
+        switch(key) {
+            case 'enemy1':
+                color = 0x00FF00; // Green for enemy1
+                break;
+            case 'enemy2':
+                color = 0x0000FF; // Blue for enemy2
+                break;
+            case 'enemy3':
+                color = 0xFF6600; // Orange for enemy3
+                break;
+            case 'boss1':
+                color = 0xFF0000; // Red for boss
+                break;
+        }
+        
+        // Draw a circle with the enemy color
+        graphics.fillStyle(color);
+        graphics.fillCircle(16, 16, 16);
+        graphics.generateTexture(key, 32, 32);
+        graphics.destroy();
+        
+        // Add some basic frame definitions to prevent animation errors
+        this.textures.get(key).add('idle_0', 0, 0, 0, 32, 32);
+        this.textures.get(key).add('run_0', 0, 0, 0, 32, 32);
+        this.textures.get(key).add('death_0', 0, 0, 0, 32, 32);
     }
 
     /**
@@ -139,6 +204,14 @@ export class Preloader extends Scene
         if (!this.textures.exists('particle_texture')) {
             this.createFallbackParticleTexture();
         }
+        
+        // Verify that enemy sprite atlases were loaded correctly, create fallbacks if needed
+        ['enemy1', 'enemy2', 'enemy3', 'boss1'].forEach(key => {
+            if (!this.textures.exists(key)) {
+                console.warn(`Creating fallback texture for ${key}`);
+                this.createFallbackEnemySprite(key);
+            }
+        });
 
         // Verify that the AnimatedTiles plugin was loaded correctly
         if (this.sys.plugins.get('AnimatedTiles')) {

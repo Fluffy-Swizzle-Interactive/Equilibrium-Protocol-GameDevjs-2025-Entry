@@ -77,8 +77,17 @@ export class BaseEnemy {
             this.graphics.parentEnemy = this;
         } else {
             this.graphics.setPosition(x, y);
-            this.graphics.setSize(this.size, this.size);
-            this.graphics.setFillStyle(this.color);
+            
+            // Check if this is a primitive shape (has setFillStyle) or a sprite
+            if (this.graphics.setFillStyle) {
+                // It's a primitive shape (rectangle)
+                this.graphics.setSize(this.size, this.size);
+                this.graphics.setFillStyle(this.color);
+            } else if (this.graphics.setTint) {
+                // It's a sprite, use setTint instead
+                this.graphics.clearTint(); // Clear any previous tints
+            }
+            
             this.graphics.setActive(true);
             this.graphics.setVisible(true);
         }
@@ -443,18 +452,29 @@ export class BaseEnemy {
 
         this.health -= damage;
 
-        // Store the current fill style before flashing
-        const currentFill = this.graphics.fillColor;
-
         // Flash the enemy to white to indicate hit
-        this.graphics.setFillStyle(0xffffff);
-        this.scene.time.delayedCall(100, () => {
-            if (this.active && this.graphics && this.graphics.active) {
-                // Always restore to the original color even during rage state
-                // Since rage now uses an outline instead of color change
-                this.graphics.setFillStyle(currentFill);
-            }
-        });
+        if (this.graphics.setFillStyle) {
+            // For primitive shape enemies (rectangles)
+            const currentFill = this.graphics.fillColor;
+            this.graphics.setFillStyle(0xffffff);
+            
+            this.scene.time.delayedCall(100, () => {
+                if (this.active && this.graphics && this.graphics.active) {
+                    // Restore to the original color
+                    this.graphics.setFillStyle(currentFill);
+                }
+            });
+        } else if (this.graphics.setTint) {
+            // For sprite-based enemies
+            this.graphics.setTint(0xffffff);
+            
+            this.scene.time.delayedCall(100, () => {
+                if (this.active && this.graphics && this.graphics.active) {
+                    // Clear the tint
+                    this.graphics.clearTint();
+                }
+            });
+        }
 
         // If health depleted, die
         if (this.health <= 0) {

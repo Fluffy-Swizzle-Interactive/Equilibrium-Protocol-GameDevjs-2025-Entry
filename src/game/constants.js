@@ -89,6 +89,19 @@ export const GroupId = {
 };
 
 /**
+ * Group IDs for entity factions
+ * Numeric identifiers used for sprite-based enemies and faction coloring
+ */
+export const GROUP_IDS = {
+    FRIENDLY: 1,
+    HOSTILE: 2,
+    NEUTRAL: 3,
+    FACTION_A: 4,
+    FACTION_B: 5,
+    FACTION_C: 6
+};
+
+/**
  * Chaos System Constants
  * Values used by the Chaos system
  */

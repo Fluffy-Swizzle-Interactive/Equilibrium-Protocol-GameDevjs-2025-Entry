@@ -318,17 +318,26 @@ export class WaveManager {
      * @returns {string} Enemy type identifier
      */
     getEnemyTypeForWave() {
+        // Use sprite-based enemies instead of primitive ones
         if (this.currentWave < 5) {
             // Early waves only have basic enemies
-            return 'enemy1';
+            return 'sprite_enemy1';
         } else if (this.currentWave < 15) {
             // Mid waves introduce enemy2 with increasing probability
             const enemy2Chance = (this.currentWave - 5) / 20;
-            return Math.random() < enemy2Chance ? 'enemy2' : 'enemy1';
+            return Math.random() < enemy2Chance ? 'sprite_enemy2' : 'sprite_enemy1';
         } else {
             // Later waves have more enemy2 than enemy1
             const enemy2Chance = Math.min(0.7, (this.currentWave - 15) / 30);
-            return Math.random() < enemy2Chance ? 'enemy2' : 'enemy1';
+            // Introduce enemy3 in later waves
+            const enemy3Chance = Math.min(0.3, (this.currentWave - 15) / 40);
+            
+            // First roll for enemy3, then choose between enemy1 and enemy2
+            if (Math.random() < enemy3Chance) {
+                return 'sprite_enemy3';
+            } else {
+                return Math.random() < enemy2Chance ? 'sprite_enemy2' : 'sprite_enemy1';
+            }
         }
     }
     

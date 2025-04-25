@@ -3,6 +3,9 @@ import { Enemy1 } from '../entities/Enemy1';
 import { Enemy2 } from '../entities/Enemy2';
 import { Enemy3 } from '../entities/Enemy3';
 import { Boss1 } from '../entities/Boss1';
+import { SpriteEnemy1 } from '../entities/SpriteEnemy1';
+import { SpriteEnemy2 } from '../entities/SpriteEnemy2';
+import { SpriteEnemy3 } from '../entities/SpriteEnemy3';
 import { GroupId } from '../constants';
 
 /**
@@ -35,6 +38,8 @@ export class EnemyRegistry {
      * @private
      */
     registerDefaultEnemies() {
+        // Register standard geometric enemies
+        
         // Register Enemy1
         this.registerEnemyType('enemy1', Enemy1, {
             speed: 0.7,
@@ -98,6 +103,52 @@ export class EnemyRegistry {
             initialSize: 2,
             maxSize: 5,
             growSize: 1
+        });
+        
+        // Register sprite-based versions with identical stats
+        
+        // Register SpriteEnemy1
+        this.registerEnemyType('sprite_enemy1', SpriteEnemy1, {
+            speed: 0.7,
+            health: 10,
+            damage: 30,
+            scoreValue: 10
+        }, {
+            initialSize: 10,
+            maxSize: 50,
+            growSize: 5
+        });
+        
+        // Register SpriteEnemy2
+        this.registerEnemyType('sprite_enemy2', SpriteEnemy2, {
+            speed: 0.4,
+            health: 20,
+            damage: 40,
+            scoreValue: 25,
+            dashSpeed: 2.0,
+            chargeTime: 1500,
+            dashTime: 500,
+            dashCooldownTime: 5000
+        }, {
+            initialSize: 5,
+            maxSize: 30,
+            growSize: 3
+        });
+        
+        // Register SpriteEnemy3
+        this.registerEnemyType('sprite_enemy3', SpriteEnemy3, {
+            speed: 0.3,
+            health: 15,
+            damage: 20,
+            scoreValue: 20,
+            attackRange: 350,
+            preferredRange: 250,
+            retreatRange: 150,
+            attackCooldownTime: 2000
+        }, {
+            initialSize: 5,
+            maxSize: 30,
+            growSize: 3
         });
     }
     
