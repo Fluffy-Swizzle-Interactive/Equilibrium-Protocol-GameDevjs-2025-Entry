@@ -114,19 +114,7 @@ export class Preloader extends Scene
         this.load.image('tileset_x1', 'assets/maps/tileset x1.png');
         this.load.image('props_and_items_x1', 'assets/maps/props and items x1.png');
         this.load.tilemapTiledJSON('level1redux', 'assets/maps/Level1-REDUX.json');
-
-        // Load the Animated Tiles plugin from assets directory
-        console.log('Loading AnimatedTiles plugin from assets directory...');
-        this.load.plugin('AnimatedTiles', 'assets/plugins/AnimatedTiles.min.js', true);
-
-        // Add event listeners to track plugin loading
-        this.load.on('filecomplete-plugin-AnimatedTiles', () => {
-            console.log('AnimatedTiles plugin loaded successfully');
-        });
-
-        this.load.on('fileerror-plugin-AnimatedTiles', (_, __, error) => {
-            console.error('Failed to load AnimatedTiles plugin:', error);
-        });
+        this.load.plugin('AnimatedTiles', 'https://cdn.rawgit.com/PhaserEditor2D/AnimatedTiles/master/dist/AnimatedTiles.js', true);
 
         // Keep the Dark Cave Net tilemap for backward compatibility
         this.load.image('darkcavenet', 'assets/maps/darkcavenet.png');
@@ -138,26 +126,6 @@ export class Preloader extends Scene
         // Double check if particle_texture was loaded, if not create a fallback
         if (!this.textures.exists('particle_texture')) {
             this.createFallbackParticleTexture();
-        }
-
-        // Verify that the AnimatedTiles plugin was loaded correctly
-        if (this.sys.plugins.get('AnimatedTiles')) {
-            console.log('AnimatedTiles plugin is available in the scene');
-
-            // Log plugin details
-            const plugin = this.sys.plugins.get('AnimatedTiles');
-            console.log('Plugin details:', {
-                name: plugin.name,
-                active: plugin.active,
-                visible: plugin.visible,
-                mapping: plugin.mapping
-            });
-        } else {
-            console.warn('AnimatedTiles plugin is NOT available in the scene');
-
-            // List all available plugins
-            const plugins = Object.keys(this.sys.plugins.plugins);
-            console.log('Available plugins:', plugins);
         }
 
         EventBus.emit('preloader-complete', this);

@@ -555,77 +555,10 @@ export class WaveGame extends Scene {
         // Get map dimensions from the map manager
         this.mapDimensions = this.mapManager.getMapDimensions();
 
-        // Initialize animated tiles
-        this.initAnimatedTiles();
-
         // Debug info for development mode
         if (this.isDev) {
             console.debug(`Map loaded: ${this.mapManager.currentMapKey}`);
             console.debug(`Map dimensions: ${this.mapDimensions.width}x${this.mapDimensions.height}`);
-        }
-    }
-
-    /**
-     * Initialize the Animated Tiles plugin
-     */
-    initAnimatedTiles() {
-        console.log('Attempting to initialize Animated Tiles plugin...');
-
-        // Check if the AnimatedTiles plugin is available
-        if (this.sys.plugins.get('AnimatedTiles')) {
-            // Get the plugin instance
-            const animatedTiles = this.sys.plugins.get('AnimatedTiles');
-            console.log('AnimatedTiles plugin found:', animatedTiles);
-
-            // Get the current tilemap from the map manager
-            if (this.mapManager && this.mapManager.currentMapData && this.mapManager.currentMapData.tilemap) {
-                const tilemap = this.mapManager.currentMapData.tilemap;
-                console.log('Tilemap found:', tilemap.key);
-
-                // Log animation data if available
-                if (tilemap.tilesets && tilemap.tilesets.length > 0) {
-                    console.log('Tilesets found:', tilemap.tilesets.length);
-
-                    tilemap.tilesets.forEach((tileset, index) => {
-                        console.log(`Tileset ${index}:`, tileset.name);
-
-                        if (tileset.tileData) {
-                            const animatedTiles = Object.values(tileset.tileData).filter(data => data.animation);
-                            console.log(`Tileset ${index} has ${animatedTiles.length} animated tiles`);
-
-                            if (animatedTiles.length > 0) {
-                                console.log('First animated tile data:', animatedTiles[0]);
-                            }
-                        } else {
-                            console.log(`Tileset ${index} has no tileData`);
-                        }
-                    });
-                }
-
-                // Initialize the plugin with the current tilemap
-                try {
-                    console.log('Initializing AnimatedTiles plugin with tilemap...');
-                    animatedTiles.init(tilemap);
-                    console.log('Animated Tiles plugin initialized successfully');
-
-                    // Check if the plugin has any animated tiles
-                    if (animatedTiles.animatedTiles) {
-                        console.log(`Plugin found ${animatedTiles.animatedTiles.length} animated tiles`);
-                    } else {
-                        console.warn('Plugin did not find any animated tiles');
-                    }
-                } catch (error) {
-                    console.error('Error initializing Animated Tiles plugin:', error);
-                }
-            } else {
-                console.warn('Cannot initialize Animated Tiles: No tilemap loaded');
-            }
-        } else {
-            console.warn('AnimatedTiles plugin not available');
-
-            // List all available plugins
-            const plugins = Object.keys(this.sys.plugins.plugins);
-            console.log('Available plugins:', plugins);
         }
     }
 
@@ -966,10 +899,11 @@ export class WaveGame extends Scene {
                         if (distance < (bulletSize + enemySize)) {
                             // Check for critical hit
                             let finalDamage = bulletDamage;
+                            let isCritical = false;
 
                             // Apply critical hit if bullet has critical properties
                             if (bullet.canCrit && bullet.critMultiplier) {
-                                // Apply critical hit multiplier
+                                isCritical = true;
                                 finalDamage *= bullet.critMultiplier;
 
                                 // Create critical hit effect
@@ -1231,10 +1165,10 @@ export class WaveGame extends Scene {
      * @private
      * @param {number} x - X position
      * @param {number} y - Y position
-     * @param {string} [enemyType] - Optional type of enemy to filter by (unused currently)
+     * @param {string} enemyType - Type of enemy
      * @returns {BaseEnemy|null} The enemy at that position, or null if not found
      */
-    findEnemyByPosition(x, y, _enemyType) {
+    findEnemyByPosition(x, y, enemyType) {
         if (!this.enemyManager || !this.enemyManager.enemies) {
             return null;
         }
@@ -1363,31 +1297,5 @@ export class WaveGame extends Scene {
         this.time.delayedCall(500, () => {
             particles.destroy();
         });
-    }
-
-    /**
-     * Switch to a different map and reinitialize animated tiles
-     * @param {string} mapKey - Key of the map to switch to
-     */
-    switchMap(mapKey) {
-        if (this.mapManager) {
-            // Load the new map
-            this.mapManager.loadMap(mapKey);
-
-            // Reinitialize animated tiles for the new map
-            this.initAnimatedTiles();
-
-            // Update map dimensions
-            this.mapDimensions = this.mapManager.getMapDimensions();
-
-            // Update camera bounds
-            this.cameras.main.setBounds(0, 0, this.mapDimensions.width, this.mapDimensions.height);
-
-            // Debug info
-            if (this.isDev) {
-                console.debug(`Switched to map: ${mapKey}`);
-                console.debug(`New map dimensions: ${this.mapDimensions.width}x${this.mapDimensions.height}`);
-            }
-        }
     }
 }

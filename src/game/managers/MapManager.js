@@ -320,9 +320,6 @@ export class MapManager {
 
         this.currentMapKey = mapKey;
 
-        // Initialize animated tiles if the plugin is available
-        this.initAnimatedTiles();
-
         return this.currentMapData;
     }
 
@@ -533,28 +530,6 @@ export class MapManager {
         }
 
         return true;
-    }
-
-    /**
-     * Initialize the Animated Tiles plugin for the current map
-     * This activates animations defined in the Tiled map editor
-     */
-    initAnimatedTiles() {
-        // Check if the plugin is available in the scene
-        if (this.scene.sys.plugins.get('AnimatedTiles')) {
-            // Get the plugin instance
-            const animatedTiles = this.scene.sys.plugins.get('AnimatedTiles');
-
-            // Initialize the plugin with the current tilemap
-            if (this.currentMapData && this.currentMapData.tilemap) {
-                animatedTiles.init(this.currentMapData.tilemap);
-                console.debug('Animated Tiles plugin initialized');
-            } else {
-                console.warn('Cannot initialize Animated Tiles: No tilemap loaded');
-            }
-        } else {
-            console.warn('Animated Tiles plugin not available');
-        }
     }
 
     /**
