@@ -361,11 +361,9 @@ export class CollectibleManager {
     createCollectionEffect(sprite, config) {
         if (!sprite || !config.particleColor) return;
 
-        // Create particles if particles manager exists
-        if (this.scene.particles) {
-            const particles = this.scene.particles.createEmitter({
-                x: sprite.x,
-                y: sprite.y,
+        // Create particles using the current Phaser API
+        if (this.scene.add && this.scene.add.particles) {
+            const particleManager = this.scene.add.particles(sprite.x, sprite.y, 'particle_texture', {
                 speed: { min: 30, max: 60 },
                 angle: { min: 0, max: 360 },
                 scale: { start: 0.3, end: 0 },
@@ -378,7 +376,7 @@ export class CollectibleManager {
 
             // Auto-destroy particles after short time
             this.scene.time.delayedCall(200, () => {
-                particles.stop();
+                particleManager.destroy();
             });
         }
     }

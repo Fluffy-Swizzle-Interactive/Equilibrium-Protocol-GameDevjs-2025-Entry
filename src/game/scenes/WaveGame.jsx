@@ -12,10 +12,12 @@ import { UIManager } from '../managers/UIManager';
 import { PlayerHealth } from '../entities/PlayerHealth';
 import { GroupManager } from '../managers/GroupManager';
 import { ChaosManager } from '../managers/ChaosManager';
+import { GroupWeightManager } from '../managers/GroupWeightManager';
 import { XPManager } from '../managers/XPManager';
 import { CashManager } from '../managers/CashManager';
 import { SpritePool } from '../entities/SpritePool';
 import { CollectibleManager } from '../managers/CollectibleManager';
+import { FactionBattleManager } from '../managers/FactionBattleManager';
 import ShopManager from '../managers/ShopManager';
 import { HealthRegenerationSystem } from '../systems/HealthRegenerationSystem';
 import { DEPTHS, CHAOS } from '../constants';
@@ -78,11 +80,13 @@ export class WaveGame extends Scene {
         this.setupObjectManager(); // Initialize object pooling system
         this.setupGroupManager(); // Initialize group management system
         this.setupChaosManager(); // Initialize chaos management system
+        this.setupGroupWeightManager(); // Initialize group weight management system
         this.setupUIManager(); // Setup UI before game objects
         this.setupGameObjects(); // Then create player and other objects
         this.setupWaveManager(); // Setup wave manager after other systems
         this.setupCollectibleManager(); // Setup collectible manager
         this.setupShopManager(); // Setup shop system
+        this.setupFactionBattleManager(); // Setup faction battle manager
         this.setupHealthRegenerationSystem(); // Setup health regeneration system
         this.setupInput();
 
@@ -181,6 +185,19 @@ export class WaveGame extends Scene {
             initialValue: CHAOS.DEFAULT_VALUE,
             autoAdjust: false // Start with auto-adjust disabled
         });
+    }
+
+    /**
+     * Set up the group weight manager for faction weights
+     */
+    setupGroupWeightManager() {
+        // Create the group weight manager
+        this.groupWeightManager = new GroupWeightManager(this);
+
+        // Connect the group weight manager with the chaos manager
+        if (this.chaosManager) {
+            this.chaosManager.setGroupWeightManager(this.groupWeightManager);
+        }
     }
 
     /**
@@ -357,6 +374,45 @@ export class WaveGame extends Scene {
         // Log initialization in dev mode
         if (this.isDev) {
             console.debug('ShopManager initialized');
+        }
+    }
+    
+    /**
+     * Set up the faction battle manager
+     * Manages battles between enemy factions when chaos levels are high
+     */
+    setupFactionBattleManager() {
+        // Initialize faction battle manager with configuration
+        this.factionBattleManager = new FactionBattleManager(this, {
+            chaosThreshold: 40, // Start battles at 40% chaos
+            requiredEnemiesPerFaction: 3, // Reduced from 5 to make battles more likely
+            detectionRadius: 400, // Increased from 300 to catch more enemies
+            battleCheckInterval: 1500, // Reduced from 3000 to check more frequently 
+            enabled: true,
+            isDev: this.isDev // Pass dev mode flag for additional logging
+        });
+        
+        // Set up particles system for battle effects if not already available
+        if (!this.particles) {
+            this.particles = this.add.particles('particle_texture');
+        }
+        
+        // Initialize manager after creation
+        this.factionBattleManager.initialize();
+        
+        // Add a debug key to force battles (dev only)
+        if (this.isDev) {
+            this.input.keyboard.addKey('B').on('down', () => {
+                if (this.factionBattleManager) {
+                    // Get player position to use as center
+                    const pos = this.player.getPosition();
+                    // Try to force a battle at player position with large radius
+                    const result = this.factionBattleManager.forceBattle(pos.x, pos.y, 800);
+                    console.debug(`Forced battle attempt: ${result ? 'SUCCESS' : 'FAILED - Not enough enemies nearby'}`);
+                }
+            });
+            
+            console.debug('FactionBattleManager initialized. Press B to force battles.');
         }
     }
 
@@ -632,6 +688,11 @@ export class WaveGame extends Scene {
         // Update health regeneration system
         if (this.healthRegenSystem) {
             this.healthRegenSystem.update(time, delta);
+        }
+
+        // Update faction battle manager
+        if (this.factionBattleManager) {
+            this.factionBattleManager.update(time, delta);
         }
 
         // Check for collisions

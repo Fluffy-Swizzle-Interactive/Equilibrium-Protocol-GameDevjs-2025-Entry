@@ -352,6 +352,20 @@ export class GroupManager {
     }
     
     /**
+     * Get all entities in a specific group
+     * @param {string} groupId - The group ID from GroupId enum
+     * @returns {Array} Array of entities in the specified group
+     */
+    getEntitiesInGroup(groupId) {
+        if (!Object.values(GroupId).includes(groupId)) {
+            console.warn(`Invalid group ID in getEntitiesInGroup: ${groupId}`);
+            return [];
+        }
+        
+        return [...this.enemiesByGroup[groupId]];
+    }
+    
+    /**
      * Reset all group counts to zero
      */
     reset() {

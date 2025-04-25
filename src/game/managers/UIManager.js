@@ -577,7 +577,7 @@ export class UIManager {
         // Create particle emitter
         if (this.scene.add && this.scene.add.particles) {
             // Use default particle texture if available, otherwise use a circle
-            const particles = this.scene.add.particles(centerX, centerY, 'particle_texture', {
+            const particleManager = this.scene.add.particles(centerX, centerY, 'particle_texture', {
                 speed: { min: 100, max: 300 },
                 scale: { start: 0.5, end: 0 },
                 alpha: { start: 1, end: 0 },
@@ -590,7 +590,7 @@ export class UIManager {
             
             // Auto-destroy after effect completes
             this.scene.time.delayedCall(1000, () => {
-                if (particles) particles.destroy();
+                if (particleManager) particleManager.destroy();
             });
         }
     }
@@ -632,25 +632,37 @@ export class UIManager {
      * Update chaos meter with current level
      */
     updateChaosMeter() {
-        if (!this.scene.chaosManager || !this.elements.aiBar || !this.elements.coderBar) return;
+        // First check if the chaos manager exists and if all required elements are available
+        if (!this.scene || !this.scene.chaosManager || 
+            !this.elements.aiBar || !this.elements.coderBar || 
+            !this.elements.chaosValue || !this.elements.chaosValue.setText) {
+            return;
+        }
         
-        const chaosValue = this.scene.chaosManager.getChaos();
-        const maxWidth = 150; // Half of the total bar width (300/2)
-        
-        // Update the value text
-        this.elements.chaosValue.setText(Math.round(chaosValue));
-        
-        // Update AI bar (left side, negative values)
-        const aiWidth = Math.max(0, -chaosValue) / Math.abs(CHAOS.MIN_VALUE) * maxWidth;
-        this.elements.aiBar.width = aiWidth;
-        this.elements.aiBar.x = -aiWidth;
-        
-        // Update Coder bar (right side, positive values)
-        const coderWidth = Math.max(0, chaosValue) / CHAOS.MAX_VALUE * maxWidth;
-        this.elements.coderBar.width = coderWidth;
-        
-        // Update faction count text beneath the meter
-        this.updateGroupCountText();
+        try {
+            const chaosValue = this.scene.chaosManager.getChaos();
+            const maxWidth = 150; // Half of the total bar width (300/2)
+            
+            // Update the value text - wrap in try/catch to handle potential null data
+            this.elements.chaosValue.setText(Math.round(chaosValue));
+            
+            // Update AI bar (left side, negative values)
+            const aiWidth = Math.max(0, -chaosValue) / Math.abs(CHAOS.MIN_VALUE) * maxWidth;
+            this.elements.aiBar.width = aiWidth;
+            this.elements.aiBar.x = -aiWidth;
+            
+            // Update Coder bar (right side, positive values)
+            const coderWidth = Math.max(0, chaosValue) / CHAOS.MAX_VALUE * maxWidth;
+            this.elements.coderBar.width = coderWidth;
+            
+            // Update faction count text beneath the meter - only if available
+            if (this.elements.groupText && this.elements.groupText.setText) {
+                this.updateGroupCountText();
+            }
+        } catch (error) {
+            // Silently handle any error that might occur during update
+            console.debug("Error updating chaos meter:", error);
+        }
     }
     
     /**
@@ -1240,11 +1252,15 @@ export class UIManager {
         // Listen for cash updates
         EventBus.on('cash-updated', this.updateCashUI, this);
         
+        // Listen for faction surge events
+        EventBus.on('faction-surge', this.showFactionSurgeNotification, this);
+        
         // Clean up listeners when scene changes
         this.scene.events.once('shutdown', () => {
             EventBus.off('xp-updated', this.updateXPUI, this);
             EventBus.off('level-up');
             EventBus.off('cash-updated', this.updateCashUI, this);
+            EventBus.off('faction-surge', this.showFactionSurgeNotification, this);
         });
     }
     
@@ -1266,6 +1282,107 @@ export class UIManager {
         
         // Update chaos meter
         this.updateChaosMeter();
+    }
+    
+    /**
+     * Display a faction surge notification when a dramatic shift in spawn rates occurs
+     * @param {Object} data - Surge data including group ID and strength
+     */
+    showFactionSurgeNotification(data) {
+        const { groupId, strength } = data;
+        
+        // Determine faction name and color based on groupId
+        let factionName = groupId === 'ai' ? 'AI' : 'Coder';
+        let color = groupId === 'ai' ? 0x00aaff : 0xff5500;
+        
+        // Create notification background
+        const surgeBackground = this.scene.add.rectangle(
+            this.scene.cameras.main.width / 2,
+            this.scene.cameras.main.height * 0.2,
+            400,
+            100,
+            0x000000,
+            0.8
+        ).setScrollFactor(0).setDepth(100);
+        
+        // Create notification text
+        const surgeText = this.scene.add.text(
+            this.scene.cameras.main.width / 2,
+            this.scene.cameras.main.height * 0.2,
+            `${factionName} SURGE!\nMassive reinforcements incoming!`,
+            {
+                fontFamily: 'Arial',
+                fontSize: '24px',
+                color: `#${color.toString(16).padStart(6, '0')}`,
+                align: 'center',
+                stroke: '#000000',
+                strokeThickness: 4
+            }
+        ).setOrigin(0.5).setScrollFactor(0).setDepth(101);
+        
+        // Create particle effect
+        if (this.scene.particles) {
+            const particles = this.scene.particles.createEmitter({
+                x: this.scene.cameras.main.width / 2,
+                y: this.scene.cameras.main.height * 0.2 + 30,
+                speed: { min: 100, max: 200 },
+                angle: { min: 230, max: 310 },
+                scale: { start: 0.6, end: 0 },
+                blendMode: 'ADD',
+                lifespan: 800,
+                quantity: 2,
+                tint: color
+            });
+            
+            // Stop after a short time
+            this.scene.time.delayedCall(1500, () => {
+                particles.stop();
+            });
+        }
+        
+        // Create dramatic animation
+        this.scene.tweens.add({
+            targets: [surgeBackground, surgeText],
+            scaleX: { from: 0, to: 1 },
+            scaleY: { from: 0, to: 1 },
+            duration: 300,
+            ease: 'Back.easeOut',
+            onComplete: () => {
+                // Add pulsing effect
+                this.scene.tweens.add({
+                    targets: [surgeBackground, surgeText],
+                    scale: { from: 1, to: 1.05 },
+                    yoyo: true,
+                    repeat: 3,
+                    duration: 150,
+                    onComplete: () => {
+                        // Fade out after delay
+                        this.scene.time.delayedCall(1500, () => {
+                            this.scene.tweens.add({
+                                targets: [surgeBackground, surgeText],
+                                alpha: 0,
+                                y: '-=50',
+                                duration: 500,
+                                onComplete: () => {
+                                    surgeBackground.destroy();
+                                    surgeText.destroy();
+                                }
+                            });
+                        });
+                    }
+                });
+            }
+        });
+        
+        // Camera shake effect
+        if (this.scene.cameras && this.scene.cameras.main) {
+            this.scene.cameras.main.shake(300, 0.005);
+        }
+        
+        // Play dramatic sound if available
+        if (this.scene.soundManager) {
+            this.scene.soundManager.playSoundEffect('surge_alert', { volume: 0.7 });
+        }
     }
     
     /**

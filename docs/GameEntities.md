@@ -188,6 +188,20 @@ const bullet = this.bulletPool.getBullet(
 );
 ```
 
+## Group Management
+
+The GroupManager class handles tracking and organizing game entities by their faction or group.
+
+### Group Manager Methods
+
+- `register(enemy, groupId)`: Registers an enemy with a specific group and applies group modifiers
+- `deregister(enemy, groupId)`: Removes an enemy from a group (typically when defeated)
+- `getGroupCount(groupId)`: Returns the count of active enemies in a specific group
+- `getAllGroupCounts()`: Returns counts for all groups
+- `getEntitiesInGroup(groupId)`: Returns an array of all entities belonging to a specific group
+- `findNearestHostileEnemy(sourceEnemy, maxDistance)`: Finds the closest enemy that is hostile to the source enemy
+- `getHostileEnemiesInRange(groupId, x, y, range)`: Returns all enemies hostile to a group within a specified range
+
 ## Entity Lifecycle
 
 1. **Creation** - Entity is created or retrieved from pool

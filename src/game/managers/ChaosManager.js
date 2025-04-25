@@ -27,11 +27,34 @@ export class ChaosManager {
         this.killWeight = options.killWeight ?? CHAOS.KILL_WEIGHT;
         this.panicThreshold = options.panicThreshold ?? CHAOS.PANIC_THRESHOLD;
         
+        // ENHANCED: Adjust kill weight for more balanced chaos changes
+        // Reduced from 2.5x to 1.4x for a more moderate progression
+        this.killWeight = this.killWeight * 1.4; 
+        
+        // ENHANCED: Momentum system for accelerating chaos changes
+        this.momentumEnabled = true;
+        // Reduced momentum factor for a less aggressive buildup
+        this.momentumFactor = 0.08; // Reduced from 0.15
+        this.currentMomentum = 0;
+        // Increased decay to reduce momentum persistence
+        this.momentumDecay = 0.96; // Faster decay (was 0.98)
+        this.maxMomentum = 3.5; // Reduced from 5.0
+        this.consecutiveKillType = null;
+        this.consecutiveKillCount = 0;
+        
         // Track if a major event has been fired at each extreme
         this.majorEventFired = {
             [CHAOS.MIN_VALUE]: false,
             [CHAOS.MAX_VALUE]: false
         };
+        
+        // ENHANCED: Additional threshold events for more chaos events
+        this.thresholdEvents = [
+            { value: 40, triggered: false, direction: 1 },
+            { value: 70, triggered: false, direction: 1 },
+            { value: -40, triggered: false, direction: -1 },
+            { value: -70, triggered: false, direction: -1 }
+        ];
         
         // Multiplier caches to avoid recalculating every frame
         this.multiplierCache = {
@@ -39,11 +62,47 @@ export class ChaosManager {
             [GroupId.CODER]: this.calculateMultipliers(GroupId.CODER)
         };
         
+        // Reference to GroupWeightManager to control spawn probabilities
+        this.groupWeightManager = null;
+        
+        // REMOVED: Automatic chaos oscillations to ensure chaos only changes from player actions
+        this.chaosOscillations = false; // Disabled automatic fluctuations
+        this.oscillationAmount = 0;      // Set to zero to prevent any unintended effects
+        this.oscillationSpeed = 0;       // Set to zero
+        this.lastOscillationTime = Date.now();
+        
+        // NEW: Cooldown timer for extreme chaos values
+        this.extremeChaosTimeoutActive = false;
+        this.maxChaosCooldownDuration = 5000; // 5 seconds in milliseconds
+        
         // Register this manager with the scene for easy access
         scene.chaosManager = this;
         
         // Subscribe to EventBus
         EventBus.on('enemy-killed', this.handleEnemyKilled, this);
+        
+        // Debug properties
+        this.isDev = this.scene.isDev || false;
+        
+        // Set up update loop for momentum only (not oscillation)
+        if (this.scene && this.scene.events) {
+            this.scene.events.on('update', this.update, this);
+        }
+    }
+    
+    /**
+     * Set the group weight manager reference
+     * @param {GroupWeightManager} groupWeightManager - The GroupWeightManager instance
+     */
+    setGroupWeightManager(groupWeightManager) {
+        this.groupWeightManager = groupWeightManager;
+        
+        // Initialize weights based on current chaos level
+        this.updateGroupWeights();
+        
+        if (this.isDev) {
+            console.debug('ChaosManager connected to GroupWeightManager');
+        }
     }
     
     /**
@@ -68,10 +127,39 @@ export class ChaosManager {
             return this.chaosValue;
         }
         
+        // NEW: Skip if we're in an extreme chaos cooldown period
+        if (this.extremeChaosTimeoutActive) {
+            if (this.isDev) {
+                console.debug('Chaos change blocked: Extreme chaos cooldown active');
+            }
+            return this.chaosValue;
+        }
+        
+        // ENHANCED: Track consecutive kills to build momentum
+        if (this.momentumEnabled) {
+            if (this.consecutiveKillType === groupId) {
+                this.consecutiveKillCount++;
+                // Build up momentum for repeated kills of the same group
+                const momentumIncrease = Math.min(this.momentumFactor * this.consecutiveKillCount, this.maxMomentum);
+                this.currentMomentum = Math.min(this.maxMomentum, this.currentMomentum + momentumIncrease);
+            } else {
+                // Reset momentum when switching targets
+                this.consecutiveKillType = groupId;
+                this.consecutiveKillCount = 1;
+                this.currentMomentum = this.momentumFactor;
+            }
+        }
+        
         // When killing AI, move toward CODER dominance (+)
         // When killing CODER, move toward AI dominance (-)
         const direction = groupId === GroupId.AI ? 1 : -1;
-        const newValue = this.chaosValue + (direction * this.killWeight);
+        
+        // ENHANCED: Apply momentum to kill weight
+        const effectiveKillWeight = this.momentumEnabled ? 
+            this.killWeight * (1 + this.currentMomentum) : 
+            this.killWeight;
+            
+        const newValue = this.chaosValue + (direction * effectiveKillWeight);
         
         // Update the value and check for major events
         const result = this.setChaos(newValue);
@@ -79,7 +167,89 @@ export class ChaosManager {
         // Recalculate multipliers
         this.updateMultiplierCache();
         
+        // IMPORTANT: Also register kill with the GroupWeightManager if available
+        // This makes killed groups more likely to spawn, creating a balancing mechanism
+        if (this.groupWeightManager) {
+            this.groupWeightManager.registerKill(groupId);
+            
+            // Trigger a surge if momentum is very high (player killing same group repeatedly)
+            if (this.momentumEnabled && this.currentMomentum > 3.5 && this.consecutiveKillCount >= 8) {
+                // Get the opposite group for the surge
+                const oppositeGroup = groupId === GroupId.AI ? GroupId.CODER : GroupId.AI;
+                
+                // Call the surge method in GroupWeightManager
+                if (this.consecutiveKillCount % 8 === 0) { // Every 8 kills
+                    this.triggerFactionSurge(oppositeGroup);
+                }
+                
+                // Reset momentum after triggering surge
+                this.currentMomentum *= 0.7; // Reduce momentum but don't reset completely
+            }
+        }
+        
         return result;
+    }
+    
+    /**
+     * Trigger a dramatic faction surge in the weight manager
+     * @param {String} factionId - The faction to trigger a surge for
+     */
+    triggerFactionSurge(factionId) {
+        if (!this.groupWeightManager) return;
+        
+        // Temporarily boost the enemy spawn rate for the target faction
+        this.groupWeightManager.temporaryBoost(factionId, 3.0, 10000);
+        
+        // Emit event for UI notifications
+        if (this.scene.events) {
+            this.scene.events.emit('faction-surge', {
+                groupId: factionId,
+                strength: 3.0
+            });
+        }
+    }
+    
+    /**
+     * Update group weights based on current chaos level
+     * Adjusts spawn probabilities based on chaos imbalance
+     */
+    updateGroupWeights() {
+        if (!this.groupWeightManager) return;
+        
+        // Get normalized chaos value (-1 to 1)
+        const normalizedChaos = this.chaosValue / 100;
+        
+        // Base weights - equal distribution by default
+        let aiWeight = 50;
+        let coderWeight = 50;
+        
+        // ENHANCED: Apply more balanced adjustments to weights based on chaos level
+        if (normalizedChaos > 0) {
+            // Positive chaos (CODER dominance) - increase AI spawn rates
+            // More moderate curve - less exponential for better balance
+            const adjustment = Math.pow(Math.abs(normalizedChaos), 1.3) * 35; // Reduced from 1.5/40 to 1.3/35
+            aiWeight += adjustment;
+            coderWeight -= adjustment;
+        } else if (normalizedChaos < 0) {
+            // Negative chaos (AI dominance) - increase CODER spawn rates
+            const adjustment = Math.pow(Math.abs(normalizedChaos), 1.3) * 35;
+            coderWeight += adjustment;
+            aiWeight -= adjustment;
+        }
+        
+        // Set the weights in the weight manager
+        // Increased minimum weight from 15% to 20% for better balance
+        this.groupWeightManager.setWeights({
+            'ai': Math.max(20, aiWeight),
+            'coder': Math.max(20, coderWeight)
+        });
+        
+        if (this.isDev) {
+            console.debug(`Chaos level ${this.chaosValue} adjusted spawn weights:`, {
+                ai: aiWeight,
+                coder: coderWeight
+            });
+        }
     }
     
     /**
@@ -99,6 +269,7 @@ export class ChaosManager {
     
     /**
      * Calculate multipliers for a specific faction based on current chaos
+     * ENHANCED: More dramatic power scaling
      * @param {string} groupId - The group ID to calculate multipliers for
      * @returns {Object} Multipliers for hp, damage, fireRate, dodge
      * @private
@@ -133,12 +304,13 @@ export class ChaosManager {
         // Calculate the multiplier factor (absolute chaos value)
         const chaosFactor = Math.abs(this.chaosValue) / 100;
         
-        // Apply K multipliers from constants
+        // ENHANCED: Apply more dramatic non-linear scaling
+        // Apply K multipliers from constants with exponential scaling for more dramatic effects
         return {
-            hp: 1 + (chaosFactor * CHAOS.MULTIPLIERS.HP),
-            damage: 1 + (chaosFactor * CHAOS.MULTIPLIERS.DAMAGE),
-            fireRate: 1 + (chaosFactor * CHAOS.MULTIPLIERS.FIRE_RATE),
-            dodge: 1 + (chaosFactor * CHAOS.MULTIPLIERS.DODGE)
+            hp: 1 + (Math.pow(chaosFactor, 1.2) * CHAOS.MULTIPLIERS.HP * 1.2),
+            damage: 1 + (Math.pow(chaosFactor, 1.3) * CHAOS.MULTIPLIERS.DAMAGE * 1.3),
+            fireRate: 1 + (Math.pow(chaosFactor, 1.1) * CHAOS.MULTIPLIERS.FIRE_RATE * 1.2),
+            dodge: 1 + (Math.pow(chaosFactor, 1.4) * CHAOS.MULTIPLIERS.DODGE * 1.2)
         };
     }
     
@@ -154,11 +326,11 @@ export class ChaosManager {
     }
     
     /**
-     * Check if a faction is in the panic state
+     * Check if a faction is in the rage state
      * @param {string} groupId - The group ID to check
-     * @returns {boolean} True if the faction should panic
+     * @returns {boolean} True if the faction should enter rage mode
      */
-    isPanicking(groupId) {
+    isEnraged(groupId) {
         // Skip if invalid group
         if (!groupId || groupId === GroupId.NEUTRAL) {
             return false;
@@ -167,15 +339,32 @@ export class ChaosManager {
         // Determine threshold based on chaos orientation
         const absValue = Math.abs(this.chaosValue);
         
-        // If not past panic threshold, no panic
+        // If not past panic threshold, no rage
         if (absValue < this.panicThreshold) {
             return false;
         }
         
-        // AI panics when chaos is strongly positive (Coders winning)
-        // Coders panic when chaos is strongly negative (AI winning)
-        return (groupId === GroupId.AI && this.chaosValue > 0) || 
-               (groupId === GroupId.CODER && this.chaosValue < 0);
+        // CORRECTED LOGIC:
+        // When chaos is positive (+): CODERS are dominant, AI should rage
+        // When chaos is negative (-): AI is dominant, CODERS should rage
+        
+        if (this.chaosValue > 0) {
+            // Positive chaos - CODERS dominant, AI should rage
+            return groupId === GroupId.AI;
+        } else {
+            // Negative chaos - AI dominant, CODERS should rage
+            return groupId === GroupId.CODER;
+        }
+    }
+    
+    /**
+     * @deprecated Use isEnraged instead
+     * Check if a faction is in the panic state (legacy method for backwards compatibility)
+     * @param {string} groupId - The group ID to check
+     * @returns {boolean} True if the faction should rage
+     */
+    isPanicking(groupId) {
+        return this.isEnraged(groupId);
     }
     
     /**
@@ -239,6 +428,14 @@ export class ChaosManager {
         // Check for major events
         this.checkMajorChaosEvents(oldValue, newValue);
         
+        // ENHANCED: Check for threshold events
+        this.checkThresholdEvents(oldValue, newValue);
+        
+        // Update group weights if GroupWeightManager is available
+        if (this.groupWeightManager && Math.abs(newValue - oldValue) >= 5) {
+            this.updateGroupWeights();
+        }
+        
         // Emit event if value changed and emitEvent is true
         if (emitEvent && oldValue !== this.chaosValue) {
             this.emitChaosChanged(oldValue, this.chaosValue);
@@ -258,12 +455,18 @@ export class ChaosManager {
         if (newValue === this.maxValue && !this.majorEventFired[this.maxValue]) {
             this.triggerMajorChaosEvent(GroupId.CODER);
             this.majorEventFired[this.maxValue] = true;
+            
+            // NEW: Start the extreme chaos cooldown timer for maximum CODER dominance
+            this.startExtremeChaosTimeout();
         }
         
         // Check for min value reached
         if (newValue === this.minValue && !this.majorEventFired[this.minValue]) {
             this.triggerMajorChaosEvent(GroupId.AI);
             this.majorEventFired[this.minValue] = true;
+            
+            // NEW: Start the extreme chaos cooldown timer for maximum AI dominance
+            this.startExtremeChaosTimeout();
         }
         
         // Reset fired flag if moving away from extremes
@@ -274,6 +477,120 @@ export class ChaosManager {
         if (oldValue === this.minValue && newValue > this.minValue) {
             this.majorEventFired[this.minValue] = false;
         }
+    }
+    
+    /**
+     * NEW: Start a timeout that prevents chaos changes while at extreme values
+     * @private
+     */
+    startExtremeChaosTimeout() {
+        // Set the flag to block chaos changes
+        this.extremeChaosTimeoutActive = true;
+        
+        if (this.isDev) {
+            console.debug(`Extreme chaos cooldown started. Duration: ${this.maxChaosCooldownDuration / 1000}s`);
+        }
+        
+        // Create a visual indicator that chaos is locked
+        EventBus.emit('CHAOS_LOCKED', {
+            duration: this.maxChaosCooldownDuration,
+            faction: this.chaosValue === this.maxValue ? GroupId.CODER : GroupId.AI
+        });
+        
+        // Store the current chaos value to calculate the reset value later
+        const extremeChaosValue = this.chaosValue;
+        
+        // After the timeout, allow chaos changes again
+        this.scene.time.delayedCall(this.maxChaosCooldownDuration, () => {
+            this.extremeChaosTimeoutActive = false;
+            
+            // Reset chaos to 25% of its extreme value to give the player grace
+            // If at max chaos (100), reset to 25
+            // If at min chaos (-100), reset to -25
+            const resetValue = extremeChaosValue > 0 ? 
+                Math.floor(this.maxValue * 0.25) : 
+                Math.ceil(this.minValue * 0.25);
+            
+            // Set the new chaos value and emit event
+            this.setChaos(resetValue);
+            
+            if (this.isDev) {
+                console.debug(`Extreme chaos cooldown ended. Chaos reset from ${extremeChaosValue} to ${resetValue}`);
+            }
+            
+            // Emit an event that chaos can be influenced again
+            EventBus.emit('CHAOS_UNLOCKED', {
+                value: resetValue,
+                previousValue: extremeChaosValue,
+                faction: extremeChaosValue === this.maxValue ? GroupId.CODER : GroupId.AI
+            });
+        });
+    }
+    
+    /**
+     * Check for threshold events when passing certain chaos values
+     * @param {number} oldValue - Previous chaos value
+     * @param {number} newValue - New chaos value
+     * @private 
+     */
+    checkThresholdEvents(oldValue, newValue) {
+        for (const threshold of this.thresholdEvents) {
+            // Check if we've crossed this threshold in the relevant direction
+            const crossedPositive = 
+                threshold.direction > 0 && 
+                oldValue < threshold.value && 
+                newValue >= threshold.value;
+                
+            const crossedNegative = 
+                threshold.direction < 0 && 
+                oldValue > threshold.value && 
+                newValue <= threshold.value;
+                
+            if ((crossedPositive || crossedNegative) && !threshold.triggered) {
+                // Trigger threshold event
+                const faction = threshold.direction > 0 ? GroupId.CODER : GroupId.AI;
+                this.triggerThresholdEvent(faction, threshold.value);
+                threshold.triggered = true;
+                
+                // Trigger faction surge in the non-dominant faction
+                if (this.groupWeightManager) {
+                    const oppositeFaction = threshold.direction > 0 ? GroupId.AI : GroupId.CODER;
+                    this.triggerFactionSurge(oppositeFaction);
+                }
+            }
+            
+            // Reset triggered state when moving back across threshold
+            if (threshold.direction > 0 && newValue < threshold.value - 10) {
+                threshold.triggered = false;
+            } else if (threshold.direction < 0 && newValue > threshold.value + 10) {
+                threshold.triggered = false;
+            }
+        }
+    }
+    
+    /**
+     * Trigger a threshold chaos event
+     * @param {string} factionId - The faction that reached dominance
+     * @param {number} value - The threshold value reached
+     * @private
+     */
+    triggerThresholdEvent(factionId, value) {
+        EventBus.emit('THRESHOLD_CHAOS', { 
+            factionId,
+            value,
+            absoluteValue: Math.abs(value)
+        });
+        
+        // Apply screen shake effect (smaller than major events)
+        if (this.scene.cameras && this.scene.cameras.main) {
+            this.scene.cameras.main.shake(
+                CHAOS.SHAKE_DURATION * 0.7,
+                CHAOS.SHAKE_INTENSITY * 0.7
+            );
+        }
+        
+        // Create visual feedback
+        this.createChaosParticles(factionId, 0.7);
     }
     
     /**
@@ -292,41 +609,68 @@ export class ChaosManager {
             );
         }
         
-        // Display particle effect (placeholder)
+        // Display particle effect
         this.createChaosParticles(factionId);
     }
     
     /**
      * Create particles for chaos event
      * @param {string} factionId - The faction that reached dominance
+     * @param {number} scale - Scale factor for particle effect (1.0 = full size)
      * @private
      */
-    createChaosParticles(factionId) {
+    createChaosParticles(factionId, scale = 1.0) {
         // Get appropriate color based on faction
         const color = CHAOS.COLORS[factionId.toUpperCase()] || 0xffffff;
         
         // Create particle emitter if we have a particle manager
-        if (this.scene.particles) {
+        if (this.scene.add && this.scene.add.particles) {
             const centerX = this.scene.cameras.main.width / 2;
             const centerY = this.scene.cameras.main.height / 2;
             
-            const particles = this.scene.particles.createEmitter({
-                x: centerX,
-                y: centerY,
-                speed: { min: -800, max: 800 },
+            // Use the updated Phaser particle API
+            const particleManager = this.scene.add.particles(centerX, centerY, 'particle_texture', {
+                speed: { min: -800 * scale, max: 800 * scale },
                 angle: { min: 0, max: 360 },
-                scale: { start: 0.6, end: 0 },
+                scale: { start: 0.6 * scale, end: 0 },
                 blendMode: 'ADD',
-                lifespan: 600,
+                lifespan: 600 * scale,
                 gravityY: 0,
-                quantity: 50,
+                quantity: Math.round(50 * scale),
                 tint: color
             });
             
             // Stop emitting after a short time
-            this.scene.time.delayedCall(300, () => {
-                particles.stop();
+            this.scene.time.delayedCall(300 * scale, () => {
+                // In newer Phaser versions, we need to remove the entire manager
+                particleManager.destroy();
             });
+        }
+    }
+    
+    /**
+     * Apply chaos oscillation for natural fluctuation
+     * DISABLED: Chaos should only change based on player actions
+     * @private
+     */
+    applyOscillation() {
+        // Function disabled - chaos should only change from player actions
+        return;
+    }
+    
+    /**
+     * Update chaos momentum
+     * @private
+     */
+    updateMomentum() {
+        if (!this.momentumEnabled) return;
+        
+        // Gradually decay momentum
+        this.currentMomentum *= this.momentumDecay;
+        
+        // Reset momentum when it gets very small
+        if (this.currentMomentum < 0.01) {
+            this.currentMomentum = 0;
         }
     }
     
@@ -337,6 +681,14 @@ export class ChaosManager {
      * @returns {number} The new chaos value after adjustment and clamping
      */
     adjustChaos(amount, emitEvent = true) {
+        // NEW: Skip if extreme chaos cooldown is active
+        if (this.extremeChaosTimeoutActive) {
+            if (this.isDev) {
+                console.debug('Chaos adjustment blocked: Extreme chaos cooldown active');
+            }
+            return this.chaosValue;
+        }
+        
         return this.setChaos(this.chaosValue + amount, emitEvent);
     }
     
@@ -374,6 +726,19 @@ export class ChaosManager {
             [CHAOS.MAX_VALUE]: false
         };
         
+        // Reset threshold events
+        for (const threshold of this.thresholdEvents) {
+            threshold.triggered = false;
+        }
+        
+        // Reset momentum system
+        this.currentMomentum = 0;
+        this.consecutiveKillCount = 0;
+        this.consecutiveKillType = null;
+        
+        // Clear any active chaos timeout
+        this.extremeChaosTimeoutActive = false;
+        
         // Update multipliers
         this.updateMultiplierCache();
         
@@ -382,32 +747,14 @@ export class ChaosManager {
     }
     
     /**
-     * Event subscription handler
-     * @param {string} event - Event name
-     * @param {Function} callback - Callback function
-     * @param {Object} context - Context to bind the callback to
-     */
-    on(event, callback, context) {
-        EventBus.on(event, callback, context);
-    }
-    
-    /**
-     * Event unsubscription handler
-     * @param {string} event - Event name
-     * @param {Function} callback - Callback function
-     * @param {Object} context - Context to bind the callback to
-     */
-    off(event, callback, context) {
-        EventBus.off(event, callback, context);
-    }
-    
-    /**
      * Update method called each frame
      * @param {number} time - Current time
      * @param {number} delta - Time since last update
      */
     update(time, delta) {
-        // Currently no per-frame updates needed
+        // REMOVED: No longer applying oscillation to chaos value
+        // Only updating momentum decay which doesn't directly change chaos value
+        this.updateMomentum();
     }
     
     /**
@@ -417,8 +764,14 @@ export class ChaosManager {
         // Unsubscribe from EventBus
         EventBus.off('enemy-killed', this.handleEnemyKilled, this);
         
+        // Unsubscribe from update event
+        if (this.scene && this.scene.events) {
+            this.scene.events.off('update', this.update, this);
+        }
+        
         // Clear references
         this.scene = null;
         this.multiplierCache = null;
+        this.groupWeightManager = null;
     }
 }

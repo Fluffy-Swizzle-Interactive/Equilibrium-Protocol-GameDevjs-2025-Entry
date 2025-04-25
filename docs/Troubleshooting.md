@@ -188,6 +188,43 @@ This document provides solutions for common issues that may arise during develop
    this.cameras.main.setZoom(1);
    ```
 
+## Particle System Issues
+
+### Common Error: `createEmitter removed. See ParticleEmitter docs for info`
+
+This error occurs when using an outdated Phaser particle API method. The Phaser version used in this project requires the new particle API.
+
+#### Solution
+
+Instead of:
+```javascript
+// Old way - causes error
+const particles = scene.particles.createEmitter({
+    // config
+});
+```
+
+Use this pattern:
+```javascript
+// New way - correct method
+const particleManager = scene.add.particles(x, y, 'texture_key', {
+    // config
+});
+
+// To destroy when done
+scene.time.delayedCall(duration, () => {
+    particleManager.destroy();
+});
+```
+
+This has been fixed in:
+- ChaosManager.js (`createChaosParticles`)
+- UIManager.js (`createChaosParticleEffect`) 
+- FactionBattleManager.js (`createBattleEffect` and `createBattleVictoryEffect`)
+- CollectibleManager.js (`createCollectionEffect` and `showHealingEffect`)
+
+The particle configuration options remain the same, only the method of creating the emitter has changed.
+
 ## Performance Issues
 
 ### Low Frame Rate
