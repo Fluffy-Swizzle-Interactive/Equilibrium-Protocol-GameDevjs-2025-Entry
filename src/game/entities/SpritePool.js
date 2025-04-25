@@ -290,12 +290,11 @@ export class SpritePool {
      */
     createCashPickup(x, y, options = {}) {
         const cashOptions = {
-            texture: 'particle_texture',
-            scale: 0.5,
-            tint: 0xFFD700, // Gold color
+            texture: 'cash_pickup',
+            scale: 1.0,
             lifespan: 10000, // 10 seconds lifespan
             rotation: 0,
-            angularVelocity: 0,
+            angularVelocity: 60, // Slow spin like health pickup
             velocityX: 0,
             velocityY: 0,
             type: 'cash_pickup',
@@ -309,15 +308,23 @@ export class SpritePool {
         // Create the sprite
         const sprite = this.createSprite(x, y, cashOptions);
 
-        // Add fade-out tween that starts near the end of lifespan
+        // Add pulsating effect for cash pickups like health pickups
         if (this.scene.tweens && sprite) {
-            // Start fade out 2 seconds before death
+            this.scene.tweens.add({
+                targets: sprite,
+                scale: { from: cashOptions.scale, to: cashOptions.scale * 1.3 },
+                yoyo: true,
+                repeat: -1,
+                duration: 800,
+                ease: 'Sine.easeInOut'
+            });
+
+            // Add fade-out tween that starts near the end of lifespan
             const fadeDelay = cashOptions.lifespan - 2000;
 
             this.scene.tweens.add({
                 targets: sprite,
                 alpha: { from: 1, to: 0 },
-                scale: { from: cashOptions.scale, to: 0 },
                 duration: 2000, // 2 second fade
                 ease: 'Power2',
                 delay: fadeDelay,
@@ -351,9 +358,8 @@ export class SpritePool {
      */
     createHealthPickup(x, y, options = {}) {
         const healthOptions = {
-            texture: 'particle_texture',
-            scale: 0.5,
-            tint: 0xFF0000, // Red color for health
+            texture: 'health_pickup',
+            scale: 1.0,
             lifespan: 8000, // 8 seconds lifespan
             rotation: 0,
             angularVelocity: 60, // Slow spin

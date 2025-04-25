@@ -19,7 +19,7 @@ export class CashManager {
 
         // Register with scene for easier access
         scene.cashManager = this;
-        
+
         // Cash collection animation properties
         this.lastCashCollectTime = 0;
         this.cashCollectTimeout = 1000; // 1 second timeout for accumulating cash
@@ -28,72 +28,72 @@ export class CashManager {
         this.cashAnimationActive = false;
         this.cashAnimationTween = null;
         this.fadeOutTimer = null;
-        
+
         // Emit initial cash update event
         this.emitCashUpdate();
     }
-    
+
     /**
      * Add cash to the player
      * @param {number} amount - Amount of cash to add
      */
     addCash(amount) {
         if (!amount || isNaN(amount) || amount <= 0) return;
-        
+
         this.currentCash += amount;
-        
+
         // Play cash collection sound if available
         if (this.scene.soundManager) {
-            const soundKey = this.scene.soundManager.hasSound('cash_pickup') 
-                ? 'cash_pickup' 
+            const soundKey = this.scene.soundManager.hasSound('cash_pickup')
+                ? 'cash_pickup'
                 : 'laserShoot'; // Fallback to an existing sound
-                
+
             this.scene.soundManager.playSoundEffect(soundKey, {
                 volume: 0.3,
                 rate: 1.0,
                 detune: 600
             });
         }
-        
+
         // Show cash collection animation
         this.showCashCollectAnimation(amount);
-        
+
         // Emit cash update event for UI
         this.emitCashUpdate();
-        
+
         return amount;
     }
-    
+
     /**
      * Show an animation of cash being collected above the player's head
      * @param {number} amount - Amount of cash collected
      */
     showCashCollectAnimation(amount) {
         const currentTime = this.scene.time.now;
-        
+
         // If player doesn't exist, don't show animation
         if (!this.scene.player || !this.scene.player.getPosition) return;
-        
+
         const playerPos = this.scene.player.getPosition();
-        
+
         // Reset fadeout timer if it exists
         if (this.fadeOutTimer) {
             this.fadeOutTimer.remove();
             this.fadeOutTimer = null;
         }
-        
+
         // Accumulate cash regardless of existing text
         this.accumulatedCash += amount;
         this.lastCashCollectTime = currentTime;
-        
+
         // Update or create text
         if (this.cashAnimationText && this.cashAnimationText.active) {
             // Update existing text
             this.cashAnimationText.setText(`+$${this.accumulatedCash}`);
-            
+
             // Update position to follow player
             this.cashAnimationText.setPosition(playerPos.x, playerPos.y - 50);
-            
+
             // Stop existing tween if running
             if (this.cashAnimationTween && this.cashAnimationTween.isPlaying()) {
                 this.cashAnimationTween.stop();
@@ -102,13 +102,13 @@ export class CashManager {
             // Create new text
             this.createCashAnimationText(playerPos);
         }
-        
+
         // Set up new fadeout timer after collecting stops
         this.fadeOutTimer = this.scene.time.delayedCall(this.cashCollectTimeout, () => {
             this.animateCashTextOut();
         });
     }
-    
+
     /**
      * Create the cash animation text object
      * @param {Object} playerPos - Player position {x, y}
@@ -118,12 +118,12 @@ export class CashManager {
         if (this.cashAnimationText) {
             this.cashAnimationText.destroy();
         }
-        
+
         // Create text slightly above player
         this.cashAnimationText = this.scene.add.text(
-            playerPos.x, 
-            playerPos.y - 50, 
-            `+$${this.accumulatedCash}`, 
+            playerPos.x,
+            playerPos.y - 50,
+            `+$${this.accumulatedCash}`,
             {
                 fontFamily: 'Arial',
                 fontSize: '20px',
@@ -133,10 +133,10 @@ export class CashManager {
                 align: 'center'
             }
         );
-        
+
         this.cashAnimationText.setOrigin(0.5);
         this.cashAnimationText.setDepth(DEPTHS.UI_FLOATING_TEXT);
-        
+
         // Add a small pop-in animation
         this.scene.tweens.add({
             targets: this.cashAnimationText,
@@ -145,13 +145,13 @@ export class CashManager {
             ease: 'Back.easeOut'
         });
     }
-    
+
     /**
      * Animate the cash text out after player stops collecting
      */
     animateCashTextOut() {
         if (!this.cashAnimationText || !this.cashAnimationText.active) return;
-        
+
         // Create rising and fading animation
         this.cashAnimationTween = this.scene.tweens.add({
             targets: this.cashAnimationText,
@@ -169,20 +169,20 @@ export class CashManager {
             }
         });
     }
-    
+
     /**
      * Update the cash animation text position to follow the player
      * Should be called in the scene update method
      */
     updateCashAnimationPosition() {
         if (!this.cashAnimationText || !this.cashAnimationText.active || !this.scene.player) return;
-        
+
         const playerPos = this.scene.player.getPosition();
         if (playerPos) {
             this.cashAnimationText.setPosition(playerPos.x, playerPos.y - 50);
         }
     }
-    
+
     /**
      * Emit cash update event with current status
      */
@@ -191,7 +191,7 @@ export class CashManager {
             cash: this.currentCash
         });
     }
-    
+
     /**
      * Get the current cash amount
      * @returns {number} Current cash
@@ -199,7 +199,7 @@ export class CashManager {
     getCurrentCash() {
         return this.currentCash;
     }
-    
+
     /**
      * Set the cash multiplier
      * @param {number} multiplier - The new multiplier value
@@ -207,7 +207,7 @@ export class CashManager {
     setCashMultiplier(multiplier) {
         this.cashMultiplier = multiplier;
     }
-    
+
     /**
      * Get the current cash multiplier
      * @returns {number} Current cash multiplier
@@ -215,22 +215,22 @@ export class CashManager {
     getCashMultiplier() {
         return this.cashMultiplier;
     }
-    
+
     /**
      * Set the current cash amount directly
      * @param {number} amount - The new cash amount to set
      */
     setCash(amount) {
         if (isNaN(amount)) return;
-        
+
         this.currentCash = Math.max(0, amount);
-        
+
         // Emit cash update event for UI
         this.emitCashUpdate();
-        
+
         return this.currentCash;
     }
-    
+
     /**
      * Spawn a cash pickup at the specified position
      * @param {number} x - X position
@@ -243,19 +243,18 @@ export class CashManager {
             console.warn('SpritePool not available, cannot spawn cash pickup');
             return null;
         }
-        
+
         // The final amount after applying multiplier
         const finalAmount = Math.ceil(amount * this.cashMultiplier);
-        
+
         // Create cash pickup using the new specialized method
         const cashPickup = this.scene.spritePool.createCashPickup(x, y, {
-            value: finalAmount,
-            tint: 0xFFD700 // Gold color
+            value: finalAmount
         });
-        
+
         return cashPickup;
     }
-    
+
     /**
      * Spend cash (reduce current amount)
      * @param {number} amount - Amount of cash to spend
@@ -263,16 +262,16 @@ export class CashManager {
      */
     spendCash(amount) {
         if (!amount || isNaN(amount) || amount <= 0) return false;
-        
+
         // Check if player has enough cash
         if (this.currentCash < amount) return false;
-        
+
         // Deduct cash
         this.currentCash -= amount;
-        
+
         // Emit cash update event for UI
         this.emitCashUpdate();
-        
+
         return true;
     }
 }

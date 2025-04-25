@@ -40,6 +40,10 @@ export class Preloader extends Scene
         this.load.image('logo', 'assets/images/logo.png');
         this.load.image('background', 'assets/images/bg.png');
 
+        // Load pickup images
+        this.load.image('cash_pickup', 'assets/images/cash_pickup.png');
+        this.load.image('health_pickup', 'assets/images/health_pickup.png');
+
         // Make sure particle texture loads correctly by checking for errors
         this.load.image('particle_texture', 'assets/images/star.png');
         this.load.on('fileerror', (key, file) => {

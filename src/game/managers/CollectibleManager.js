@@ -56,7 +56,7 @@ export class CollectibleManager {
                     detune: 900,
                     volume: 0.4
                 },
-                particleColor: 0xFF0000 // Red
+                particleColor: 0xFF0000 // Red - used for particle effects
             }
             // Additional collectible types can be added here
         };
