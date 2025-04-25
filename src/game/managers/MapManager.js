@@ -147,10 +147,34 @@ export class MapManager {
                     tileset = createdTilesets.values().next().value;
                 }
 
+                // Check if the layer exists in the tilemap
+                const layerExists = tilemap.layers.some(l => l.name === layerConfig.name);
+                if (!layerExists) {
+                    console.warn(`Layer "${layerConfig.name}" not found in tilemap`);
+                    return; // Skip this layer
+                }
+
                 if (tileset) {
+                    // For layers that might need multiple tilesets (like Props and Prop1)
+                    // we'll create an array of all tilesets
+                    let tilesetToUse;
+
+                    // Check if this layer uses high tile IDs (from props_and_items_x1 tileset)
+                    const layerData = tilemap.layers.find(l => l.name === layerConfig.name);
+                    const hasHighTileIDs = layerData && layerData.data.some(tileID => tileID >= 852);
+
+                    if (layerConfig.name === 'Props' || layerConfig.name === 'Props1' || hasHighTileIDs) {
+                        // Use an array of all tilesets for these special layers
+                        tilesetToUse = Array.from(createdTilesets.values());
+                        console.debug(`Using all tilesets for layer: ${layerConfig.name}`);
+                    } else {
+                        // Use the specific tileset for this layer
+                        tilesetToUse = tileset;
+                    }
+
                     const layer = tilemap.createLayer(
                         layerConfig.name,
-                        tileset,
+                        tilesetToUse,
                         layerConfig.offsetX || 0,
                         layerConfig.offsetY || 0
                     );
@@ -180,28 +204,98 @@ export class MapManager {
                     }
                 }
             });
+
+            // Check if we need to load any layers that weren't explicitly configured
+            const configuredLayerNames = new Set(mapConfig.layers.map(l => l.name));
+            const tilemapLayerNames = tilemap.layers.map(l => l.name);
+
+            // Find layers in the tilemap that weren't configured
+            const unconfiguredLayers = tilemapLayerNames.filter(name => !configuredLayerNames.has(name));
+
+            if (unconfiguredLayers.length > 0) {
+                console.debug(`Found ${unconfiguredLayers.length} unconfigured layers in tilemap: ${unconfiguredLayers.join(', ')}`);
+
+                // Use the first tileset as default for unconfigured layers
+                const defaultTileset = createdTilesets.values().next().value;
+
+                unconfiguredLayers.forEach((layerName, index) => {
+                    // For Props or Prop1 layers, use all tilesets
+                    let tilesetToUse;
+
+                    // Check if this layer uses high tile IDs (from props_and_items_x1 tileset)
+                    const layerData = tilemap.layers.find(l => l.name === layerName);
+                    const hasHighTileIDs = layerData && layerData.data.some(tileID => tileID >= 852);
+
+                    if (layerName === 'Props' || layerName === 'Prop1' || hasHighTileIDs) {
+                        tilesetToUse = Array.from(createdTilesets.values());
+                        console.debug(`Using all tilesets for unconfigured layer: ${layerName}`);
+                    } else {
+                        tilesetToUse = defaultTileset;
+                    }
+
+                    const layer = tilemap.createLayer(layerName, tilesetToUse);
+                    if (layer) {
+                        // Set depth based on layer name
+                        if (layerName === 'Props1') {
+                            layer.setDepth(15); // Under player
+                        } else if (layerName === 'Props') {
+                            layer.setDepth(25); // Over player
+                        } else {
+                            // Default depth based on index
+                            layer.setDepth(index);
+                        }
+
+                        // Store created layer
+                        createdLayers.set(layerName, layer);
+
+                        console.debug(`Created unconfigured layer: ${layerName} with depth ${layer.depth}`);
+                    }
+                });
+            }
         } else {
             // If no specific layers configured, try to create all layers from the map
-            // using the first tileset (simple case for single tileset maps)
-            const tileset = createdTilesets.values().next().value;
-            if (tileset) {
+            // using the appropriate tilesets
+            if (createdTilesets.size > 0) {
+                const defaultTileset = createdTilesets.values().next().value;
                 const layerData = tilemap.layers.map(l => l.name);
+
                 layerData.forEach((layerName, index) => {
-                    const layer = tilemap.createLayer(layerName, tileset);
+                    // Determine which tileset(s) to use for this layer
+                    let tilesetToUse;
+
+                    // Check if this layer uses high tile IDs (from props_and_items_x1 tileset)
+                    const layerData = tilemap.layers.find(l => l.name === layerName);
+                    const hasHighTileIDs = layerData && layerData.data.some(tileID => tileID >= 852);
+
+                    if (layerName === 'Props' || layerName === 'Prop1' || hasHighTileIDs) {
+                        // Use all tilesets for Props and Prop1 layers
+                        tilesetToUse = Array.from(createdTilesets.values());
+                        console.debug(`Using all tilesets for layer in else case: ${layerName}`);
+                    } else {
+                        // Use default tileset for other layers
+                        tilesetToUse = defaultTileset;
+                    }
+
+                    const layer = tilemap.createLayer(layerName, tilesetToUse);
                     if (layer) {
-                        // Set depth based on layer name or index
+                        // Set depth based on layer name
                         if (layerName.toLowerCase().includes('ground')) {
                             layer.setDepth(DEPTHS.MAP_GROUND);
                         } else if (layerName.toLowerCase().includes('wall')) {
                             layer.setDepth(DEPTHS.MAP_WALLS);
                         } else if (layerName.toLowerCase().includes('decoration')) {
                             layer.setDepth(DEPTHS.MAP_DECORATION);
+                        } else if (layerName === 'Props1') {
+                            layer.setDepth(15); // Under player
+                        } else if (layerName === 'Props') {
+                            layer.setDepth(25); // Over player
                         } else {
                             // Default depth = index to preserve stacking order from Tiled
                             layer.setDepth(index);
                         }
 
                         createdLayers.set(layerName, layer);
+                        console.debug(`Created layer: ${layerName} with depth ${layer.depth}`);
                     }
                 });
             }

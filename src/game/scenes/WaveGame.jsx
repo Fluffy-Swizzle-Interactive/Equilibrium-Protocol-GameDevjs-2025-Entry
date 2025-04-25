@@ -493,13 +493,18 @@ export class WaveGame extends Scene {
                         depth: 2
                     },
                     {
+                        name: 'Props1',
+                        tilesetKey: 'props_and_items_x1',
+                        depth: 15 // Under the player (DEPTHS.PLAYER is 20)
+                    },
+                    {
                         name: 'Props',
                         tilesetKey: 'props_and_items_x1',
-                        depth: 3
+                        depth: 25 // Over the player (DEPTHS.PLAYER is 20)
                     }
                 ],
                 // Configure collision layers
-                collisionLayers: ['Walls', 'Props'],
+                collisionLayers: ['Walls', 'Props', 'Props1'],
                 // Additional settings for Level1-REDUX map
                 options: {
                     scaleFactor: 1.2
