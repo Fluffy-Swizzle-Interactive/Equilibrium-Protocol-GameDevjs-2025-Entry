@@ -110,12 +110,14 @@ export class Preloader extends Scene
         this.load.image('level1', 'assets/maps/level1.png');
         this.load.tilemapTiledJSON('map', 'assets/maps/level1.json');
 
-        // Load the Dark Cave Net tilemap
+        // Load the Level1-REDUX tilemap
+        this.load.image('tileset_x1', 'assets/maps/tileset x1.png');
+        this.load.image('props_and_items_x1', 'assets/maps/props and items x1.png');
+        this.load.tilemapTiledJSON('level1redux', 'assets/maps/Level1-REDUX.json');
+
+        // Keep the Dark Cave Net tilemap for backward compatibility
         this.load.image('darkcavenet', 'assets/maps/darkcavenet.png');
         this.load.tilemapTiledJSON('darkcavemap', 'assets/maps/darkcavenet.json');
-
-        // Load any other tilemap assets needed for additional maps
-        // Example: this.load.tilemapTiledJSON('level3', 'assets/maps/level3.json');
     }
 
     create ()

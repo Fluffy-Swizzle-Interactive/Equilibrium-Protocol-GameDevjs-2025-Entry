@@ -38,7 +38,7 @@ export class WaveGame extends Scene {
         this.bossesKilled = 0; // Track number of boss enemies killed
 
         // Available maps in the game
-        this.availableMaps = ['level1', 'darkcave'];
+        this.availableMaps = ['level1', 'darkcave', 'level1redux'];
 
         // Check if we're in development mode
         this.isDev = import.meta.env.DEV;
@@ -376,7 +376,7 @@ export class WaveGame extends Scene {
             console.debug('ShopManager initialized');
         }
     }
-    
+
     /**
      * Set up the faction battle manager
      * Manages battles between enemy factions when chaos levels are high
@@ -387,19 +387,19 @@ export class WaveGame extends Scene {
             chaosThreshold: 40, // Start battles at 40% chaos
             requiredEnemiesPerFaction: 3, // Reduced from 5 to make battles more likely
             detectionRadius: 400, // Increased from 300 to catch more enemies
-            battleCheckInterval: 1500, // Reduced from 3000 to check more frequently 
+            battleCheckInterval: 1500, // Reduced from 3000 to check more frequently
             enabled: true,
             isDev: this.isDev // Pass dev mode flag for additional logging
         });
-        
+
         // Set up particles system for battle effects if not already available
         if (!this.particles) {
             this.particles = this.add.particles('particle_texture');
         }
-        
+
         // Initialize manager after creation
         this.factionBattleManager.initialize();
-        
+
         // Add a debug key to force battles (dev only)
         if (this.isDev) {
             this.input.keyboard.addKey('B').on('down', () => {
@@ -411,7 +411,7 @@ export class WaveGame extends Scene {
                     console.debug(`Forced battle attempt: ${result ? 'SUCCESS' : 'FAILED - Not enough enemies nearby'}`);
                 }
             });
-            
+
             console.debug('FactionBattleManager initialized. Press B to force battles.');
         }
     }
@@ -464,6 +464,48 @@ export class WaveGame extends Scene {
                 ]
             },
             {
+                key: 'level1redux',
+                tilemapKey: 'level1redux',
+                tilesets: [
+                    {
+                        key: 'tileset_x1',
+                        name: 'tileset x1'
+                    },
+                    {
+                        key: 'props_and_items_x1',
+                        name: 'props and items x1'
+                    }
+                ],
+                layers: [
+                    {
+                        name: 'Floor',
+                        tilesetKey: 'tileset_x1',
+                        depth: 0
+                    },
+                    {
+                        name: 'Walls',
+                        tilesetKey: 'tileset_x1',
+                        depth: 1
+                    },
+                    {
+                        name: 'Wall Decals',
+                        tilesetKey: 'tileset_x1',
+                        depth: 2
+                    },
+                    {
+                        name: 'Props',
+                        tilesetKey: 'props_and_items_x1',
+                        depth: 3
+                    }
+                ],
+                // Configure collision layers
+                collisionLayers: ['Walls', 'Props'],
+                // Additional settings for Level1-REDUX map
+                options: {
+                    scaleFactor: 1.2
+                }
+            },
+            {
                 key: 'darkcave',
                 tilemapKey: 'darkcavemap',
                 tilesets: [
@@ -499,11 +541,11 @@ export class WaveGame extends Scene {
             }
         ]);
 
-        // Load the initial map (level1)
-        const mapData = this.mapManager.loadMap('darkcave');
+        // Load the initial map (Level1-REDUX)
+        const mapData = this.mapManager.loadMap('level1redux');
 
         // Store the ground layer for easy access
-        this.groundLayer = this.mapManager.getLayer('Tile Layer 1');
+        this.groundLayer = this.mapManager.getLayer('Floor');
 
         // Get map dimensions from the map manager
         this.mapDimensions = this.mapManager.getMapDimensions();
