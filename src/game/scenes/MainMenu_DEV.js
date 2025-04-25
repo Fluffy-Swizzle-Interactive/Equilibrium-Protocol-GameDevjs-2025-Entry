@@ -47,7 +47,7 @@ export class MainMenu_DEV extends MainMenu {
         // Create a dev panel background
         const devPanel = this.add.rectangle(
             centerX,
-            centerY + 160,
+            centerY + 300,
             600,
             160,
             0x333333
@@ -56,7 +56,7 @@ export class MainMenu_DEV extends MainMenu {
         // Create panel title
         this.add.text(
             centerX,
-            centerY + 100,
+            centerY + 240,
             'DEVELOPER OPTIONS',
             {
                 fontFamily: 'Arial',
@@ -67,10 +67,10 @@ export class MainMenu_DEV extends MainMenu {
         ).setOrigin(0.5).setDepth(DEPTHS.UI);
         
         // Create wave selection for Wave Mode
-        this.createWaveSelection(centerX, centerY + 140);
+        this.createWaveSelection(centerX, centerY + 280);
         
         // Create debug toggle button
-        this.createDebugToggle(centerX, centerY + 200);
+        this.createDebugToggle(centerX, centerY + 340);
     }
     
     createWaveSelection(centerX, centerY) {
