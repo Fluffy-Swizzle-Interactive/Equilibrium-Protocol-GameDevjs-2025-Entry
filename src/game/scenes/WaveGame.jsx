@@ -576,8 +576,67 @@ export class WaveGame extends Scene {
             damageResistance: 0 // Start with 0% defense
         });
 
+        // Setup collision with map layers
+        this.setupPlayerCollisions();
+
         // Setup camera to follow player
         this.setupCamera();
+    }
+
+    /**
+     * Set up collisions between player and map layers
+     */
+    setupPlayerCollisions() {
+        // Get collision layers from the map manager
+        if (this.mapManager && this.mapManager.currentMapKey) {
+            // Get the map configuration directly from the maps Map in the MapManager
+            const mapConfig = this.mapManager.maps.get(this.mapManager.currentMapKey);
+
+            if (mapConfig && mapConfig.collisionLayers) {
+                console.log(`Setting up collisions for map: ${this.mapManager.currentMapKey}`);
+                console.log(`Collision layers: ${mapConfig.collisionLayers.join(', ')}`);
+
+                // Set up collisions for each layer
+                mapConfig.collisionLayers.forEach(layerName => {
+                    const layer = this.mapManager.getLayer(layerName);
+                    if (layer) {
+                        console.log(`Adding collider for layer: ${layerName}`);
+
+                        // Add collision between player and this layer
+                        const collider = this.physics.add.collider(
+                            this.player.graphics,
+                            layer,
+                            null, // No callback needed
+                            null, // No process callback needed
+                            this
+                        );
+
+                        // Store the collider for reference
+                        if (!this.playerColliders) {
+                            this.playerColliders = [];
+                        }
+                        this.playerColliders.push(collider);
+
+                        // Debug visualization for collision layer
+                        if (this.isDev || true) { // Always show for now
+                            const debugGraphics = this.add.graphics();
+                            layer.renderDebug(debugGraphics, {
+                                tileColor: null, // Non-colliding tiles
+                                collidingTileColor: new Phaser.Display.Color(243, 134, 48, 128), // Colliding tiles
+                                faceColor: new Phaser.Display.Color(40, 39, 37, 255) // Colliding face edges
+                            });
+                            debugGraphics.setDepth(DEPTHS.DEBUG);
+                        }
+                    } else {
+                        console.warn(`Layer not found: ${layerName}`);
+                    }
+                });
+            } else {
+                console.warn('No collision layers defined for current map');
+            }
+        } else {
+            console.warn('Map manager or current map key not available');
+        }
     }
 
     /**
@@ -904,24 +963,30 @@ export class WaveGame extends Scene {
         // Skip if player is invulnerable
         if (this.playerHealth.getInvulnerable()) return;
 
-        const playerPos = this.player.getPosition();
-        const playerRadius = this.player.radius;
-
         // Use the enemy manager's active enemies list
         const activeEnemies = this.enemyManager ? this.enemyManager.enemies : [];
 
         for (const enemy of activeEnemies) {
             if (!enemy || !enemy.active || !enemy.graphics || !enemy.graphics.active) continue;
 
-            // Calculate distance between player and enemy
-            const distance = Phaser.Math.Distance.Between(
-                playerPos.x, playerPos.y,
-                enemy.graphics.x, enemy.graphics.y
+            // Use Phaser's built-in physics overlap check
+            // Adjust the player's collision circle to match the physics body position (bottom half of player)
+            const isOverlapping = Phaser.Geom.Intersects.CircleToCircle(
+                new Phaser.Geom.Circle(
+                    this.player.graphics.x,
+                    this.player.graphics.y + 20, // Offset by 20 pixels to match physics body position
+                    this.player.radius
+                ),
+                new Phaser.Geom.Circle(
+                    enemy.graphics.x,
+                    enemy.graphics.y,
+                    enemy.size/2
+                )
             );
-            const enemyDamage = enemy.damage
-            // Check for collision
-            if (distance < (playerRadius + enemy.size/2)) {
+
+            if (isOverlapping) {
                 // Player takes damage
+                const enemyDamage = enemy.damage;
                 const died = this.playerHealth.takeDamage(enemyDamage);
 
                 if (died == true) {
@@ -932,17 +997,22 @@ export class WaveGame extends Scene {
                 // Push player away from enemy for better gameplay feel
                 const angle = Phaser.Math.Angle.Between(
                     enemy.graphics.x, enemy.graphics.y,
-                    playerPos.x, playerPos.y
+                    this.player.graphics.x, this.player.graphics.y
                 );
 
                 // Apply knockback
-                const knockbackDistance = 30;
                 const knockbackX = Math.cos(angle) * 30;
                 const knockbackY = Math.sin(angle) * 30;
 
                 // Set player velocity
                 this.player.velX = knockbackX * 0.2;
                 this.player.velY = knockbackY * 0.2;
+
+                // Apply to physics body
+                this.player.graphics.body.setVelocity(
+                    this.player.velX,
+                    this.player.velY
+                );
 
                 break; // Process only one collision per frame
             }
