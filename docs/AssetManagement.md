@@ -4,6 +4,8 @@
 
 This document describes the asset management system in Fluffy-Swizz Interactive, including how game assets are organized, loaded, and used throughout the game.
 
+> **Note:** The assets folder has been reorganized to follow a more logical structure. All asset references in the code have been updated to reflect these changes.
+
 ## Asset Organization
 
 ### Directory Structure
@@ -13,19 +15,14 @@ Assets are organized in a structured directory hierarchy:
 ```
 public/
 ├── assets/
-│   ├── images/
-│   │   ├── ui/           # UI elements
-│   │   ├── sprites/      # Character and object sprites
-│   │   ├── effects/      # Visual effects
-│   │   ├── backgrounds/  # Background images
-│   │   └── icons/        # Game icons
-│   ├── audio/
-│   │   ├── music/        # Background music
-│   │   └── sfx/          # Sound effects
-│   ├── maps/
-│   │   ├── tilesets/     # Tileset images
-│   │   └── data/         # Map JSON files
-│   └── fonts/            # Custom game fonts
+│   ├── audio/            # Sound effects and music files
+│   ├── config/           # Configuration files for asset loading
+│   ├── images/           # General image assets (backgrounds, logos, etc.)
+│   ├── maps/             # Map files and tilesets
+│   ├── scripts/          # JavaScript files used as assets
+│   ├── sprites/          # Character and object sprites
+│   │   └── PLAYER1/      # Individual player animation frames
+│   └── README.md         # Documentation of the assets structure
 └── favicon.png           # Browser tab icon
 ```
 
@@ -56,19 +53,19 @@ Assets are loaded in the dedicated Preloader scene:
 preload() {
     // Display loading progress
     this.createLoadingUI();
-    
+
     // Load images
     this.loadImages();
-    
+
     // Load spritesheets
     this.loadSpritesheets();
-    
+
     // Load audio
     this.loadAudio();
-    
+
     // Load maps
     this.loadMaps();
-    
+
     // Load fonts
     this.loadFonts();
 }
@@ -78,47 +75,47 @@ loadImages() {
     this.load.image('logo', 'assets/images/ui/logo.png');
     this.load.image('button', 'assets/images/ui/button.png');
     this.load.image('health_bar', 'assets/images/ui/health_bar.png');
-    
+
     // Backgrounds
     this.load.image('bg_menu', 'assets/images/backgrounds/menu_bg.png');
     this.load.image('bg_game', 'assets/images/backgrounds/game_bg.png');
-    
+
     // Effects
     this.load.image('particle_texture', 'assets/images/effects/particle.png');
     this.load.image('explosion', 'assets/images/effects/explosion.png');
     this.load.image('muzzle_flash', 'assets/images/effects/muzzle_flash.png');
-    
+
     // Additional images...
 }
 
 loadSpritesheets() {
     // Player spritesheets
-    this.load.spritesheet('player_minigun', 
+    this.load.spritesheet('player_minigun',
         'assets/images/sprites/player_minigun_spritesheet.png',
         { frameWidth: 64, frameHeight: 64 }
     );
-    
-    this.load.spritesheet('player_shotgun', 
+
+    this.load.spritesheet('player_shotgun',
         'assets/images/sprites/player_shotgun_spritesheet.png',
         { frameWidth: 64, frameHeight: 64 }
     );
-    
+
     // Enemy spritesheets
-    this.load.spritesheet('enemy_basic', 
+    this.load.spritesheet('enemy_basic',
         'assets/images/sprites/enemy_basic_spritesheet.png',
         { frameWidth: 48, frameHeight: 48 }
     );
-    
-    this.load.spritesheet('enemy_fast', 
+
+    this.load.spritesheet('enemy_fast',
         'assets/images/sprites/enemy_fast_spritesheet.png',
         { frameWidth: 32, frameHeight: 32 }
     );
-    
-    this.load.spritesheet('enemy_tank', 
+
+    this.load.spritesheet('enemy_tank',
         'assets/images/sprites/enemy_tank_spritesheet.png',
         { frameWidth: 64, frameHeight: 64 }
     );
-    
+
     // Additional spritesheets...
 }
 
@@ -128,49 +125,49 @@ loadAudio() {
         'assets/audio/music/menu_music.mp3',
         'assets/audio/music/menu_music.ogg'
     ]);
-    
+
     this.load.audio('gameplay_music', [
         'assets/audio/music/gameplay_music.mp3',
         'assets/audio/music/gameplay_music.ogg'
     ]);
-    
+
     this.load.audio('boss_music', [
         'assets/audio/music/boss_music.mp3',
         'assets/audio/music/boss_music.ogg'
     ]);
-    
+
     // Sound effects with fallbacks
     this.load.audio('player_hit', [
         'assets/audio/sfx/player_hit.mp3',
         'assets/audio/sfx/player_hit.ogg'
     ]);
-    
+
     this.load.audio('enemy_hit', [
         'assets/audio/sfx/enemy_hit.mp3',
         'assets/audio/sfx/enemy_hit.ogg'
     ]);
-    
+
     this.load.audio('minigun_fire', [
         'assets/audio/sfx/minigun_fire.mp3',
         'assets/audio/sfx/minigun_fire.ogg'
     ]);
-    
+
     this.load.audio('shotgun_fire', [
         'assets/audio/sfx/shotgun_fire.mp3',
         'assets/audio/sfx/shotgun_fire.ogg'
     ]);
-    
+
     // Additional audio...
 }
 
 loadMaps() {
     // Tilesets
     this.load.image('scifi_tiles', 'assets/maps/tilesets/scifi_tiles.png');
-    
+
     // Map data
     this.load.tilemapTiledJSON('map_arena', 'assets/maps/data/arena.json');
     this.load.tilemapTiledJSON('map_laboratory', 'assets/maps/data/laboratory.json');
-    
+
     // Additional maps...
 }
 
@@ -188,31 +185,31 @@ createLoadingUI() {
     // Create loading bar background
     this.add.rectangle(512, 384, 450, 50, 0x333333)
         .setOrigin(0.5);
-    
+
     // Create loading bar
     this.loadingBar = this.add.rectangle(287, 384, 400, 30, 0x00ff00)
         .setOrigin(0, 0.5);
-    
+
     // Create loading text
     this.loadingText = this.add.text(512, 340, 'Loading...', {
         fontFamily: 'Arial',
         fontSize: 24,
         color: '#ffffff'
     }).setOrigin(0.5);
-    
+
     // Create progress text
     this.progressText = this.add.text(512, 430, '0%', {
         fontFamily: 'Arial',
         fontSize: 18,
         color: '#ffffff'
     }).setOrigin(0.5);
-    
+
     // Update progress bar as assets load
     this.load.on('progress', (value) => {
         this.loadingBar.width = 400 * value;
         this.progressText.setText(`${Math.floor(value * 100)}%`);
     });
-    
+
     // Clean up when loading complete
     this.load.on('complete', () => {
         this.loadingBar.destroy();
@@ -237,33 +234,33 @@ loadNewMap(mapKey) {
         backgroundColor: '#000000',
         padding: { x: 20, y: 10 }
     }).setOrigin(0.5).setScrollFactor(0).setDepth(1000);
-    
+
     // Check if map is already loaded
     if (this.cache.tilemap.exists(mapKey)) {
         loadingText.destroy();
         this.createMap(mapKey);
         return;
     }
-    
+
     // Get map configuration
     const mapConfig = this.mapManager.mapConfig[mapKey];
-    
+
     // Load map and required assets
     this.load.tilemapTiledJSON(mapKey, mapConfig.file);
-    
+
     // Load any missing tilesets
     for (const tilesetKey of mapConfig.tilesets) {
         if (!this.textures.exists(tilesetKey)) {
             this.load.image(
-                tilesetKey, 
+                tilesetKey,
                 `assets/maps/tilesets/${tilesetKey}.png`
             );
         }
     }
-    
+
     // Start loading
     this.load.start();
-    
+
     // When loading completes, create the map
     this.load.on('complete', () => {
         loadingText.destroy();
@@ -288,21 +285,21 @@ createPlayerAnimations() {
         frameRate: 8,
         repeat: -1
     });
-    
+
     this.anims.create({
         key: 'minigun_move',
         frames: this.anims.generateFrameNumbers('player_minigun', { frames: [4, 5, 6, 7] }),
         frameRate: 12,
         repeat: -1
     });
-    
+
     this.anims.create({
         key: 'minigun_fire',
         frames: this.anims.generateFrameNumbers('player_minigun', { frames: [8, 9, 10, 11] }),
         frameRate: 15,
         repeat: 0
     });
-    
+
     // Shotgun animations
     this.anims.create({
         key: 'shotgun_idle',
@@ -310,21 +307,21 @@ createPlayerAnimations() {
         frameRate: 8,
         repeat: -1
     });
-    
+
     this.anims.create({
         key: 'shotgun_move',
         frames: this.anims.generateFrameNumbers('player_shotgun', { frames: [4, 5, 6, 7] }),
         frameRate: 12,
         repeat: -1
     });
-    
+
     this.anims.create({
         key: 'shotgun_fire',
         frames: this.anims.generateFrameNumbers('player_shotgun', { frames: [8, 9, 10, 11] }),
         frameRate: 15,
         repeat: 0
     });
-    
+
     // Enemy animations
     // ...
 }
@@ -586,7 +583,7 @@ create() {
         backgroundColor: '#333333',
         padding: { x: 20, y: 10 }
     }).setOrigin(0.5).setInteractive();
-    
+
     // Start game and audio on click
     startButton.once('pointerdown', () => {
         startButton.destroy();

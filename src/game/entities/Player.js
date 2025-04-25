@@ -149,6 +149,12 @@ export class Player {
 
                 // Track upgrade
                 this.upgrades.speed++;
+
+                // Update physics body properties if needed
+                if (this.graphics && this.graphics.body) {
+                    // Make sure the physics body properties match the new speed
+                    this.graphics.body.setMaxVelocity(this.speed, this.speed);
+                }
                 break;
 
             case 'Drone':
@@ -208,6 +214,12 @@ export class Player {
         // Track movement status for animation control
         this.isMoving = false;
         this.animationSpeed = 8; // Frames per second for walk animation
+
+        // Collection intervals (for backward compatibility)
+        this.xpCollectionInterval = 100;
+        this.cashCollectionInterval = 100;
+        this.lastXpCollectionTime = 0;
+        this.lastCashCollectionTime = 0;
     }
 
     /**
@@ -227,13 +239,41 @@ export class Player {
         // Create the player sprite using the best available option
         if (this.useAtlas) {
             // Use the atlas
-            this.graphics = this.scene.add.sprite(x, y, 'player');
+            this.graphics = this.scene.physics.add.sprite(x, y, 'player');
         } else {
             // Fall back to individual images
-            this.graphics = this.scene.add.sprite(x, y, 'down1');
+            this.graphics = this.scene.physics.add.sprite(x, y, 'down1');
         }
 
         this.graphics.setDepth(DEPTHS.PLAYER);
+
+        // Set up physics body for collision detection
+        if (this.graphics.body) {
+            // Disable gravity since this is a top-down game
+            this.graphics.body.setGravity(0, 0);
+
+            // Enable collision with world bounds
+            this.graphics.body.setCollideWorldBounds(true);
+
+            // Set physics body properties for smooth movement
+            this.graphics.body.setBounce(0);
+            this.graphics.body.setFriction(0, 0);
+            this.graphics.body.setDrag(0, 0);
+
+            // Set maximum velocity for the physics body
+            this.graphics.body.setMaxVelocity(500, 500);
+
+            // Disable automatic damping that might slow down movement
+            this.graphics.body.setDamping(false);
+
+            // Set the body to be a circle with the player's radius
+            // We'll set the actual circle in adjustSpriteScale() after the sprite is scaled
+
+            // Debug graphics removed
+
+            // Log for debugging
+            console.log(`Player physics body initialized with radius: ${this.radius}`);
+        }
 
         // Calculate appropriate scale based on collision radius
         this.adjustSpriteScale();
@@ -277,6 +317,50 @@ export class Player {
         } else {
             // Fallback scale if we can't get frame dimensions
             this.graphics.setScale(0.25);
+        }
+
+        // Update physics body size to match the radius
+        if (this.graphics.body) {
+            try {
+                // Get the current display width and height
+                const displayWidth = this.graphics.displayWidth;
+                const displayHeight = this.graphics.displayHeight;
+
+                // Based on the image, we need to adjust the physics body to match the player's visual position
+
+                // First, get the sprite dimensions
+                const spriteWidth = this.graphics.displayWidth;
+                const spriteHeight = this.graphics.displayHeight;
+
+                // Set the circle radius for the physics body
+                this.graphics.body.setCircle(this.radius);
+
+                // Based on the latest image, the physics body needs to be aligned with the bottom half of the player
+                // We need to position the physics body to match the player's feet/lower body
+
+                // Calculate the base offset to center the physics body on the sprite
+                let offsetX = (spriteWidth * 0.5) + this.radius;
+                let offsetY = (spriteHeight * 0.5) - this.radius;
+
+                // Apply additional offsets based on the image
+                // Move the physics body to align with the bottom half of the player
+                offsetX += 0; // Keep centered horizontally
+                offsetY += 80; // Move significantly down to align with bottom half
+
+                // Apply the offset to center the physics body on the sprite
+                this.graphics.body.offset.set(offsetX, offsetY);
+
+                // Log the values for debugging
+                console.log(`Player physics body adjusted: radius=${this.radius}, offsetX=${offsetX}, offsetY=${offsetY}, spriteWidth=${spriteWidth}, spriteHeight=${spriteHeight}`);
+
+                // Make sure the body is enabled
+                this.graphics.body.enable = true;
+
+                // Log for debugging
+                console.log(`Player physics body adjusted: radius=${this.radius}, offsetX=${offsetX}, offsetY=${offsetY}, displayWidth=${displayWidth}, displayHeight=${displayHeight}`);
+            } catch (error) {
+                console.error('Error adjusting player physics body:', error);
+            }
         }
     }
 
@@ -389,6 +473,14 @@ export class Player {
     }
 
     /**
+     * Update debug graphics to visualize the physics body
+     * @deprecated Debug graphics have been removed
+     */
+    updateDebugGraphics() {
+        // Debug graphics have been removed
+    }
+
+    /**
      * Check for and collect nearby XP pickups
      * @deprecated Use CollectibleManager instead
      */
@@ -498,53 +590,60 @@ export class Player {
         // Get keyboard references from scene
         const keys = this.scene.wasd;
 
-        // Track previous velocity to detect if we just started/stopped moving
-        const prevVelX = this.velX;
-        const prevVelY = this.velY;
+        // Reset velocity for this frame
+        this.velX = 0;
+        this.velY = 0;
 
-        // Apply acceleration based on keys
+        // Set a base movement speed (much higher than before)
+        const moveSpeed = 300; // Use a higher value for better responsiveness
+
+        // Apply direct velocity based on keys
         if (keys.up.isDown) {
-            this.velY -= this.acceleration;
+            this.velY = -moveSpeed;
         }
         if (keys.down.isDown) {
-            this.velY += this.acceleration;
+            this.velY = moveSpeed;
         }
         if (keys.left.isDown) {
-            this.velX -= this.acceleration;
+            this.velX = -moveSpeed;
         }
         if (keys.right.isDown) {
-            this.velX += this.acceleration;
+            this.velX = moveSpeed;
         }
 
-        // Apply maximum velocity
-        this.velX = Phaser.Math.Clamp(this.velX, -this.speed, this.speed);
-        this.velY = Phaser.Math.Clamp(this.velY, -this.speed, this.speed);
+        // Normalize diagonal movement
+        if (this.velX !== 0 && this.velY !== 0) {
+            // Normalize the velocity vector to maintain consistent speed in all directions
+            const length = Math.sqrt(this.velX * this.velX + this.velY * this.velY);
+            this.velX = (this.velX / length) * moveSpeed;
+            this.velY = (this.velY / length) * moveSpeed;
+        }
 
-        // Apply friction
-        this.velX *= this.friction;
-        this.velY *= this.friction;
+        // Apply velocity to physics body if it exists
+        if (this.graphics.body) {
+            this.graphics.body.setVelocity(this.velX, this.velY);
+        } else {
+            // Fallback to manual position update if physics body doesn't exist
+            let newX = this.graphics.x + (this.velX * (1/60)); // Assuming 60 FPS
+            let newY = this.graphics.y + (this.velY * (1/60));
 
-        // Stop completely if velocity is very small
-        if (Math.abs(this.velX) < 0.01) this.velX = 0;
-        if (Math.abs(this.velY) < 0.01) this.velY = 0;
+            // Constrain to world bounds
+            const worldBounds = this.scene.physics.world.bounds;
+            newX = Phaser.Math.Clamp(newX, worldBounds.x + this.radius, worldBounds.right - this.radius);
+            newY = Phaser.Math.Clamp(newY, worldBounds.y + this.radius, worldBounds.bottom - this.radius);
 
-        // Calculate new position
-        let newX = this.graphics.x + this.velX;
-        let newY = this.graphics.y + this.velY;
-
-        // Constrain to world bounds
-        const worldBounds = this.scene.physics.world.bounds;
-        newX = Phaser.Math.Clamp(newX, worldBounds.x + this.radius, worldBounds.right - this.radius);
-        newY = Phaser.Math.Clamp(newY, worldBounds.y + this.radius, worldBounds.bottom - this.radius);
-
-        // Apply new position
-        this.graphics.x = newX;
-        this.graphics.y = newY;
+            // Apply new position
+            this.graphics.x = newX;
+            this.graphics.y = newY;
+        }
 
         // Update movement state for animation purposes
-        const isMovingNow = Math.abs(this.velX) > 0.1 || Math.abs(this.velY) > 0.1;
+        const isMovingNow = Math.abs(this.velX) > 1 || Math.abs(this.velY) > 1;
         if (isMovingNow !== this.isMoving) {
             this.isMoving = isMovingNow;
+
+            // Log movement state change for debugging
+            console.log(`Player movement state changed: ${isMovingNow ? 'moving' : 'stopped'}`);
         }
     }
 
@@ -697,12 +796,16 @@ export class Player {
      */
     setPosition(x, y) {
         if (this.graphics) {
-            this.graphics.x = x;
-            this.graphics.y = y;
+            this.graphics.setPosition(x, y);
 
             // Reset velocity to prevent momentum carrying over to new map
             this.velX = 0;
             this.velY = 0;
+
+            // Reset physics body velocity
+            if (this.graphics.body) {
+                this.graphics.body.setVelocity(0, 0);
+            }
         }
     }
 
@@ -735,6 +838,12 @@ export class Player {
 
         if (this.cursorCircle) {
             this.cursorCircle.destroy();
+        }
+
+        // Clean up debug graphics if it exists
+        if (this.debugGraphics) {
+            this.debugGraphics.destroy();
+            this.debugGraphics = null;
         }
 
         // Clean up any active tweens related to this player

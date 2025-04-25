@@ -38,7 +38,7 @@ export class WaveGame extends Scene {
         this.bossesKilled = 0; // Track number of boss enemies killed
 
         // Available maps in the game
-        this.availableMaps = ['level1', 'darkcave'];
+        this.availableMaps = ['level1', 'darkcave', 'level1redux'];
 
         // Check if we're in development mode
         this.isDev = import.meta.env.DEV;
@@ -376,7 +376,7 @@ export class WaveGame extends Scene {
             console.debug('ShopManager initialized');
         }
     }
-    
+
     /**
      * Set up the faction battle manager
      * Manages battles between enemy factions when chaos levels are high
@@ -387,19 +387,19 @@ export class WaveGame extends Scene {
             chaosThreshold: 40, // Start battles at 40% chaos
             requiredEnemiesPerFaction: 3, // Reduced from 5 to make battles more likely
             detectionRadius: 400, // Increased from 300 to catch more enemies
-            battleCheckInterval: 1500, // Reduced from 3000 to check more frequently 
+            battleCheckInterval: 1500, // Reduced from 3000 to check more frequently
             enabled: true,
             isDev: this.isDev // Pass dev mode flag for additional logging
         });
-        
+
         // Set up particles system for battle effects if not already available
         if (!this.particles) {
             this.particles = this.add.particles('particle_texture');
         }
-        
+
         // Initialize manager after creation
         this.factionBattleManager.initialize();
-        
+
         // Add a debug key to force battles (dev only)
         if (this.isDev) {
             this.input.keyboard.addKey('B').on('down', () => {
@@ -411,7 +411,7 @@ export class WaveGame extends Scene {
                     console.debug(`Forced battle attempt: ${result ? 'SUCCESS' : 'FAILED - Not enough enemies nearby'}`);
                 }
             });
-            
+
             console.debug('FactionBattleManager initialized. Press B to force battles.');
         }
     }
@@ -464,6 +464,53 @@ export class WaveGame extends Scene {
                 ]
             },
             {
+                key: 'level1redux',
+                tilemapKey: 'level1redux',
+                tilesets: [
+                    {
+                        key: 'tileset_x1',
+                        name: 'tileset x1'
+                    },
+                    {
+                        key: 'props_and_items_x1',
+                        name: 'props and items x1'
+                    }
+                ],
+                layers: [
+                    {
+                        name: 'Floor',
+                        tilesetKey: 'tileset_x1',
+                        depth: 0
+                    },
+                    {
+                        name: 'Walls',
+                        tilesetKey: 'tileset_x1',
+                        depth: 1
+                    },
+                    {
+                        name: 'Wall Decals',
+                        tilesetKey: 'tileset_x1',
+                        depth: 2
+                    },
+                    {
+                        name: 'Props1',
+                        tilesetKey: 'props_and_items_x1',
+                        depth: 15 // Under the player (DEPTHS.PLAYER is 20)
+                    },
+                    {
+                        name: 'Props',
+                        tilesetKey: 'props_and_items_x1',
+                        depth: 25 // Over the player (DEPTHS.PLAYER is 20)
+                    }
+                ],
+                // Configure collision layers
+                collisionLayers: ['Walls', 'Props', 'Props1'],
+                // Additional settings for Level1-REDUX map
+                options: {
+                    scaleFactor: 1.2
+                }
+            },
+            {
                 key: 'darkcave',
                 tilemapKey: 'darkcavemap',
                 tilesets: [
@@ -499,11 +546,11 @@ export class WaveGame extends Scene {
             }
         ]);
 
-        // Load the initial map (level1)
-        const mapData = this.mapManager.loadMap('darkcave');
+        // Load the initial map (Level1-REDUX)
+        const mapData = this.mapManager.loadMap('level1redux');
 
         // Store the ground layer for easy access
-        this.groundLayer = this.mapManager.getLayer('Tile Layer 1');
+        this.groundLayer = this.mapManager.getLayer('Floor');
 
         // Get map dimensions from the map manager
         this.mapDimensions = this.mapManager.getMapDimensions();
@@ -534,8 +581,58 @@ export class WaveGame extends Scene {
             damageResistance: 0 // Start with 0% defense
         });
 
+        // Setup collision with map layers
+        this.setupPlayerCollisions();
+
         // Setup camera to follow player
         this.setupCamera();
+    }
+
+    /**
+     * Set up collisions between player and map layers
+     */
+    setupPlayerCollisions() {
+        // Get collision layers from the map manager
+        if (this.mapManager && this.mapManager.currentMapKey) {
+            // Get the map configuration directly from the maps Map in the MapManager
+            const mapConfig = this.mapManager.maps.get(this.mapManager.currentMapKey);
+
+            if (mapConfig && mapConfig.collisionLayers) {
+                console.log(`Setting up collisions for map: ${this.mapManager.currentMapKey}`);
+                console.log(`Collision layers: ${mapConfig.collisionLayers.join(', ')}`);
+
+                // Set up collisions for each layer
+                mapConfig.collisionLayers.forEach(layerName => {
+                    const layer = this.mapManager.getLayer(layerName);
+                    if (layer) {
+                        console.log(`Adding collider for layer: ${layerName}`);
+
+                        // Add collision between player and this layer
+                        const collider = this.physics.add.collider(
+                            this.player.graphics,
+                            layer,
+                            null, // No callback needed
+                            null, // No process callback needed
+                            this
+                        );
+
+                        // Store the collider for reference
+                        if (!this.playerColliders) {
+                            this.playerColliders = [];
+                        }
+                        this.playerColliders.push(collider);
+
+                        // Debug visualization removed
+                    } else {
+                        console.warn(`Layer not found: ${layerName}`);
+                    }
+                });
+            } else {
+                console.warn('No collision layers defined for current map');
+            }
+        } else {
+            console.warn('Map manager or current map key not available');
+        }
     }
 
     /**
@@ -862,24 +959,30 @@ export class WaveGame extends Scene {
         // Skip if player is invulnerable
         if (this.playerHealth.getInvulnerable()) return;
 
-        const playerPos = this.player.getPosition();
-        const playerRadius = this.player.radius;
-
         // Use the enemy manager's active enemies list
         const activeEnemies = this.enemyManager ? this.enemyManager.enemies : [];
 
         for (const enemy of activeEnemies) {
             if (!enemy || !enemy.active || !enemy.graphics || !enemy.graphics.active) continue;
 
-            // Calculate distance between player and enemy
-            const distance = Phaser.Math.Distance.Between(
-                playerPos.x, playerPos.y,
-                enemy.graphics.x, enemy.graphics.y
+            // Use Phaser's built-in physics overlap check
+            // Adjust the player's collision circle to match the physics body position (bottom half of player)
+            const isOverlapping = Phaser.Geom.Intersects.CircleToCircle(
+                new Phaser.Geom.Circle(
+                    this.player.graphics.x,
+                    this.player.graphics.y + 20, // Offset by 20 pixels to match physics body position
+                    this.player.radius
+                ),
+                new Phaser.Geom.Circle(
+                    enemy.graphics.x,
+                    enemy.graphics.y,
+                    enemy.size/2
+                )
             );
-            const enemyDamage = enemy.damage
-            // Check for collision
-            if (distance < (playerRadius + enemy.size/2)) {
+
+            if (isOverlapping) {
                 // Player takes damage
+                const enemyDamage = enemy.damage;
                 const died = this.playerHealth.takeDamage(enemyDamage);
 
                 if (died == true) {
@@ -890,17 +993,22 @@ export class WaveGame extends Scene {
                 // Push player away from enemy for better gameplay feel
                 const angle = Phaser.Math.Angle.Between(
                     enemy.graphics.x, enemy.graphics.y,
-                    playerPos.x, playerPos.y
+                    this.player.graphics.x, this.player.graphics.y
                 );
 
                 // Apply knockback
-                const knockbackDistance = 30;
                 const knockbackX = Math.cos(angle) * 30;
                 const knockbackY = Math.sin(angle) * 30;
 
                 // Set player velocity
                 this.player.velX = knockbackX * 0.2;
                 this.player.velY = knockbackY * 0.2;
+
+                // Apply to physics body
+                this.player.graphics.body.setVelocity(
+                    this.player.velX,
+                    this.player.velY
+                );
 
                 break; // Process only one collision per frame
             }
