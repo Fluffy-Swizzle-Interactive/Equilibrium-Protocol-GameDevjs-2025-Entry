@@ -270,6 +270,33 @@ export function DebugPanel({ gameRef }) {
         }
     };
 
+    const increaseFireRate = () => {
+        const scene = gameRef.current?.scene;
+        if (!scene || !scene.player || !scene.player.weaponManager) {
+            console.warn('Player or WeaponManager not found in current scene');
+            return;
+        }
+
+        const weaponManager = scene.player.weaponManager;
+        
+        // Decrease the fire rate delay by 20% (making it shoot faster)
+        // Fire rate is the delay between shots, so lower values = faster shooting
+        const currentFireRate = weaponManager.fireRate;
+        const newFireRate = currentFireRate * 0.8; // 20% reduction in delay
+        
+        weaponManager.fireRate = newFireRate;
+        
+        console.log(`Debug: Fire rate increased (delay reduced from ${currentFireRate.toFixed(2)}ms to ${newFireRate.toFixed(2)}ms)`);
+        
+        // Emit event for weapon upgrade
+        if (scene.events && typeof scene.events.emit === 'function') {
+            scene.events.emit('weapon-upgraded', {
+                upgrade: { type: 'debug', name: 'Fire Rate Boost' },
+                newStats: weaponManager.getStats()
+            });
+        }
+    };
+
     const switchChaos = () => {
         const chaosManager = gameRef.current?.scene?.chaosManager;
         if (chaosManager) {
@@ -442,6 +469,7 @@ export function DebugPanel({ gameRef }) {
                 {renderActionButton("Add XP (50)", addXP)}
                 {renderActionButton("Add Cash ($100)", addCash)}
                 {renderActionButton("Toggle Chaos", switchChaos)}
+                {renderActionButton("Increase Fire Rate", increaseFireRate)} {/* New Button */}
             </>, "actions")}
         </div>
     );

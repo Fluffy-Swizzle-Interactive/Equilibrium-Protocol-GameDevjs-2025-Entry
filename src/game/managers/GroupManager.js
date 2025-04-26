@@ -64,6 +64,23 @@ export class GroupManager {
             return null;
         }
         
+        // Get WaveManager reference if available
+        const waveManager = this.scene.waveManager;
+        
+        // Check if this enemy was already registered with another group
+        const previousGroup = enemy._groupId;
+        if (previousGroup && previousGroup !== groupId) {
+            // Move enemy from one group to another
+            this.deregister(enemy, previousGroup);
+        } else if (!previousGroup && waveManager) {
+            // If this is a completely new enemy (not previously registered) and
+            // if it wasn't created by the WaveManager itself, count it as an external spawn
+            if (!enemy._registeredWithWaveManager && typeof waveManager.registerExternalEnemySpawn === 'function') {
+                waveManager.registerExternalEnemySpawn(1);
+                enemy._registeredWithWaveManager = true;
+            }
+        }
+        
         // Update counts
         this.counts[groupId]++;
         
@@ -72,11 +89,24 @@ export class GroupManager {
             this.enemiesByGroup[groupId].push(enemy);
         }
         
+        // Store group ID directly on the enemy for easier lookup
+        enemy._groupId = groupId;
+        
         // Apply group-specific modifiers
         const modifiers = this.applyModifiers(enemy, groupId);
         
         // Return the applied modifiers for reference
         return modifiers;
+    }
+    
+    /**
+     * Register an entity with a specific group (alias for register method)
+     * @param {BaseEnemy} entity - The entity instance
+     * @param {string} groupId - The group ID from GroupId enum
+     * @returns {Object} Applied modifiers
+     */
+    registerEntity(entity, groupId) {
+        return this.register(entity, groupId);
     }
     
     /**
@@ -154,7 +184,8 @@ export class GroupManager {
                 baseHealth: enemy.baseHealth,
                 speed: enemy.speed,
                 damage: enemy.damage,
-                color: enemy.color
+                color: enemy.color,
+                tint: enemy.tint || 0xFFFFFF // Store original tint if exists
             };
         }
         
@@ -172,12 +203,56 @@ export class GroupManager {
             enemy.damage = enemy._originalStats.damage * modifiers.damage;
         }
         
+        // Apply faction-specific visual indicators
         if (modifiers.color) {
             enemy.color = modifiers.color;
             
-            // Update visual representation if it exists
+            // Update visual representation if it exists with fill color
             if (enemy.graphics && enemy.graphics.setFillStyle) {
                 enemy.graphics.setFillStyle(modifiers.color);
+            }
+        }
+        
+        // Apply sprite tinting based on faction/group
+        if (enemy.sprite || enemy.graphics) {
+            // Determine tint color based on group
+            let tintColor;
+            switch (groupId) {
+                case GroupId.AI:
+                    tintColor = 0x3498db; // Blue tint for AI faction
+                    break;
+                case GroupId.CODER:
+                    tintColor = 0xe74c3c; // Red tint for CODER faction
+                    break;
+                case GroupId.NEUTRAL:
+                    tintColor = 0xf1c40f; // Yellow tint for NEUTRAL faction
+                    break;
+                default:
+                    tintColor = 0xFFFFFF; // White/no tint as fallback
+            }
+            
+            // Store the tint color on the enemy
+            enemy.factionTint = tintColor;
+            
+            // Apply tint to sprite if it exists
+            if (enemy.sprite && enemy.sprite.setTint) {
+                enemy.sprite.setTint(tintColor);
+            }
+            
+            // Apply to graphics object if it exists and has setTint method
+            if (enemy.graphics) {
+                if (enemy.graphics.setTint) {
+                    enemy.graphics.setTint(tintColor);
+                }
+                
+                // If the graphics object has child sprites, apply tint to them as well
+                if (enemy.graphics.list && Array.isArray(enemy.graphics.list)) {
+                    enemy.graphics.list.forEach(child => {
+                        if (child && child.setTint) {
+                            child.setTint(tintColor);
+                        }
+                    });
+                }
             }
         }
         
