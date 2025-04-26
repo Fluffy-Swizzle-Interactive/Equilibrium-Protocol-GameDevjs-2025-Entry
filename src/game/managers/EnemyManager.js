@@ -197,9 +197,58 @@ export class EnemyManager {
         // Get enemy from pool
         const enemy = this.gameObjectManager.get(type, x, y, options);
         
+        if (!enemy) {
+            return null;
+        }
+
         // Make sure enemy has the correct group ID set
-        if (enemy && options.groupId && enemy.setGroup) {
+        if (options.groupId && enemy.setGroup) {
             enemy.setGroup(options.groupId);
+            
+            // Ensure the group's modifiers (including tint) are applied
+            // Some enemies might not get their tint from the setGroup method
+            if (this.scene.groupManager && enemy.groupId) {
+                this.scene.groupManager.applyModifiers(enemy, enemy.groupId);
+            }
+        }
+        
+        // Make sure the enemy has its faction tint applied, especially for chaos and boss spawns
+        if (enemy.groupId && enemy.graphics) {
+            const tintColors = {
+                'ai': 0x3498db,    // Blue tint for AI faction
+                'coder': 0xe74c3c  // Red tint for CODER faction
+            };
+            
+            const tintColor = tintColors[enemy.groupId];
+            if (tintColor) {
+                // Store the faction tint on the enemy
+                enemy.factionTint = tintColor;
+                
+                // Apply tint to the main graphics object
+                if (enemy.graphics.setTint) {
+                    enemy.graphics.setTint(tintColor);
+                }
+                
+                // Apply tint to any nested sprite components
+                if (enemy.graphics.list && Array.isArray(enemy.graphics.list)) {
+                    enemy.graphics.list.forEach(child => {
+                        if (child && child.setTint) {
+                            child.setTint(tintColor);
+                        }
+                    });
+                }
+                
+                // Apply to sprite if it exists
+                if (enemy.sprite && enemy.sprite.setTint) {
+                    enemy.sprite.setTint(tintColor);
+                }
+            }
+        }
+        
+        // Mark this enemy as tracked by the WaveManager if it's created through normal spawning
+        // This prevents double counting by both GroupManager and WaveManager
+        if (!options.externalSpawn) {
+            enemy._registeredWithWaveManager = true;
         }
         
         return enemy;
@@ -241,10 +290,50 @@ export class EnemyManager {
         
         return {
             weights: {...this.groupWeightManager.groupWeights},
-            probabilities: this.groupWeightManager.getProbabilities()
+            probabilities: this.groupWeightManager.getProbabilities(),
+            killPercentages: this.getKillPercentages()
         };
     }
     
+    /**
+     * Get the current kill percentages
+     * @returns {Object} Object with group IDs as keys and kill percentages as values
+     */
+    getKillPercentages() {
+        if (!this.groupWeightManager || !this.groupWeightManager.killHistory) {
+            return {};
+        }
+        
+        const killHistory = this.groupWeightManager.killHistory;
+        const totalKills = Object.values(killHistory).reduce((sum, kills) => sum + kills, 0);
+        
+        if (totalKills === 0) return {};
+        
+        const killPercentages = {};
+        for (const groupId in killHistory) {
+            killPercentages[groupId] = killHistory[groupId] / totalKills;
+        }
+        
+        return killPercentages;
+    }
+    
+    /**
+     * Check and fix any extreme imbalance in group weights
+     * @returns {boolean} True if weights were rebalanced
+     */
+    checkAndRebalanceGroupWeights() {
+        if (!this.groupWeightManager) return false;
+        
+        // Call the GroupWeightManager's rebalance method
+        const wasRebalanced = this.groupWeightManager.forceRebalanceWeights();
+        
+        if (wasRebalanced && this.isDev) {
+            console.debug('Enemy group weights were rebalanced due to extreme imbalance');
+        }
+        
+        return wasRebalanced;
+    }
+
     /**
      * Set the volatility factor for group weight adjustments
      * @param {Number} value - Volatility value (0-1)
@@ -499,10 +588,32 @@ export class EnemyManager {
      * @param {BaseEnemy} enemy - The enemy to release
      */
     releaseEnemy(enemy) {
+        if (!enemy) {
+            console.warn('Attempted to release null or undefined enemy');
+            return;
+        }
+        
         // Remove from tracking array
         const index = this.enemies.indexOf(enemy);
         if (index !== -1) {
             this.enemies.splice(index, 1);
+            
+            // Notify WaveManager of this removal if it hasn't already been counted via onEnemyKilled
+            if (this.scene.waveManager && !enemy.killCounted) {
+                // Determine if this is a boss
+                const isBoss = enemy.isBossEnemy ? enemy.isBossEnemy() : enemy.type.includes('boss');
+                
+                // Notify WaveManager directly - this ensures accurate enemy counting
+                this.scene.waveManager.onEnemyKilled(isBoss, enemy.type);
+                
+                // Mark as counted
+                enemy.killCounted = true;
+            }
+        }
+        
+        // Deregister from group if applicable
+        if (enemy.groupId && this.scene.groupManager) {
+            this.scene.groupManager.deregister(enemy, enemy.groupId);
         }
         
         // Release back to appropriate pool based on type

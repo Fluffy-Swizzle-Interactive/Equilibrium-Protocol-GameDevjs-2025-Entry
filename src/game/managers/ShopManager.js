@@ -33,9 +33,17 @@ export default class ShopManager {
     // Listen for wave completed events to update the next wave button
     EventBus.on('wave-completed', this.onWaveCompleted);
 
+    // Direct integration with WaveManager for round end
+    if (scene.waveManager) {
+      scene.waveManager.registerEndOfRoundCallback(this.onWaveCompleted);
+    }
+
     // Clean up event listeners when scene is destroyed
     this.scene.events.once('shutdown', () => {
       EventBus.off('wave-completed', this.onWaveCompleted);
+      if (this.scene.waveManager) {
+        this.scene.waveManager.unregisterEndOfRoundCallback(this.onWaveCompleted);
+      }
     });
 
     // For debugging: Log when the shop manager is initialized
@@ -66,21 +74,19 @@ export default class ShopManager {
         // Remove previous listeners
         nextWaveBg.off('pointerdown');
 
-        // Add new listener for opening shop
+        // Add new listener for opening shop (only to the background element)
         nextWaveBg.on('pointerdown', () => {
           this.openShop();
         });
-      }
 
-      // Do the same for the text element
-      nextWaveButton.off('pointerdown');
-      nextWaveButton.on('pointerdown', () => {
-        this.openShop();
-      });
+        // Make the text non-interactive or ensure it doesn't have its own handler
+        nextWaveButton.off('pointerdown');
+        nextWaveButton.disableInteractive(); // Optional: make text non-interactive
 
-      // Make the button visible if it's not already
-      if (!nextWaveBg.visible) {
-        this.scene.uiManager.showNextWaveButton();
+        // Make the button visible if it's not already
+        if (!nextWaveBg.visible) {
+          this.scene.uiManager.showNextWaveButton();
+        }
       }
     }
   }

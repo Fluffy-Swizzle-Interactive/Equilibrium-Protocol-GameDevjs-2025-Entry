@@ -330,6 +330,8 @@ We follow a simplified Git Flow model:
 2. **Visual Debugging**:
    - Use `this.add.graphics()` for temporary visual indicators
    - Show hitboxes, paths, and other invisible elements
+   - Press `U` key in development mode to toggle hitbox visualization for enemies and bullets
+   - Hitboxes will be displayed as red circles for enemies and green circles for bullets
 
 3. **Console Logging**:
    ```javascript
