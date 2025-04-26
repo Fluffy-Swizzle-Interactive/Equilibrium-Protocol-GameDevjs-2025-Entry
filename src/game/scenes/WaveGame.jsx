@@ -1650,19 +1650,19 @@ export class WaveGame extends Scene {
 
         // Create a small particle burst for additional visual feedback
         const particles = this.add.particles(x, y, 'particle_texture', {
-            speed: { min: 50, max: 150 },
-            scale: { start: 0.2, end: 0 },
+            speed: { min: 40, max: 120 },
+            scale: { start: 0.18, end: 0 },
             alpha: { start: 1, end: 0 },
-            lifespan: 300,
+            lifespan: 150,
             blendMode: 'ADD',
-            quantity: 8,
+            quantity: 4,
             tint: 0xff0000, // Red particles for critical hits
             angle: { min: 0, max: 360 }
         });
 
         // Auto-destroy the emitter after it's done
         particles.setDepth(100);
-        this.time.delayedCall(500, () => {
+        this.time.delayedCall(150, () => {
             particles.destroy();
         });
     }
