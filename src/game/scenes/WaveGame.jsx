@@ -59,6 +59,9 @@ export class WaveGame extends Scene {
         // Remove weapon type selection since we're using a single weapon
         this.startWave = data.startWave || 0;
 
+        // Store whether music has been faded out in the previous scene
+        this.musicFadedOut = data.musicFadedOut || false;
+
         // Reset game state for new game
         this.resetGameState();
     }
@@ -78,6 +81,10 @@ export class WaveGame extends Scene {
     }
 
     create() {
+        // Force stop all audio when entering the game scene
+        // This is necessary to ensure the menu music stops completely
+        this.sound.stopAll();
+
         this.setupMap();
         this.setupSoundManager(); // Initialize sound manager first
         this.setupObjectManager(); // Initialize object pooling system
@@ -109,28 +116,59 @@ export class WaveGame extends Scene {
             loop: true
         });
 
-        // Initialize weapon sound effect
+        // Initialize shop music
+        this.soundManager.initBackgroundMusic('shop_music', {
+            volume: 0.4,  // Same volume as ambient music
+            loop: true
+        });
+
+        // Initialize action music for wave gameplay
+        this.soundManager.initBackgroundMusic('action_music', {
+            volume: 0.4,  // Same volume as other music
+            loop: true
+        });
+
+        // Initialize sound effects
         this.soundManager.initSoundEffect('shoot_weapon', {
             volume: 0.5,
             rate: 1.0
         });
 
-        // Try to unlock audio context as early as possible
-        if (this.sound.locked) {
-            console.debug('Audio system is locked. Attempting to unlock...');
-            this.sound.once('unlocked', () => {
-                console.debug('Audio system unlocked successfully');
-                // Start playing ambient music with fade in once audio is unlocked
-                this.soundManager.playMusic('ambient_music', {
-                    fadeIn: 2000  // 2 second fade in
-                });
-            });
-        } else {
-            // Sound already unlocked, play immediately
-            this.soundManager.playMusic('ambient_music', {
-                fadeIn: 2000  // 2 second fade in
+        this.soundManager.initSoundEffect('level_up', {
+            volume: 0.7,
+            rate: 1.0
+        });
+
+        // Initialize cash pickup sound effect
+        this.soundManager.initSoundEffect('cash_pickup', {
+            volume: 0.5,
+            rate: 1.0
+        });
+
+        // Initialize player hit sound effect
+        this.soundManager.initSoundEffect('player_hit', {
+            volume: 0.6,
+            rate: 1.0
+        });
+
+        // Initialize player death sound effect
+        this.soundManager.initSoundEffect('player_death', {
+            volume: 0.7,
+            rate: 1.0
+        });
+
+        // Initialize wave end sound effects (7 variations)
+        for (let i = 1; i <= 7; i++) {
+            this.soundManager.initSoundEffect(`waveEnd${i}`, {
+                volume: 0.7,
+                rate: 1.0
             });
         }
+
+        // Start playing shop music with fade in
+        this.soundManager.playMusic('shop_music', {
+            fadeIn: 2000  // 2 second fade in
+        });
     }
 
     /**
@@ -224,6 +262,63 @@ export class WaveGame extends Scene {
             if (this.uiManager) {
                 this.uiManager.showLevelUpAnimation(data.level);
             }
+
+            // Play level up sound when player levels up
+            if (this.soundManager) {
+                this.soundManager.playSoundEffect('level_up', {
+                    volume: 0.7
+                });
+            }
+        });
+
+        // Listen for wave-completed events on the EventBus to play sound and switch music
+        EventBus.on('wave-completed', () => {
+            if (this.soundManager) {
+                // Play wave end sound
+                this.soundManager.playRandomWaveEndSound();
+
+                // Switch to shop music with crossfade
+                this.soundManager.playMusic('shop_music', {
+                    fadeIn: 2000,  // 2 second fade in
+                    fadeOut: 2000  // 2 second fade out for current music
+                });
+            }
+        });
+
+        // Listen for collectible-collected events on the EventBus to play appropriate sounds
+        EventBus.on('collectible-collected', (data) => {
+            if (this.soundManager && data && data.type === 'cash_pickup') {
+                this.soundManager.playSoundEffect('cash_pickup', {
+                    volume: 0.5,
+                    detune: Math.random() * 100 - 50 // Random detune between -50 and +50 for variety
+                });
+            }
+        });
+
+        // Listen for player-damaged events on the EventBus to play hit sound
+        EventBus.on('player-damaged', () => {
+            if (this.soundManager) {
+                this.soundManager.playSoundEffect('player_hit', {
+                    volume: 0.6,
+                    detune: Math.random() * 100 - 50 // Random detune between -50 and +50 for variety
+                });
+            }
+        });
+
+        // Listen for player-death events on the EventBus to play death sound
+        EventBus.on('player-death', () => {
+            if (this.soundManager) {
+                this.soundManager.playSoundEffect('player_death', {
+                    volume: 0.7,
+                    detune: Math.random() * 50 - 25 // Slight random detune for variety
+                });
+            }
+        });
+
+        // Listen for wave-start events on the EventBus
+        // Note: The actual music change is handled in the onWaveStart method
+        EventBus.on('wave-start', () => {
+            // This listener is kept for consistency and potential future use
         });
     }
 
@@ -744,6 +839,12 @@ export class WaveGame extends Scene {
 
         // Set up spacebar for pause
         this.pauseKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+
+
+        // Set up volume control keys (9 for volume down, 0 for volume up)
+        this.volumeDownKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.NINE);
+        this.volumeUpKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ZERO);
+
         
         // DEV ONLY: Add debug key "V" to force verification of enemy counts
         if (this.isDev) {
@@ -786,6 +887,7 @@ export class WaveGame extends Scene {
                 console.log('[DEBUG] Hitbox visualization', this.showHitboxes ? 'enabled' : 'disabled');
             });
         }
+
     }
 
     /**
@@ -797,6 +899,14 @@ export class WaveGame extends Scene {
         if (this.isDev) {
             console.debug(`Wave ${data.wave} started. Boss wave: ${data.isBossWave}`);
         }
+
+        // Switch to action music when a wave starts
+        if (this.soundManager) {
+            this.soundManager.playMusic('action_music', {
+                fadeIn: 2000,  // 2 second fade in
+                fadeOut: 2000  // 2 second fade out for current music
+            });
+        }
     }
 
     /**
@@ -807,6 +917,11 @@ export class WaveGame extends Scene {
         // Log wave completion
         if (this.isDev) {
             console.debug(`Wave ${data.wave} completed. Last wave: ${data.isLastWave}`);
+        }
+
+        // Play a random wave end sound
+        if (this.soundManager) {
+            this.soundManager.playRandomWaveEndSound();
         }
     }
 
@@ -863,11 +978,105 @@ export class WaveGame extends Scene {
         this.setPauseState(!this.isPaused, 'toggle');
     }
 
+    /**
+     * Handle volume control keys (9 for volume down, 0 for volume up)
+     */
+    handleVolumeControls() {
+        if (!this.soundManager) return;
+
+        const volumeStep = 0.05; // 5% volume change per key press
+        let volumeChanged = false;
+        let newVolume = this.soundManager.musicVolume;
+
+        // Check for volume down key (9)
+        if (Phaser.Input.Keyboard.JustDown(this.volumeDownKey)) {
+            newVolume = Math.max(0, newVolume - volumeStep);
+            volumeChanged = true;
+        }
+
+        // Check for volume up key (0)
+        if (Phaser.Input.Keyboard.JustDown(this.volumeUpKey)) {
+            newVolume = Math.min(1, newVolume + volumeStep);
+            volumeChanged = true;
+        }
+
+        // Update volume if changed
+        if (volumeChanged) {
+            this.soundManager.setMusicVolume(newVolume);
+            this.soundManager.setEffectsVolume(newVolume);
+
+            // Show volume indicator
+            this.showVolumeIndicator(newVolume);
+        }
+    }
+
+    /**
+     * Show a temporary volume indicator on screen
+     * @param {number} volume - Current volume level (0-1)
+     */
+    showVolumeIndicator(volume) {
+        // Remove existing volume indicator if present
+        if (this.volumeIndicator) {
+            this.volumeIndicator.destroy();
+        }
+
+        // Calculate percentage for display
+        const volumePercent = Math.round(volume * 100);
+
+        // Get camera dimensions
+        const camera = this.cameras.main;
+        const width = camera.width;
+        const height = camera.height;
+
+        // Create container for volume indicator
+        // Position at bottom center of the camera view
+        this.volumeIndicator = this.add.container(camera.scrollX + width / 2, camera.scrollY + height - 50).setDepth(200);
+
+        // Create background
+        const bgWidth = 200;
+        const bgHeight = 40;
+
+        const bg = this.add.rectangle(
+            0, // Centered in container
+            0, // Centered in container
+            bgWidth,
+            bgHeight,
+            0x000000,
+            0.7
+        ).setOrigin(0.5);
+
+        // Create volume text
+        const text = this.add.text(
+            0, // Centered in container
+            0, // Centered in container
+            `Volume: ${volumePercent}%`,
+            {
+                fontFamily: 'Arial',
+                fontSize: 18,
+                color: '#ffffff'
+            }
+        ).setOrigin(0.5);
+
+        // Add to container
+        this.volumeIndicator.add([bg, text]);
+
+        // Auto-destroy after a short delay
+        this.time.delayedCall(1500, () => {
+            if (this.volumeIndicator) {
+                this.volumeIndicator.destroy();
+                this.volumeIndicator = null;
+            }
+        });
+    }
+
     update(time, delta) {
         // Handle pause state
         if (Phaser.Input.Keyboard.JustDown(this.pauseKey)) {
             this.togglePause();
         }
+
+        // Handle volume control keys (always active, even when paused)
+        this.handleVolumeControls();
 
         // If game is paused or over, don't update game logic
         if (this.isPaused || this.isGameOver) {
@@ -1458,7 +1667,25 @@ export class WaveGame extends Scene {
     }
 
     /**
-     * Draw hitboxes for enemies and bullets when debug option is enabled
+
+     * Clean up resources when the scene is shut down
+     */
+    shutdown() {
+        // Clean up event listeners to prevent memory leaks
+        EventBus.off('xp-updated');
+        EventBus.off('level-up');
+        EventBus.off('wave-completed');
+        EventBus.off('collectible-collected');
+        EventBus.off('player-damaged');
+        EventBus.off('player-death');
+        EventBus.off('wave-start');
+
+        // Call parent shutdown method
+        super.shutdown();
+    }
+}
+
+     /* Draw hitboxes for enemies and bullets when debug option is enabled
      * DEV MODE ONLY - This is only called when isDev && showHitboxes are both true
      */
     drawHitboxes() {
@@ -1528,3 +1755,4 @@ export class WaveGame extends Scene {
         }
     }
 }
+

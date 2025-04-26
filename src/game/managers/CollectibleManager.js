@@ -41,8 +41,8 @@ export class CollectibleManager {
                 soundKey: 'cash_pickup',
                 fallbackSoundKey: 'laserShoot',
                 soundConfig: {
-                    detune: 600,
-                    volume: 0.3
+                    detune: Math.random() * 100 - 50, // Random detune between -50 and +50 for variety
+                    volume: 0.5
                 },
                 particleColor: 0xFFD700 // Gold
             },

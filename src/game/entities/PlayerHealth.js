@@ -1,3 +1,5 @@
+import { EventBus } from '../EventBus';
+
 /**
  * PlayerHealth class
  * Manages player's health, damage, and death handling
@@ -59,15 +61,17 @@ export class PlayerHealth {
         // Set temporary invulnerability
         this.setInvulnerable();
 
+        // Emit player-damaged event for other systems to react to
+        EventBus.emit('player-damaged', {
+            amount: amount,
+            currentHealth: this.currentHealth,
+            maxHealth: this.maxHealth
+        });
+
         // Check if player died
         if (this.currentHealth <= 0) {
             this.onDeath();
             return true;
-        }
-
-        // Play hit sound if sound manager is available
-        if (this.scene.soundManager) {
-            this.scene.soundManager.playSoundEffect('player_hit', { volume: 0.5 });
         }
 
         return false;
@@ -121,10 +125,11 @@ export class PlayerHealth {
      * Handle player death
      */
     onDeath() {
-        // Play death sound if sound manager is available
-        if (this.scene.soundManager) {
-            this.scene.soundManager.playSoundEffect('player_death', { volume: 0.7 });
-        }
+        // Emit player-death event for other systems to react to
+        EventBus.emit('player-death', {
+            x: this.scene.player?.graphics.x,
+            y: this.scene.player?.graphics.y
+        });
 
         // Show death animation
         this.showDeathAnimation();
