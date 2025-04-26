@@ -1,7 +1,7 @@
-# Equilibrium Protocol GameDevjs 2025 Entry By Fluffy Swizzle Interactive
+# Equilibrium Protocol -- GameDevjs 2025 Entry By Fluffy Swizzle Interactive
 ## Overview
 
-Fluffy-Swizz Interactive is a top-down shooter game built with Phaser 3 and React. Players use a unified weapon system and must survive as long as possible against increasingly difficult waves of enemies.
+Equilibrium Protocol is a top-down shooter game built with Phaser 3 and React. Players use a unified weapon system and must survive as long as possible against increasingly difficult waves of enemies.
 
 ### Tech Stack
 
@@ -126,4 +126,4 @@ When updating documentation:
 
 ---
 
-*This documentation is maintained by the Fluffy-Swizz Interactive development team.*
+*This documentation is maintained by the -Swizz Interactive development team.*
