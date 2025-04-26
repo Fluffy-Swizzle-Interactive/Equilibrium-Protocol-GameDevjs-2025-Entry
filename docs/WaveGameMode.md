@@ -684,6 +684,125 @@ The wave system is balanced with player progression in mind:
 - Player should reach approximately level 20 by wave 20
 - Upgrades and power-ups should be affordable at appropriate intervals
 
+## Weapon System Integration
+
+The wave game mode integrates with the unified weapon system:
+
+### Weapon Initialization
+
+The player's weapon is initialized during scene setup:
+
+```javascript
+// In WaveGame.jsx - setupGameObjects()
+setupGameObjects() {
+    // Create player instance (in center of map)
+    const playerX = this.mapDimensions.width / 2;
+    const playerY = this.mapDimensions.height / 2;
+    this.player = new Player(this, playerX, playerY);
+
+    // Initialize player's weapon system
+    this.player.initWeaponSystem();
+
+    // Setup player health system
+    this.playerHealth = new PlayerHealth(this, {
+        maxHealth: 100,
+        hitDamage: 34, // Dies in 3 hits
+        damageResistance: 0 // Start with 0% defense
+    });
+
+    // Setup collision with map layers
+    this.setupPlayerCollisions();
+
+    // Setup camera to follow player
+    this.setupCamera();
+}
+```
+
+### Weapon Sound Effects
+
+The sound manager initializes a single weapon sound effect:
+
+```javascript
+// In WaveGame.jsx - setupSoundManager()
+setupSoundManager() {
+    // Create sound manager
+    this.soundManager = new SoundManager(this);
+
+    // Initialize ambient music
+    this.soundManager.initBackgroundMusic('ambient_music', {
+        volume: 0.4,  // Slightly lower volume for ambient music
+        loop: true
+    });
+
+    // Initialize weapon sound effect
+    this.soundManager.initSoundEffect('shoot_weapon', {
+        volume: 0.5,
+        rate: 1.0
+    });
+
+    // Initialize additional sound effects...
+}
+```
+
+### Weapon Upgrades
+
+The shop system offers weapon upgrades compatible with the unified weapon system:
+
+```javascript
+// In WaveGame.jsx - setupShopManager()
+setupShopManager() {
+    // Create RNG for generating upgrades
+    const rng = {
+        pick: (array) => {
+            return array[Math.floor(Math.random() * array.length)];
+        },
+        range: (min, max) => {
+            return Math.floor(Math.random() * (max - min + 1)) + min;
+        }
+    };
+
+    // Create weapon reference for upgrades
+    const weapon = {
+        type: 'Standard',
+        damage: this.player.bulletDamage || 10,
+        fireRate: this.player.fireRate || 0.1,
+        pierce: this.player.bulletPierce || 1
+    };
+
+    // Initialize shop manager
+    this.shopManager = new ShopManager(this, this.player, weapon, rng);
+
+    // Initialize player credits if not already set
+    if (this.player.credits === undefined) {
+        this.player.credits = 100; // Starting credits
+
+        // Update cash display
+        if (this.cashManager) {
+            this.cashManager.setCash(this.player.credits);
+        }
+    }
+}
+```
+
+### Player Weapon Usage
+
+During gameplay, the player's weapon is fired when the mouse button is pressed:
+
+```javascript
+// In WaveGame.jsx - updateGameObjects()
+updateGameObjects() {
+    // Update player
+    this.player.update();
+
+    // Attempt to shoot if mouse is held down
+    if (this.isMouseDown) {
+        this.player.shoot();
+    }
+
+    // Update other game objects...
+}
+```
+
 ---
 
 *This documentation is maintained by the Fluffy-Swizz Interactive development team.*

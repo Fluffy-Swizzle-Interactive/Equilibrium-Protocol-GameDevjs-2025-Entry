@@ -14,7 +14,6 @@ export class MainMenu extends Scene
     constructor ()
     {
         super('MainMenu');
-        this.selectedWeapon = 'minigun'; // Default weapon
     }
 
     create ()
@@ -77,16 +76,15 @@ export class MainMenu extends Scene
                 this.logoTween = null;
             }
             
-            // Start the selected game mode
+            // Start the PreSpawn scene instead of going directly to WaveGame
             if (mode === 'wave') {
-                // Start the wave-based game mode with specified weapon type
-                this.scene.start('WaveGame', { 
-                    weaponType: this.selectedWeapon,
+                // Pass relevant data to PreSpawn scene
+                this.scene.start('PreSpawn', { 
                     startWave: 0 // Default to wave 0 in regular mode
                 });
             } else {
-                // Start the classic game mode
-                this.scene.start('WaveGame', { weaponType: this.selectedWeapon });
+                // For other modes (maintaining compatibility)
+                this.scene.start('PreSpawn', { startWave: 0 });
             }
         });
     }

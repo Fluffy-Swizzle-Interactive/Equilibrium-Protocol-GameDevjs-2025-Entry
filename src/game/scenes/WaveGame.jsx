@@ -52,8 +52,7 @@ export class WaveGame extends Scene {
     }
 
     init(data) {
-        // Store the weapon type received from menu selection
-        this.weaponType = data.weaponType || 'minigun';
+        // Remove weapon type selection since we're using a single weapon
         this.startWave = data.startWave || 0;
 
         // Reset game state for new game
@@ -106,15 +105,10 @@ export class WaveGame extends Scene {
             loop: true
         });
 
-        // Initialize sound effects
-        this.soundManager.initSoundEffect('shoot_minigun', {
+        // Initialize weapon sound effect
+        this.soundManager.initSoundEffect('shoot_weapon', {
             volume: 0.5,
             rate: 1.0
-        });
-
-        this.soundManager.initSoundEffect('shoot_shotgun', {
-            volume: 0.6,
-            rate: 0.9
         });
 
         // Try to unlock audio context as early as possible
@@ -352,7 +346,7 @@ export class WaveGame extends Scene {
 
         // Create weapon reference for upgrades
         const weapon = {
-            type: this.weaponType || 'Standard',
+            type: 'Standard',
             damage: this.player.bulletDamage || 10,
             fireRate: this.player.fireRate || 0.1,
             pierce: this.player.bulletPierce || 1
@@ -572,7 +566,7 @@ export class WaveGame extends Scene {
         this.player = new Player(this, playerX, playerY);
 
         // Initialize player's weapon system
-        this.player.initWeaponSystem(this.weaponType);
+        this.player.initWeaponSystem();
 
         // Setup player health system
         this.playerHealth = new PlayerHealth(this, {
@@ -1115,7 +1109,7 @@ export class WaveGame extends Scene {
                     const soundKey = this.soundManager.soundEffects &&
                                      this.soundManager.soundEffects['xp_collect'] ?
                                      'xp_collect' :
-                                     'shoot_minigun'; // Fallback to an existing sound
+                                     'shoot_weapon'; // Fallback to an existing sound
 
                     this.soundManager.playSoundEffect(soundKey, {
                         detune: 1200, // Higher pitch for XP collection

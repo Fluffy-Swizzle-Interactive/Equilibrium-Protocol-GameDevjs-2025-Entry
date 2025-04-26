@@ -87,8 +87,9 @@ export class Preloader extends Scene
         this.loadMapAssets();
 
         // Load sound effects
-        this.load.audio('shoot_minigun', 'assets/audio/laserShoot.wav');
-        this.load.audio('shoot_shotgun', 'assets/audio/laserShoot.wav');
+        this.load.audio('shoot_weapon', 'assets/audio/laserShoot.wav');
+        //TEMP REMOVE OR REPLACE
+        this.load.audio('button_click', 'assets/audio/laserShoot.wav');
 
         // Load ambient background music
         this.load.audio('ambient_music', 'assets/audio/ambient_loop.mp3');

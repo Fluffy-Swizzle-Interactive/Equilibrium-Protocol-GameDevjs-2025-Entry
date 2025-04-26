@@ -91,7 +91,7 @@ export class BulletPool {
     }
 
     /**
-     * Create a minigun bullet
+     * Create a bullet
      * @param {number} x - Spawn X position
      * @param {number} y - Spawn Y position
      * @param {number} dirX - Direction X component
@@ -102,46 +102,8 @@ export class BulletPool {
      * @param {number} size - Bullet radius
      * @returns {Phaser.GameObjects.Sprite} The bullet object
      */
-    createMinigunBullet(x, y, dirX, dirY, speed, health, color, size) {
+    createBullet(x, y, dirX, dirY, speed, health, color, size) {
         return this.objectManager.get('bullet', x, y, dirX, dirY, speed, health, color, size);
-    }
-
-    /**
-     * Create multiple shotgun bullets with spread
-     * @param {number} x - Spawn X position
-     * @param {number} y - Spawn Y position
-     * @param {number} dirX - Base direction X component
-     * @param {number} dirY - Base direction Y component
-     * @param {number} speed - Bullet speed
-     * @param {number} health - Bullet health
-     * @param {number} color - Bullet color
-     * @param {number} size - Bullet radius
-     * @param {number} count - Number of bullets to create
-     * @param {number} spreadAngle - Spread angle in degrees
-     * @returns {Array} Array of created bullets
-     */
-    createShotgunBullets(x, y, dirX, dirY, speed, health, color, size, count, spreadAngle) {
-        const bullets = [];
-        const baseAngle = Math.atan2(dirY, dirX);
-
-        for (let i = 0; i < count; i++) {
-            // Calculate spread angle
-            const spreadRadians = (Math.random() * spreadAngle - spreadAngle/2) * (Math.PI / 180);
-            const angle = baseAngle + spreadRadians;
-
-            // Calculate new direction with spread
-            const newDirX = Math.cos(angle);
-            const newDirY = Math.sin(angle);
-
-            // Get bullet from pool
-            const bullet = this.objectManager.get('bullet', x, y, newDirX, newDirY, speed, health, color, size);
-
-            if (bullet) {
-                bullets.push(bullet);
-            }
-        }
-
-        return bullets;
     }
 
     /**
@@ -278,7 +240,7 @@ export class BulletPool {
             if (!bullet.trailEmitter && this.scene.add && this.scene.add.particles) {
                 try {
                     // Get bullet color for the trail
-                    const trailColor = bullet.tint || 0xffff00;
+                    const trailColor = bullet.tint || 0xFF3EBF;
 
                     // Check if particle texture exists
                     if (!this.scene.textures.exists('particle_texture')) {

@@ -55,19 +55,14 @@ export class Player {
     }
 
     /**
-     * Initialize the weapon system with the specified weapon type
-     * @param {string} weaponType - The weapon type ('minigun' or 'shotgun')
+     * Initialize the weapon system
      */
-    initWeaponSystem(weaponType = 'minigun') {
+    initWeaponSystem() {
         // Create the weapon manager
         this.weaponManager = new WeaponManager(this.scene, this, {
-            weaponType: weaponType,
             maxDrones: 0, // Start with no drones
             bulletRange: 600
         });
-
-        // Store weapon type on player for backward compatibility
-        this.gameMode = weaponType;
     }
 
     /**
@@ -514,7 +509,7 @@ export class Player {
                         // Use existing sound effect if available, otherwise use a fallback
                         const soundKey = this.scene.soundManager.hasSound('xp_collect')
                             ? 'xp_collect'
-                            : 'shoot_minigun'; // Fallback to an existing sound
+                            : 'shoot_weapon'; // Fallback to an existing sound
 
                         this.scene.soundManager.playSoundEffect(soundKey, {
                             detune: 1200, // Higher pitch for XP collection

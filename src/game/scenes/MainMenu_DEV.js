@@ -193,20 +193,25 @@ export class MainMenu_DEV extends MainMenu {
                 this.logoTween = null;
             }
             
-            // Start the selected game mode with developer options
-            if (mode === 'wave') {
-                this.scene.start('WaveGame', { 
-                    weaponType: this.selectedWeapon,
-                    startWave: this.selectedStartWave,
-                    debug: this.debugMode
-                });
-            } else {
-                // Start the classic game mode with debug flag
-                this.scene.start('WaveGame', { 
-                    weaponType: this.selectedWeapon,
-                    debug: this.debugMode
-                });
-            }
+            // Start the PreSpawn scene with developer options
+            this.scene.start('PreSpawn', { 
+                startWave: this.selectedStartWave,
+                debug: this.debugMode
+            });
         });
+    }
+    
+    /**
+     * Legacy method for backward compatibility
+     */
+    changeScene(sceneKey, gameMode) {
+        // Map to the new startGame method
+        if (sceneKey === 'WaveGame') {
+            this.selectedWeapon = gameMode;
+            this.startGame('wave');
+        } else {
+            this.selectedWeapon = gameMode;
+            this.startGame('adventure');
+        }
     }
 }
