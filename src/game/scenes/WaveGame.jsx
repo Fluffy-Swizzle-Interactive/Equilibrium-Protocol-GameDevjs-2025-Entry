@@ -403,7 +403,21 @@ export class WaveGame extends Scene {
         this.animationManager.createEnemyAnimations('enemy1', {
             idle: { start: 0, end: 3, frameRate: 8, repeat: -1 },
             run: { start: 0, end: 3, frameRate: 10, repeat: -1 },
-            death: { start: 0, end: 7, frameRate: 12, repeat: 0 },
+            // Fix death animation - explicitly define frame sequence since frames aren't sequential in JSON
+            death: { 
+                frames: [
+                    'enemy1_death_0.png', 
+                    'enemy1_death_1.png', 
+                    'enemy1_death_2.png',
+                    'enemy1_death_3.png',
+                    'enemy1_death_4.png',
+                    'enemy1_death_5.png',
+                    'enemy1_death_6.png',
+                    'enemy1_death_7.png'
+                ],
+                frameRate: 10, 
+                repeat: 0 
+            },
             shoot: { start: 0, end: 3, frameRate: 12, repeat: 0 }
         });
         
@@ -1195,36 +1209,35 @@ export class WaveGame extends Scene {
             this.uiManager.updateScoreUI(this.killCount);
         }
 
-        // Create death effect at enemy position
-        if (x !== undefined && y !== undefined) {
-            this.createEnemyDeathEffect(x, y);
+        // Note: We're now relying on the enemy's built-in death animation
+        // Death effect is handled directly by the enemy's die() method
+        // Do not create additional particle effects here
 
-            // Award XP directly based on enemy score value instead of spawning pickups
-            if (this.xpManager) {
-                // Find the enemy by position
-                const deadEnemy = this.findEnemyByPosition(x, y, enemyType);
+        // Award XP directly based on enemy score value instead of spawning pickups
+        if (this.xpManager) {
+            // Find the enemy by position
+            const deadEnemy = this.findEnemyByPosition(x, y, enemyType);
 
-                // Calculate XP value based on enemy type and score
-                const xpValue = deadEnemy && deadEnemy.scoreValue ?
-                    deadEnemy.scoreValue * (this.xpMultiplier || 1) :
-                    isBoss ? 500 : 100; // Default values if enemy not found
+            // Calculate XP value based on enemy type and score
+            const xpValue = deadEnemy && deadEnemy.scoreValue ?
+                deadEnemy.scoreValue * (this.xpMultiplier || 1) :
+                isBoss ? 500 : 100; // Default values if enemy not found
 
-                // Award XP directly to the player
-                this.xpManager.addXP(xpValue);
+            // Award XP directly to the player
+            this.xpManager.addXP(xpValue);
 
-                // Play XP gain sound effect
-                if (this.soundManager) {
-                    // Use existing sound with different parameters for XP collection
-                    const soundKey = this.soundManager.soundEffects &&
-                        this.soundManager.soundEffects['xp_collect'] ?
-                        'xp_collect' :
-                        'shoot_weapon'; // Fallback to an existing sound
+            // Play XP gain sound effect
+            if (this.soundManager) {
+                // Use existing sound with different parameters for XP collection
+                const soundKey = this.soundManager.soundEffects &&
+                    this.soundManager.soundEffects['xp_collect'] ?
+                    'xp_collect' :
+                    'shoot_weapon'; // Fallback to an existing sound
 
-                    this.soundManager.playSoundEffect(soundKey, {
-                        detune: 1200, // Higher pitch for XP collection
-                        volume: 0.3
-                    });
-                }
+                this.soundManager.playSoundEffect(soundKey, {
+                    detune: 1200, // Higher pitch for XP collection
+                    volume: 0.3
+                });
             }
         }
 
@@ -1232,7 +1245,7 @@ export class WaveGame extends Scene {
             // If a boss was killed, increment the boss kill counter
             this.bossesKilled++;
 
-            // Create special effects for boss death
+            // Create special effects for boss death - keep boss death effects
             if (x !== undefined && y !== undefined) {
                 this.createBossDeathEffect(x, y);
             }
@@ -1310,7 +1323,7 @@ export class WaveGame extends Scene {
         });
 
         // Auto-destroy the emitter after it's done
-        particles.setDepth(50);
+        particles.setDepth(250);
         this.time.delayedCall(1000, () => {
             particles.destroy();
         });

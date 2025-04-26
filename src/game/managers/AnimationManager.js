@@ -83,6 +83,59 @@ export class AnimationManager {
     }
 
     /**
+     * Create an animation with explicit frame names
+     * @param {string} key - The animation key
+     * @param {string} textureKey - The texture atlas key
+     * @param {string[]} frameNames - Array of frame names
+     * @param {object} options - Additional animation options
+     * @returns {Phaser.Animations.Animation|null} The created animation or null if failed
+     */
+    createAnimationWithFrames(key, textureKey, frameNames, options = {}) {
+        // Skip if animation already exists
+        if (!this.canCreateAnimation(key)) {
+            return null;
+        }
+
+        try {
+            // Default animation options
+            const defaultOptions = {
+                frameRate: 10,
+                repeat: 0, // Don't loop by default for explicit frames
+                yoyo: false,
+                hideOnComplete: false
+            };
+
+            // Merge default options with provided options
+            const animOptions = { ...defaultOptions, ...options };
+            
+            // Create the animation config with explicit frame names
+            const config = {
+                key: key,
+                frames: this.scene.anims.generateFrameNames(textureKey, {
+                    frames: frameNames
+                }),
+                frameRate: animOptions.frameRate,
+                repeat: animOptions.repeat,
+                yoyo: animOptions.yoyo,
+                hideOnComplete: animOptions.hideOnComplete
+            };
+
+            // Create the animation
+            const animation = this.scene.anims.create(config);
+            
+            // Track that we've created this animation
+            if (animation) {
+                this.createdAnimations.add(key);
+            }
+            
+            return animation;
+        } catch (error) {
+            console.error(`Failed to create animation with frames: ${key}`, error);
+            return null;
+        }
+    }
+
+    /**
      * Create a set of standard enemy animations for a given enemy type
      * @param {string} enemyType - The type of enemy (e.g., 'enemy1', 'boss1')
      * @param {object} config - Configuration for the enemy's animations
@@ -105,18 +158,33 @@ export class AnimationManager {
             if (!settings) continue; // Skip null configurations
             
             const key = `${enemyType}_${animType}`;
-            this.createAnimation(
-                key,
-                enemyType,
-                `${enemyType}_${animType}_`,
-                '.png',
-                settings.start,
-                settings.end,
-                {
-                    frameRate: settings.frameRate,
-                    repeat: settings.repeat
-                }
-            );
+            
+            // Check if we have explicit frames defined (for death animations with irregular frame sequences)
+            if (settings.frames) {
+                this.createAnimationWithFrames(
+                    key,
+                    enemyType,
+                    settings.frames,
+                    {
+                        frameRate: settings.frameRate,
+                        repeat: settings.repeat
+                    }
+                );
+            } else {
+                // Standard sequential frames
+                this.createAnimation(
+                    key,
+                    enemyType,
+                    `${enemyType}_${animType}_`,
+                    '.png',
+                    settings.start,
+                    settings.end,
+                    {
+                        frameRate: settings.frameRate,
+                        repeat: settings.repeat
+                    }
+                );
+            }
         }
     }
 
