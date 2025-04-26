@@ -1683,7 +1683,7 @@ export class WaveGame extends Scene {
         // Call parent shutdown method
         super.shutdown();
     }
-}
+
 
      /* Draw hitboxes for enemies and bullets when debug option is enabled
      * DEV MODE ONLY - This is only called when isDev && showHitboxes are both true
