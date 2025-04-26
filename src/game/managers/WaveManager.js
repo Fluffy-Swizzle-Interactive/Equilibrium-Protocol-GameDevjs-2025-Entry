@@ -764,32 +764,34 @@ export class WaveManager {
     }
 
     /**
-     * Reset the wave manager state
+     * Reset the wave manager
+     * Called when starting a new game or restarting
      */
     reset() {
-        this.currentWave = 0;
-        this.isPaused = false;
         this.isWaveActive = false;
-        this.activeEnemies = 0; // Reset to 0
-        this.activeBosses = 0;  // Reset to 0
-        this.enemiesSpawned = 0;
+        this.waveCompleted = false;
+        this.isPaused = false;
+        this.isWaitingForNextWave = false;
+        
+        this.currentWave = 0;
+        
         this.enemiesToSpawn = 0;
+        this.enemiesSpawned = 0;
+        this.activeEnemies = 0;
+        this.activeBosses = 0;
+        
         this.hasBoss = false;
-        this.lastBossWave = 0;
 
+        // Don't reset boss counter to maintain progressive difficulty
+        // this.lastBossWave = 0;
+        
         if (this.spawnTimer) {
             this.spawnTimer.destroy();
             this.spawnTimer = null;
         }
-
-        // Reset GroupManager counts if it exists
-        if (this.scene.groupManager) {
-            this.scene.groupManager.reset();
-        }
-
-        // Update UI with initial wave information
-        if (this.uiManager) {
-            this.uiManager.updateWaveUI(this.currentWave, this.maxWaves);
+        
+        if (this.scene.isDev) {
+            console.debug('[WaveManager] Reset completed');
         }
     }
 

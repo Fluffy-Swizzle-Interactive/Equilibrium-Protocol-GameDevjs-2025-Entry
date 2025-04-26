@@ -30,6 +30,10 @@ export class EnemyManager {
             volatility: options.groupVolatility || 0.2
         });
         
+        // Boss progression tracking
+        this.bossCounter = 0;
+        this.bossScalingFactor = options.bossScalingFactor || 2.5;
+        
         // Register this manager with the scene for easy access
         scene.enemyManager = this;
         
@@ -535,15 +539,100 @@ export class EnemyManager {
         x = Math.max(50, Math.min(mapDimensions.width - 50, x));
         y = Math.max(50, Math.min(mapDimensions.height - 50, y));
         
-        // Spawn the boss
-        const boss = this.spawnEnemy(bossType, x, y);
+        // Increment boss counter - each boss gets progressively harder
+        this.bossCounter++;
+        
+        // Calculate scaling factor based on boss number
+        // First boss gets no multiplier, second boss gets 10x, third gets 10^2x, etc.
+        const difficultyMultiplier = this.bossCounter <= 1 ? 1 : Math.pow(this.bossScalingFactor, this.bossCounter - 1);
+        
+        if (this.isDev) {
+            console.debug(`[EnemyManager] Spawning boss #${this.bossCounter} with difficulty multiplier: ${difficultyMultiplier}x`);
+        }
+        
+        // Spawn the boss with scaled properties
+        const boss = this.spawnEnemy(bossType, x, y, {
+            healthMultiplier: difficultyMultiplier,
+            damageMultiplier: difficultyMultiplier,
+            speedMultiplier: Math.sqrt(difficultyMultiplier) * 0.5, // Square root for less extreme speed increase
+            scoreMultiplier: difficultyMultiplier,
+            isBossEncounter: true,
+            bossCounter: this.bossCounter
+        });
+        
+        // If we successfully spawned a boss, apply scaling
+        if (boss) {
+            // Scale boss attributes directly for immediate effect
+            boss.baseHealth *= difficultyMultiplier;
+            boss.health = boss.baseHealth; // Set current health to the new max
+            boss.damage *= difficultyMultiplier;
+            boss.scoreValue *= difficultyMultiplier;
+            
+            // Apply moderate speed increase (don't make them too fast)
+            boss.speed *= Math.min(2, Math.sqrt(difficultyMultiplier) * 0.5);
+            
+            // Scale visual size slightly with each boss
+            const sizeScale = 1 + Math.min(1, Math.log10(difficultyMultiplier) * 0.3);
+            if (boss.sprite) {
+                const currentScale = boss.sprite.scale;
+                boss.sprite.setScale(currentScale * sizeScale);
+            }
+            
+            // Display boss number and difficulty
+            const bossText = `BOSS #${this.bossCounter}`;
+            const difficultyText = `POWER: ${difficultyMultiplier}x`;
+            
+            // Create floating text above boss
+            if (boss.sprite) {
+                const bossLabel = this.scene.add.text(
+                    boss.sprite.x, 
+                    boss.sprite.y - 60,
+                    bossText,
+                    { 
+                        fontFamily: 'Arial', 
+                        fontSize: '20px', 
+                        color: '#ff0000',
+                        stroke: '#000000',
+                        strokeThickness: 3
+                    }
+                ).setOrigin(0.5);
+                
+                const powerLabel = this.scene.add.text(
+                    boss.sprite.x, 
+                    boss.sprite.y - 40,
+                    difficultyText,
+                    { 
+                        fontFamily: 'Arial', 
+                        fontSize: '16px', 
+                        color: '#ffff00',
+                        stroke: '#000000',
+                        strokeThickness: 3
+                    }
+                ).setOrigin(0.5);
+                
+                // Make text follow boss
+                this.scene.time.addEvent({
+                    delay: 100,
+                    loop: true,
+                    callback: () => {
+                        if (boss && boss.sprite && boss.active) {
+                            bossLabel.setPosition(boss.sprite.x, boss.sprite.y - 60);
+                            powerLabel.setPosition(boss.sprite.x, boss.sprite.y - 40);
+                        } else {
+                            bossLabel.destroy();
+                            powerLabel.destroy();
+                        }
+                    }
+                });
+            }
+        }
         
         // Show boss warning message
         if (this.scene.showBossWarning) {
-            this.scene.showBossWarning();
+            this.scene.showBossWarning(this.bossCounter, difficultyMultiplier);
         } else {
             // Fallback warning if scene method not available
-            this.showBossWarning();
+            this.showBossWarning(this.bossCounter, difficultyMultiplier);
         }
         
         return boss;
