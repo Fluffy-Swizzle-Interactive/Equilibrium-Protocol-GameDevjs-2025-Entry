@@ -332,7 +332,10 @@ export class WaveGame extends Scene {
             this.waveManager = new WaveManager(this, {
                 maxWaves: 20,
                 baseEnemyCount: 50,
-                enemyCountGrowth: 1.4,
+                // Increased growth rate to achieve ~10,000 enemies by wave 20
+                enemyCountGrowth: 1.36,
+                // Increased max enemy cap to allow for requested enemy count
+                maxEnemiesPerWave: 10000,
                 bossWaveInterval: 5
             });
 
@@ -351,7 +354,10 @@ export class WaveGame extends Scene {
             this.waveManager = new WaveManager(this, {
                 maxWaves: 20,
                 baseEnemyCount: 50,
-                enemyCountGrowth: 1.4,
+                // Increased growth rate to achieve ~10,000 enemies by wave 20
+                enemyCountGrowth: 1.36, 
+                // Increased max enemy cap to allow for requested enemy count
+                maxEnemiesPerWave: 10000,
                 bossWaveInterval: 5
             });
 

@@ -1095,7 +1095,7 @@ export class UIManager {
         this.elements.victoryText.setScale(2);
 
         // Prepare stats display
-        const waveText = `All 40 Waves Completed!`;
+        const waveText = `All 20 Waves Completed!`;
         const killText = `Total Enemies Defeated: ${this.scene.killCount}`;
 
         // Add cash stats if available
@@ -1109,11 +1109,75 @@ export class UIManager {
         this.elements.endGameStats.setVisible(true);
         this.elements.endGameStats.setAlpha(0);
 
-        // Show restart button
+        // Define button positions - horizontally aligned with proper spacing
+        const buttonY = this.scene.cameras.main.height / 2 + 150;
+        const screenCenterX = this.scene.cameras.main.width / 2;
+        const buttonSpacing = 150; // Space between buttons centers
+
+        // Create continue playing button (left side)
+        this.elements.continueButton = this.scene.add.rectangle(
+            screenCenterX - buttonSpacing, 
+            buttonY, 
+            200, 60,
+            0x006600, 1
+        ).setOrigin(0.5).setScrollFactor(0).setDepth(201).setAlpha(0);
+        
+        this.elements.continueText = this.scene.add.text(
+            screenCenterX - buttonSpacing, 
+            buttonY, 
+            'Continue Playing',
+            {
+                fontFamily: 'Arial',
+                fontSize: 18,
+                color: '#ffffff',
+                align: 'center'
+            }
+        ).setOrigin(0.5).setScrollFactor(0).setDepth(202).setAlpha(0);
+        
+        // Make continue button interactive
+        this.elements.continueButton.setInteractive({ useHandCursor: true });
+        this.elements.continueText.setInteractive({ useHandCursor: true });
+        
+        // Add hover effect
+        this.elements.continueButton.on('pointerover', () => {
+            this.elements.continueButton.setFillStyle(0x008800);
+        });
+        
+        this.elements.continueButton.on('pointerout', () => {
+            this.elements.continueButton.setFillStyle(0x006600);
+        });
+        
+        // Add click event
+        this.elements.continueButton.on('pointerdown', () => {
+            this.hideVictoryUI();
+        });
+        
+        this.elements.continueText.on('pointerdown', () => {
+            this.hideVictoryUI();
+        });
+
+        // Position restart button (right side)
         this.elements.restartButton.setVisible(true);
         this.elements.restartText.setVisible(true);
         this.elements.restartButton.setAlpha(0);
         this.elements.restartText.setAlpha(0);
+        
+        // Position restart button to the right
+        this.elements.restartButton.x = screenCenterX + buttonSpacing;
+        this.elements.restartButton.y = buttonY;
+        this.elements.restartText.x = screenCenterX + buttonSpacing;
+        this.elements.restartText.y = buttonY;
+        
+        // Add hover effect to restart button (ensuring consistent style)
+        this.elements.restartButton.setFillStyle(0x555555);
+        this.elements.restartButton.off('pointerover');
+        this.elements.restartButton.off('pointerout');
+        this.elements.restartButton.on('pointerover', () => {
+            this.elements.restartButton.setFillStyle(0x777777);
+        });
+        this.elements.restartButton.on('pointerout', () => {
+            this.elements.restartButton.setFillStyle(0x555555);
+        });
 
         // Animate victory text
         this.scene.tweens.add({
@@ -1132,16 +1196,92 @@ export class UIManager {
                     duration: 800,
                     ease: 'Power2',
                     onComplete: () => {
-                        // Animate restart button
+                        // Animate buttons
                         this.scene.tweens.add({
-                            targets: [this.elements.restartButton, this.elements.restartText],
+                            targets: [
+                                this.elements.restartButton, 
+                                this.elements.restartText,
+                                this.elements.continueButton,
+                                this.elements.continueText
+                            ],
                             alpha: 1,
-                            y: { from: this.scene.cameras.main.height / 2 + 120, to: this.scene.cameras.main.height / 2 + 150 },
+                            y: { from: this.scene.cameras.main.height / 2 + 120, to: buttonY },
                             duration: 800,
                             ease: 'Power2'
                         });
                     }
                 });
+            }
+        });
+        
+        // Add elements to container
+        this.elements.container.add(this.elements.continueButton);
+        this.elements.container.add(this.elements.continueText);
+    }
+    
+    /**
+     * Hide victory UI and continue playing
+     */
+    hideVictoryUI() {
+        // Animate the UI out
+        this.scene.tweens.add({
+            targets: [
+                this.elements.gameOverOverlay,
+                this.elements.victoryText,
+                this.elements.endGameStats,
+                this.elements.restartButton,
+                this.elements.restartText,
+                this.elements.continueButton,
+                this.elements.continueText
+            ],
+            alpha: 0,
+            duration: 500,
+            ease: 'Power2',
+            onComplete: () => {
+                // Hide all elements
+                this.elements.gameOverOverlay.setVisible(false);
+                this.elements.victoryText.setVisible(false);
+                this.elements.endGameStats.setVisible(false);
+                this.elements.restartButton.setVisible(false);
+                this.elements.restartText.setVisible(false);
+                
+                // Reset the game state to enable continued play
+                if (this.scene) {
+                    // Reset the game over flag to allow continued gameplay
+                    this.scene.isGameOver = false;
+                    
+                    // Position the player back to a safe position if needed
+                    if (this.scene.player) {
+                        // Get current player position
+                        const pos = this.scene.player.getPosition();
+                        
+                        // Reset any velocity to prevent continued drift
+                        if (this.scene.player.velX) this.scene.player.velX = 0;
+                        if (this.scene.player.velY) this.scene.player.velY = 0;
+                        
+                        // If player has a physics body, reset it too
+                        if (this.scene.player.graphics && this.scene.player.graphics.body) {
+                            this.scene.player.graphics.body.setVelocity(0, 0);
+                        }
+                    }
+                    
+                    // If wave manager exists, unpause it to allow for next wave
+                    if (this.scene.waveManager) {
+                        this.scene.waveManager.isPaused = false;
+                        this.showNextWaveButton();
+                    }
+                }
+                
+                // Clean up continue button (it's only used for victory screen)
+                if (this.elements.continueButton) {
+                    this.elements.continueButton.destroy();
+                    this.elements.continueButton = null;
+                }
+                
+                if (this.elements.continueText) {
+                    this.elements.continueText.destroy();
+                    this.elements.continueText = null;
+                }
             }
         });
     }

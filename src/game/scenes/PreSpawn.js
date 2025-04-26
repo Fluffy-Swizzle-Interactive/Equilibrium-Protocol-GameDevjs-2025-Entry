@@ -46,6 +46,7 @@ export class PreSpawn extends Scene
         // Game instructions
         const instructions = [
             'MOVEMENT: Use WASD keys to move your character',
+            'SPECIAL: Use Q or E to use special abilities (Unlockable)',
             'AIM: Use mouse to aim in any direction',
             'SHOOT: Hold left mouse button to fire your weapon',
             'COLLECT: Automatically gather XP and cash from defeated enemies',

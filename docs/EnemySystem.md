@@ -450,6 +450,34 @@ useAbility(abilityName) {
 }
 ```
 
+### Boss Scaling Mechanics
+
+Bosses scale in difficulty based on the current wave number rather than the number of bosses defeated:
+
+```javascript
+// Calculate boss number based on wave instead of bossCounter
+let calculatedBossNumber = Math.floor(currentWave / bossWaveInterval);
+calculatedBossNumber = Math.max(1, calculatedBossNumber);
+
+// Calculate difficulty multiplier using wave-based boss number
+const difficultyMultiplier = calculatedBossNumber <= 1 ? 
+    1 : Math.pow(bossScalingFactor, calculatedBossNumber - 1);
+```
+
+This ensures that:
+- Players starting the game at a later wave via the debug menu receive appropriately scaled bosses
+- Boss #1 (wave 5) has a 1x multiplier (base stats)
+- Boss #2 (wave 10) has a 2.5x multiplier on health, damage and score
+- Boss #3 (wave 15) has a 6.25x multiplier (2.5²)
+- Boss #4 (wave 20) has a 15.625x multiplier (2.5³)
+
+The multipliers are applied to:
+- `baseHealth`: Boss maximum health points
+- `damage`: Amount of damage dealt to player
+- `scoreValue`: Points awarded for defeating the boss
+- `speed`: Movement speed (scaled less aggressively using square root)
+- `size`: Visual size scales slightly with each boss level
+
 ## Spawning System
 
 ### Wave-Based Spawning
