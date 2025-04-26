@@ -19,6 +19,7 @@ export default class UpgradeManager {
         this.rng = rng;
         this.rerollCount = 0;
         this.baseRerollCost = 50;
+        this.maxRerollsPerRound = 5; // Maximum number of rerolls allowed per round
 
         // Track purchased drone upgrades
         this.purchasedDroneUpgrades = new Set();

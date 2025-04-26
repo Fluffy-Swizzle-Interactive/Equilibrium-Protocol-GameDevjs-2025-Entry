@@ -801,7 +801,12 @@ export default class ShopMenuScene extends Phaser.Scene {
 
         // Get the initial reroll cost from the shop manager
         const initialRerollCost = this.shopManager ? this.shopManager.upgradeManager.getRerollCost() : 0;
-        const rerollButtonText = initialRerollCost === 0 ? 'Free Reroll' : `Reroll ($${initialRerollCost})`;
+        const initialRerollCount = this.shopManager ? this.shopManager.upgradeManager.rerollCount : 0;
+        const rerollsRemaining = this.shopManager ?
+            this.shopManager.upgradeManager.maxRerollsPerRound - initialRerollCount : 5;
+
+        const costText = initialRerollCost === 0 ? 'Free Reroll' : `Reroll ($${initialRerollCost})`;
+        const rerollButtonText = `${costText} (${rerollsRemaining} left)`;
 
         const rerollText = this.add.text(0, 0, rerollButtonText, {
             fontFamily: 'Arial',
@@ -812,39 +817,58 @@ export default class ShopMenuScene extends Phaser.Scene {
 
         rerollContainer.add([rerollBg, rerollText]);
 
-        // Make reroll button interactive
-        rerollBg.setInteractive({ useHandCursor: true });
+        // Store reference to reroll button for later use
+        this.rerollButton = {
+            container: rerollContainer,
+            bg: rerollBg,
+            text: rerollText
+        };
 
-        // Add hover and click effects
-        rerollBg.on('pointerover', () => {
-            rerollBg.setFillStyle(0x3a5d3a);
-        });
+        // Check if reroll limit is already reached
+        const isRerollLimitReached = rerollsRemaining <= 0;
 
-        rerollBg.on('pointerout', () => {
-            rerollBg.setFillStyle(0x2a4d2a);
-        });
+        // Make reroll button interactive (unless limit is reached)
+        if (!isRerollLimitReached) {
+            rerollBg.setInteractive({ useHandCursor: true });
 
-        rerollBg.on('pointerdown', () => {
-            // Emit button click event for sound
-            EventBus.emit('button-click', {
-                volume: 0.6,
-                detune: -200, // Pitch down slightly
-                rate: 1.2 // Speed up slightly
+            // Add hover and click effects
+            rerollBg.on('pointerover', () => {
+                rerollBg.setFillStyle(0x3a5d3a);
             });
 
-            this.tweens.add({
-                targets: rerollBg,
-                scaleX: 0.95,
-                scaleY: 0.95,
-                duration: 50,
-                yoyo: true,
-                onComplete: () => {
-                    if (this.shopManager) {
-                        this.shopManager.handleReroll();
+            rerollBg.on('pointerout', () => {
+                rerollBg.setFillStyle(0x2a4d2a);
+            });
+        } else {
+            // Gray out the button if limit is reached
+            rerollBg.setFillStyle(0x555555);
+            rerollText.setColor('#999999');
+        }
+
+        // Only add click handler if the button is interactive
+        if (!isRerollLimitReached) {
+            rerollBg.on('pointerdown', () => {
+                // Emit shop upgrade sound for reroll button (same as upgrade buttons)
+                EventBus.emit('shop-upgrade-click', {
+                    volume: 0.6,
+                    detune: -100,
+                    rate: 1.1
+                });
+
+                this.tweens.add({
+                    targets: rerollBg,
+                    scaleX: 0.95,
+                    scaleY: 0.95,
+                    duration: 50,
+                    yoyo: true,
+                    onComplete: () => {
+                        if (this.shopManager) {
+                            this.shopManager.handleReroll();
+                        }
                     }
-                }
+                });
             });
-        });
+        }
 
         // Create next wave button (green button on right)
         const nextWaveContainer = this.add.container(buttonSpacing, buttonY);
@@ -896,9 +920,8 @@ export default class ShopMenuScene extends Phaser.Scene {
         container.add(rerollContainer);
         container.add(nextWaveContainer);
 
-        // Store references
-        this.rerollButton = { container: rerollContainer, background: rerollBg, text: rerollText };
-        this.nextWaveButton = { container: nextWaveContainer, background: nextWaveBg, text: nextWaveText };
+        // Store reference to next wave button
+        this.nextWaveButton = { container: nextWaveContainer, bg: nextWaveBg, text: nextWaveText };
     }
 
     /**
@@ -1125,13 +1148,22 @@ export default class ShopMenuScene extends Phaser.Scene {
      * @param {Object} data - Reroll data with new upgrades
      */
     handleReroll(data) {
-        const { newUpgrades, newRerollCost } = data;
+        const { newUpgrades, newRerollCost, rerollsRemaining } = data;
 
         // Update reroll button text to show new cost if available
         if (this.rerollButton && newRerollCost !== undefined) {
             // Show "Free Reroll" if the cost is 0, otherwise show the cost
-            const buttonText = newRerollCost === 0 ? 'Free Reroll' : `Reroll ($${newRerollCost})`;
+            // Also show remaining rerolls
+            const costText = newRerollCost === 0 ? 'Free Reroll' : `Reroll ($${newRerollCost})`;
+            const buttonText = `${costText} (${rerollsRemaining} left)`;
             this.rerollButton.text.setText(buttonText);
+
+            // Disable the reroll button if no rerolls are remaining
+            if (rerollsRemaining <= 0 && this.rerollButton.bg) {
+                this.rerollButton.bg.disableInteractive();
+                this.rerollButton.bg.setFillStyle(0x555555); // Gray out the button
+                this.rerollButton.text.setColor('#999999'); // Gray out the text
+            }
         }
 
         // Clear existing upgrade elements
@@ -1245,6 +1277,15 @@ export default class ShopMenuScene extends Phaser.Scene {
 
         if (reason === 'insufficient-funds') {
             message = 'Not enough credits for reroll!';
+        } else if (reason === 'reroll-limit-reached') {
+            message = 'Maximum rerolls reached for this round!';
+
+            // Disable the reroll button if it exists with all required properties
+            if (this.rerollButton && this.rerollButton.bg && this.rerollButton.text) {
+                this.rerollButton.bg.disableInteractive();
+                this.rerollButton.bg.setFillStyle(0x555555); // Gray out the button
+                this.rerollButton.text.setColor('#999999'); // Gray out the text
+            }
         }
 
         // Create failure message - same as purchase failure but with different positioning

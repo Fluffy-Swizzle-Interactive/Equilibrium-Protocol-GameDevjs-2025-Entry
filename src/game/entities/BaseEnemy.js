@@ -721,8 +721,8 @@ export class BaseEnemy {
 
         // Spawn cash pickup based on enemy value
         if (this.scene.cashManager) {
-            // Always drop cash for bosses, 48% chance for regular enemies
-            const shouldDropCash = isBoss || Math.random() < 0.48;
+            // Always drop cash for bosses, 40% chance for regular enemies
+            const shouldDropCash = isBoss || Math.random() < 0.4;
 
             if (shouldDropCash) {
                 // Calculate cash value based on enemy type
