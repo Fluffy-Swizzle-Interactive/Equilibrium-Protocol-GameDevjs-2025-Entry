@@ -28,7 +28,7 @@ export class Boss1 extends BaseEnemy {
     initProperties() {
         // Boss properties
         this.speed = 0.3; // Slower
-        this.size = 50;   // Much larger
+        this.size = 80;   // Much larger
         this.color = 0xff0000; // Red color
         this.health = 100000;
         this.baseHealth = 100000;
@@ -487,12 +487,7 @@ export class Boss1 extends BaseEnemy {
                 this.completeCleanup();
             });
         } else {
-            // Create spectacular death effect
-            if (this.scene.createBossDeathEffect && (this.sprite || this.graphics)) {
-                const visual = this.sprite || this.graphics;
-                this.scene.createBossDeathEffect(visual.x, visual.y);
-            }
-            
+           
             // No animation, clean up immediately
             this.completeCleanup();
         }

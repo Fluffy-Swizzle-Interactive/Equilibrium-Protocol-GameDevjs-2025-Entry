@@ -139,7 +139,7 @@ export class BaseEnemy {
         if (this.type !== 'base' && this.scene.textures.exists(this.type)) {
             // Create sprite with proper atlas texture
             this.sprite = this.scene.add.sprite(x, y, this.type);
-            this.sprite.setScale(1.5); // Adjust scale as needed for your game
+            this.sprite.setScale(2); // Adjust scale as needed for your game
             
             // Play idle animation if available
             this.playAnimation('idle');

@@ -26,7 +26,7 @@ export class Enemy2 extends BaseEnemy {
     initProperties() {
         // Slower but tougher
         this.speed = 0.4; // Slower than base
-        this.size = 18;   // Larger than base
+        this.size = 24;   // Larger than base
         this.color = 0x0000ff; // Blue color
         this.health = 20;  // More health
         this.baseHealth = 20;

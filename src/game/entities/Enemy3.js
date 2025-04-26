@@ -26,7 +26,7 @@ export class Enemy3 extends BaseEnemy {
     initProperties() {
         // Ranged attacker
         this.speed = 0.3;          // Slower than base
-        this.size = 14;            // Medium size
+        this.size = 19;            // Medium size
         this.color = 0xff6600;     // Orange color
         this.health = 15;          // Medium health
         this.baseHealth = 15;

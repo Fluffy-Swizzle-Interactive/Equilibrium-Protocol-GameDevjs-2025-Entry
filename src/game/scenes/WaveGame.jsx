@@ -989,7 +989,7 @@ export class WaveGame extends Scene {
             const cellY = Math.floor(bullet.y / this.gridCellSize);
 
             // Check only enemies in relevant cells
-            for (let x = cellX - 1; x <= cellX + 1; x++) {
+            for (let x = cellX - cellRange; x <= cellX + cellRange; x++) {
                 for (let y = cellY - 1; y <= cellY + 1; y++) {
                     const cellKey = `${x},${y}`;
                     const enemiesInCell = this.spatialGrid[cellKey] || [];
@@ -1353,7 +1353,7 @@ export class WaveGame extends Scene {
      */
     createBossDeathEffect(x, y) {
         // Create a large explosion effect
-        for (let i = 0; i < 5; i++) {
+        for (let i = 0; i < 2; i++) {
             // Stagger the explosions for dramatic effect
             this.time.delayedCall(i * 100, () => {
                 // Randomize positions slightly for each explosion
