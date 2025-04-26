@@ -39,6 +39,9 @@ export class Preloader extends Scene
 
         this.load.image('logo', 'assets/images/logo.png');
         this.load.image('background', 'assets/images/bg.png');
+        
+        // Load bullet sprite
+        this.load.image('bullet', 'assets/sprites/BULLETS/bullet_7.png');
 
         // Load pickup images
         this.load.image('cash_pickup', 'assets/images/cash_pickup.png');
@@ -56,7 +59,6 @@ export class Preloader extends Scene
         });
 
         // Load player sprite atlas
-
         this.load.atlas('player', 'assets/sprites/TESTPLAYER1.png', 'assets/sprites/TESTPLAYER1.json');
 
         // Also load individual sprite frames as fallback

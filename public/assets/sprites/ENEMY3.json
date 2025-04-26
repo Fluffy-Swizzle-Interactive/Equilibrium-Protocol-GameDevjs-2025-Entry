@@ -1,0 +1,419 @@
+{
+	"textures": [
+		{
+			"image": "assets/sprites/ENEMY3.png",
+			"format": "RGBA8888",
+			"size": {
+				"w": 121,
+				"h": 92
+			},
+			"scale": 1,
+			"frames": [
+				{
+					"filename": "enemy3_death_5.png",
+					"rotated": false,
+					"trimmed": true,
+					"sourceSize": {
+						"w": 32,
+						"h": 32
+					},
+					"spriteSourceSize": {
+						"x": 0,
+						"y": 0,
+						"w": 31,
+						"h": 32
+					},
+					"frame": {
+						"x": 1,
+						"y": 1,
+						"w": 31,
+						"h": 32
+					}
+				},
+				{
+					"filename": "enemy3_death_6.png",
+					"rotated": false,
+					"trimmed": true,
+					"sourceSize": {
+						"w": 32,
+						"h": 32
+					},
+					"spriteSourceSize": {
+						"x": 0,
+						"y": 0,
+						"w": 32,
+						"h": 31
+					},
+					"frame": {
+						"x": 34,
+						"y": 1,
+						"w": 32,
+						"h": 31
+					}
+				},
+				{
+					"filename": "enemy3_death_7.png",
+					"rotated": false,
+					"trimmed": true,
+					"sourceSize": {
+						"w": 32,
+						"h": 32
+					},
+					"spriteSourceSize": {
+						"x": 0,
+						"y": 1,
+						"w": 32,
+						"h": 29
+					},
+					"frame": {
+						"x": 68,
+						"y": 1,
+						"w": 32,
+						"h": 29
+					}
+				},
+				{
+					"filename": "enemy3_death_4.png",
+					"rotated": false,
+					"trimmed": true,
+					"sourceSize": {
+						"w": 32,
+						"h": 32
+					},
+					"spriteSourceSize": {
+						"x": 1,
+						"y": 4,
+						"w": 30,
+						"h": 28
+					},
+					"frame": {
+						"x": 1,
+						"y": 35,
+						"w": 30,
+						"h": 28
+					}
+				},
+				{
+					"filename": "enemy3_shoot_1.png",
+					"rotated": false,
+					"trimmed": true,
+					"sourceSize": {
+						"w": 32,
+						"h": 32
+					},
+					"spriteSourceSize": {
+						"x": 7,
+						"y": 6,
+						"w": 17,
+						"h": 26
+					},
+					"frame": {
+						"x": 1,
+						"y": 65,
+						"w": 17,
+						"h": 26
+					}
+				},
+				{
+					"filename": "enemy3_run_0.png",
+					"rotated": false,
+					"trimmed": true,
+					"sourceSize": {
+						"w": 32,
+						"h": 32
+					},
+					"spriteSourceSize": {
+						"x": 9,
+						"y": 3,
+						"w": 15,
+						"h": 29
+					},
+					"frame": {
+						"x": 102,
+						"y": 1,
+						"w": 15,
+						"h": 29
+					}
+				},
+				{
+					"filename": "enemy3_death_0.png",
+					"rotated": false,
+					"trimmed": true,
+					"sourceSize": {
+						"w": 32,
+						"h": 32
+					},
+					"spriteSourceSize": {
+						"x": 8,
+						"y": 7,
+						"w": 16,
+						"h": 25
+					},
+					"frame": {
+						"x": 20,
+						"y": 65,
+						"w": 16,
+						"h": 25
+					}
+				},
+				{
+					"filename": "enemy3_death_2.png",
+					"rotated": false,
+					"trimmed": true,
+					"sourceSize": {
+						"w": 32,
+						"h": 32
+					},
+					"spriteSourceSize": {
+						"x": 8,
+						"y": 7,
+						"w": 16,
+						"h": 25
+					},
+					"frame": {
+						"x": 20,
+						"y": 65,
+						"w": 16,
+						"h": 25
+					}
+				},
+				{
+					"filename": "enemy3_death_3.png",
+					"rotated": false,
+					"trimmed": true,
+					"sourceSize": {
+						"w": 32,
+						"h": 32
+					},
+					"spriteSourceSize": {
+						"x": 6,
+						"y": 5,
+						"w": 20,
+						"h": 27
+					},
+					"frame": {
+						"x": 33,
+						"y": 35,
+						"w": 20,
+						"h": 27
+					}
+				},
+				{
+					"filename": "enemy3_death_1.png",
+					"rotated": false,
+					"trimmed": true,
+					"sourceSize": {
+						"w": 32,
+						"h": 32
+					},
+					"spriteSourceSize": {
+						"x": 8,
+						"y": 7,
+						"w": 16,
+						"h": 25
+					},
+					"frame": {
+						"x": 38,
+						"y": 64,
+						"w": 16,
+						"h": 25
+					}
+				},
+				{
+					"filename": "enemy3_idle_0.png",
+					"rotated": false,
+					"trimmed": true,
+					"sourceSize": {
+						"w": 32,
+						"h": 32
+					},
+					"spriteSourceSize": {
+						"x": 8,
+						"y": 7,
+						"w": 16,
+						"h": 25
+					},
+					"frame": {
+						"x": 38,
+						"y": 64,
+						"w": 16,
+						"h": 25
+					}
+				},
+				{
+					"filename": "enemy3_run_1.png",
+					"rotated": false,
+					"trimmed": true,
+					"sourceSize": {
+						"w": 32,
+						"h": 32
+					},
+					"spriteSourceSize": {
+						"x": 8,
+						"y": 7,
+						"w": 16,
+						"h": 25
+					},
+					"frame": {
+						"x": 38,
+						"y": 64,
+						"w": 16,
+						"h": 25
+					}
+				},
+				{
+					"filename": "enemy3_run_3.png",
+					"rotated": false,
+					"trimmed": true,
+					"sourceSize": {
+						"w": 32,
+						"h": 32
+					},
+					"spriteSourceSize": {
+						"x": 8,
+						"y": 7,
+						"w": 16,
+						"h": 25
+					},
+					"frame": {
+						"x": 38,
+						"y": 64,
+						"w": 16,
+						"h": 25
+					}
+				},
+				{
+					"filename": "enemy3_idle_1.png",
+					"rotated": false,
+					"trimmed": true,
+					"sourceSize": {
+						"w": 32,
+						"h": 32
+					},
+					"spriteSourceSize": {
+						"x": 8,
+						"y": 7,
+						"w": 16,
+						"h": 25
+					},
+					"frame": {
+						"x": 55,
+						"y": 34,
+						"w": 16,
+						"h": 25
+					}
+				},
+				{
+					"filename": "enemy3_shoot_0.png",
+					"rotated": false,
+					"trimmed": true,
+					"sourceSize": {
+						"w": 32,
+						"h": 32
+					},
+					"spriteSourceSize": {
+						"x": 7,
+						"y": 7,
+						"w": 25,
+						"h": 25
+					},
+					"frame": {
+						"x": 73,
+						"y": 32,
+						"w": 25,
+						"h": 25
+					}
+				},
+				{
+					"filename": "enemy3_run_2.png",
+					"rotated": false,
+					"trimmed": true,
+					"sourceSize": {
+						"w": 32,
+						"h": 32
+					},
+					"spriteSourceSize": {
+						"x": 5,
+						"y": 3,
+						"w": 20,
+						"h": 29
+					},
+					"frame": {
+						"x": 100,
+						"y": 32,
+						"w": 20,
+						"h": 29
+					}
+				},
+				{
+					"filename": "enemy3_idle_2.png",
+					"rotated": false,
+					"trimmed": true,
+					"sourceSize": {
+						"w": 32,
+						"h": 32
+					},
+					"spriteSourceSize": {
+						"x": 8,
+						"y": 7,
+						"w": 16,
+						"h": 25
+					},
+					"frame": {
+						"x": 56,
+						"y": 61,
+						"w": 16,
+						"h": 25
+					}
+				},
+				{
+					"filename": "enemy3_shoot_3.png",
+					"rotated": false,
+					"trimmed": true,
+					"sourceSize": {
+						"w": 32,
+						"h": 32
+					},
+					"spriteSourceSize": {
+						"x": 8,
+						"y": 7,
+						"w": 23,
+						"h": 25
+					},
+					"frame": {
+						"x": 74,
+						"y": 59,
+						"w": 23,
+						"h": 25
+					}
+				},
+				{
+					"filename": "enemy3_shoot_2.png",
+					"rotated": false,
+					"trimmed": true,
+					"sourceSize": {
+						"w": 32,
+						"h": 32
+					},
+					"spriteSourceSize": {
+						"x": 8,
+						"y": 7,
+						"w": 17,
+						"h": 25
+					},
+					"frame": {
+						"x": 99,
+						"y": 63,
+						"w": 17,
+						"h": 25
+					}
+				}
+			]
+		}
+	],
+	"meta": {
+		"app": "https://www.codeandweb.com/texturepacker",
+		"version": "3.0",
+		"smartupdate": "$TexturePacker:SmartUpdate:88471ed3b145e0db8e8fd1797636c3e4:4578a56a2aec9750981f82dd111ec5f8:99968fd54d9d47e141fd8c33666e90c3$"
+	}
+}
