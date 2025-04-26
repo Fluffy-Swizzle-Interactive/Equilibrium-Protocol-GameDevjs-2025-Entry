@@ -1197,7 +1197,7 @@ export default class ShopMenuScene extends Phaser.Scene {
         // Play error sound if available
         if (this.sound && this.sound.add) {
             // Play a basic sound for now as fallback
-            this.sound.play('shoot_minigun', { volume: 0.3, detune: 1200 });
+            this.sound.play('shoot_weapon', { volume: 0.3, detune: 1200 });
         }
     }
 
@@ -1251,7 +1251,7 @@ export default class ShopMenuScene extends Phaser.Scene {
         // Play error sound if available
         if (this.sound && this.sound.add) {
             // Play a basic sound for now as fallback
-            this.sound.play('shoot_minigun', { volume: 0.3, detune: 1200 });
+            this.sound.play('shoot_weapon', { volume: 0.3, detune: 1200 });
         }
     }
 

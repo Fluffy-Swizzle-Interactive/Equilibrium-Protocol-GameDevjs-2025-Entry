@@ -39,6 +39,9 @@ export class Preloader extends Scene
 
         this.load.image('logo', 'assets/images/logo.png');
         this.load.image('background', 'assets/images/bg.png');
+        
+        // Load bullet sprite
+        this.load.image('bullet', 'assets/sprites/BULLETS/bullet_7.png');
 
         // Load pickup images
         this.load.image('cash_pickup', 'assets/images/cash_pickup.png');
@@ -56,7 +59,6 @@ export class Preloader extends Scene
         });
 
         // Load player sprite atlas
-
         this.load.atlas('player', 'assets/sprites/TESTPLAYER1.png', 'assets/sprites/TESTPLAYER1.json');
 
         // Also load individual sprite frames as fallback
@@ -85,8 +87,9 @@ export class Preloader extends Scene
         this.loadMapAssets();
 
         // Load sound effects
-        this.load.audio('shoot_minigun', 'assets/audio/laserShoot.wav');
-        this.load.audio('shoot_shotgun', 'assets/audio/laserShoot.wav');
+        this.load.audio('shoot_weapon', 'assets/audio/laserShoot.wav');
+        //TEMP REMOVE OR REPLACE
+        this.load.audio('button_click', 'assets/audio/laserShoot.wav');
 
         // Load ambient background music
         this.load.audio('ambient_music', 'assets/audio/ambient_loop.mp3');
