@@ -133,6 +133,37 @@ export class PlayerDrone {
         // Update drone rotation to face orbit direction
         const facingAngle = this.angle + (Math.PI / 2);
         this.graphics.rotation = facingAngle;
+        
+        // Check if cursor is within minimum shooting range and update tint
+        this.updateShootingRangeTint();
+    }
+    
+    /**
+     * Update the drone's tint based on whether it can shoot at the current target
+     * A red tint indicates the drone cannot shoot (target too close)
+     */
+    updateShootingRangeTint() {
+        if (!this.scene.input || !this.scene.input.activePointer) return;
+        
+        // Get the current cursor position (target)
+        const targetX = this.scene.input.activePointer.worldX;
+        const targetY = this.scene.input.activePointer.worldY;
+        
+        // Calculate distance from drone to cursor/target
+        const dx = targetX - this.graphics.x;
+        const dy = targetY - this.graphics.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        // Minimum distance check - same logic used in WeaponManager.shootDrones
+        const minShootDistance = this.orbitRadius;
+        
+        if (distance <= minShootDistance) {
+            // Target too close - cannot shoot - apply red tint
+            this.graphics.setTint(0xff6666); // Light red tint
+        } else {
+            // Can shoot - clear tint
+            this.graphics.clearTint();
+        }
     }
     
     /**
