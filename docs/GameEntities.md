@@ -210,6 +210,38 @@ The GroupManager class handles tracking and organizing game entities by their fa
 3. **Update** - Entity is updated each frame
 4. **Destruction** - Entity is returned to pool when no longer needed
 
+## Player Drone
+
+### Overview
+PlayerDrone is a companion entity that orbits around the player and can attack enemies. Drones are managed by the WeaponManager and provide support to the player during combat.
+
+### Properties
+- `orbitRadius`: Distance from player (default: 120px)
+- `orbitSpeed`: Rotation speed around player
+- `radius`: Collision radius
+
+### Graphics
+- Uses the 'drone' sprite atlas with a 6-frame hover animation
+- Frames are named 'drone_0.png' through 'drone_5.png'
+- Has fallback rendering options if sprite assets fail to load
+
+### Animation
+- `drone_hover`: Continuous hover animation loop
+- 10 FPS playback rate
+
+### Behavior
+- Orbits around the player at a fixed radius with slight variation
+- Distributed evenly around player when multiple drones exist
+- Rotates to face the direction of orbit
+- Can fire projectiles through the WeaponSystem
+
+### Class Location
+`src/game/entities/PlayerDrone.js`
+
+### Related Systems
+- WeaponManager handles drone creation and weapons
+- Integrates with player XP/leveling system for upgrades
+
 ---
 
 *This documentation is maintained by the Fluffy-Swizz Interactive development team.*

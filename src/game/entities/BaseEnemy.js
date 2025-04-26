@@ -113,7 +113,31 @@ export class BaseEnemy {
      * @param {object} options - Configuration options
      */
     applyOptions(options) {
-        // Base implementation does nothing - override in subclasses
+        // Apply difficulty multipliers for bosses if provided
+        if (options.healthMultiplier && options.healthMultiplier > 1) {
+            this.baseHealth = this.baseHealth * options.healthMultiplier;
+            this.health = this.baseHealth;
+        }
+        
+        if (options.damageMultiplier && options.damageMultiplier > 1) {
+            this.damage = this.damage * options.damageMultiplier;
+        }
+        
+        if (options.speedMultiplier && options.speedMultiplier > 0) {
+            this.speed = this.speed * options.speedMultiplier;
+        }
+        
+        if (options.scoreMultiplier && options.scoreMultiplier > 1) {
+            this.scoreValue = this.scoreValue * options.scoreMultiplier;
+        }
+        
+        // Store boss counter if this is a boss encounter
+        if (options.isBossEncounter) {
+            this.isBossEncounter = true;
+            this.bossCounter = options.bossCounter || 1;
+        }
+        
+        // Base implementation does nothing more - override in subclasses for specific options
     }
 
     /**
@@ -609,8 +633,7 @@ export class BaseEnemy {
             // Explicitly set the death animation and ensure it plays
             const deathAnimKey = `${this.type}_death`;
 
-            // Debug - check if animation exists
-            if (this.scene.anims.exists(deathAnimKey)) {
+            if (this.scene.anims.exists(deathAnimKey) && this.sprite && this.sprite.anims) {
                 console.log(`${deathAnimKey} animation exists, trying to play it`);
 
                 // Remove any previous animation listeners
@@ -624,6 +647,7 @@ export class BaseEnemy {
                     }
                 });
 
+
                 // Force play the death animation
                 this.sprite.play(deathAnimKey);
                 this.currentAnimationKey = deathAnimKey;
@@ -631,8 +655,17 @@ export class BaseEnemy {
                 // Set a much longer timeout to ensure animation completes
                 this.scene.time.delayedCall(3000, () => {
                     console.log(`Timeout cleanup for ${this.type}`);
+                
+                try {
+                    // Force play the death animation with error handling
+                    this.sprite.play(deathAnimKey);
+                    this.currentAnimationKey = deathAnimKey;
+                } catch (error) {
+                    console.warn(`Failed to play ${deathAnimKey} animation: ${error.message}`);
+                    // Fall back to immediate cleanup if animation fails
+
                     this.completeCleanup();
-                });
+                }
             } else {
                 console.log(`${deathAnimKey} animation does not exist!`);
                 this.completeCleanup();
@@ -718,6 +751,7 @@ export class BaseEnemy {
 
         // Determine if this is a boss enemy
         const isBoss = this.isBossEnemy();
+
 
         // Spawn cash pickup based on enemy value
         if (this.scene.cashManager) {

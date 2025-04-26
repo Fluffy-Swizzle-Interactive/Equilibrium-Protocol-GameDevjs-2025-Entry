@@ -10,10 +10,10 @@ The wave game mode provides a structured gameplay experience with defined waves 
 
 ### Key Features
 
-- Fixed number of waves (typically 20)
+- Fixed number of waves (20)
 - Predefined enemy types and counts for each wave
 - Break periods between waves
-- Boss encounters at milestone waves
+- Boss encounters at milestone waves (every 5th wave)
 - Victory condition upon completing all waves
 
 ## Implementation

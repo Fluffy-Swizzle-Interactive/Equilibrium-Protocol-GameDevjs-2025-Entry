@@ -33,7 +33,7 @@ export class Boss1 extends BaseEnemy {
         this.health = 100000;
         this.baseHealth = 100000;
         this.damage = 40;
-        this.scoreValue = 500;
+        this.scoreValue = 100;
         
         // Attack patterns
         this.attackCooldown = 0;

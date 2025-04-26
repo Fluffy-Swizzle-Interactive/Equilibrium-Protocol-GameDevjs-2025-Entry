@@ -25,7 +25,7 @@ import { DEPTHS, CHAOS } from '../constants';
 
 /**
  * WaveGame scene
- * Implements a 40-wave survival mode with boss waves every 10th wave
+ * Implements a 20-wave survival mode with boss waves every 5th wave
  */
 export class WaveGame extends Scene {
     constructor() {
@@ -396,10 +396,13 @@ export class WaveGame extends Scene {
         if (this.startWave !== undefined && this.startWave > 0) {
             // For non-zero starting waves, configure the wave manager to start at that wave
             this.waveManager = new WaveManager(this, {
-                maxWaves: 40,
+                maxWaves: 20,
                 baseEnemyCount: 50,
-                enemyCountGrowth: 1.2,
-                bossWaveInterval: 10
+                // Increased growth rate to achieve ~10,000 enemies by wave 20
+                enemyCountGrowth: 1.36,
+                // Increased max enemy cap to allow for requested enemy count
+                maxEnemiesPerWave: 10000,
+                bossWaveInterval: 5
             });
 
             // Override the currentWave in the manager after creation
@@ -415,10 +418,13 @@ export class WaveGame extends Scene {
         } else {
             // Default case - start from wave 0
             this.waveManager = new WaveManager(this, {
-                maxWaves: 40,
+                maxWaves: 20,
                 baseEnemyCount: 50,
-                enemyCountGrowth: 1.2,
-                bossWaveInterval: 10
+                // Increased growth rate to achieve ~10,000 enemies by wave 20
+                enemyCountGrowth: 1.36, 
+                // Increased max enemy cap to allow for requested enemy count
+                maxEnemiesPerWave: 10000,
+                bossWaveInterval: 5
             });
 
             // Initialize the wave manager with UI reference
@@ -760,6 +766,7 @@ export class WaveGame extends Scene {
 
         // Register available maps
         this.mapManager.registerMaps([
+
             {
                 key: 'level1',
                 tilemapKey: 'map',
@@ -2329,19 +2336,19 @@ export class WaveGame extends Scene {
 
         // Create a small particle burst for additional visual feedback
         const particles = this.add.particles(x, y, 'particle_texture', {
-            speed: { min: 50, max: 150 },
-            scale: { start: 0.2, end: 0 },
+            speed: { min: 40, max: 120 },
+            scale: { start: 0.18, end: 0 },
             alpha: { start: 1, end: 0 },
-            lifespan: 300,
+            lifespan: 150,
             blendMode: 'ADD',
-            quantity: 8,
+            quantity: 4,
             tint: 0xff0000, // Red particles for critical hits
             angle: { min: 0, max: 360 }
         });
 
         // Auto-destroy the emitter after it's done
         particles.setDepth(100);
-        this.time.delayedCall(500, () => {
+        this.time.delayedCall(150, () => {
             particles.destroy();
         });
     }
@@ -2421,6 +2428,16 @@ export class WaveGame extends Scene {
         EventBus.off('shop-upgrade-click');
         EventBus.off('boss-spawned');
         EventBus.off('boss-defeated');
+
+        // Ensure player is destroyed
+        if (this.player && this.player.destroy) {
+            this.player.destroy();
+        }
+
+        // Ensure all particle emitters are destroyed
+        if (this.particles) {
+            this.particles.destroy();
+        }
 
         // Call parent shutdown method
         super.shutdown();

@@ -30,6 +30,10 @@ export class EnemyManager {
             volatility: options.groupVolatility || 0.2
         });
         
+        // Boss progression tracking
+        this.bossCounter = 0;
+        this.bossScalingFactor = options.bossScalingFactor || 2.5;
+        
         // Register this manager with the scene for easy access
         scene.enemyManager = this;
         
@@ -49,7 +53,7 @@ export class EnemyManager {
         // Default pool options
         const defaultOptions = {
             initialSize: 20,
-            maxSize: 100,
+            maxSize: 300, 
             growSize: 5
         };
         
@@ -94,6 +98,9 @@ export class EnemyManager {
             },
             // Reset function - initializes or resets enemy properties
             (enemy, x, y, options = {}) => {
+                // Reset killCounted flag to ensure recycled enemies get counted correctly
+                enemy.killCounted = false;
+                
                 // Set position and activate enemy
                 enemy.reset(x, y, options);
                 
@@ -535,15 +542,151 @@ export class EnemyManager {
         x = Math.max(50, Math.min(mapDimensions.width - 50, x));
         y = Math.max(50, Math.min(mapDimensions.height - 50, y));
         
-        // Spawn the boss
-        const boss = this.spawnEnemy(bossType, x, y);
+        // Increment boss counter - each boss gets progressively harder
+        this.bossCounter++;
+        
+        // NEW: Calculate boss number based on wave instead of bossCounter
+        // This ensures proper scaling even when starting from a later wave
+        let calculatedBossNumber = 1; // Default to first boss
+        
+        // If we have access to WaveManager, use wave number to calculate appropriate boss difficulty
+        if (this.scene.waveManager) {
+            const currentWave = this.scene.waveManager.getCurrentWave();
+            const bossWaveInterval = this.scene.waveManager.bossWaveInterval || 5;
+            
+            // Calculate how many boss waves should have occurred by this point
+            // Example: if bosses appear every 5 waves, and we're on wave 17:
+            // Math.floor(17 / 5) = 3 bosses should have appeared (waves 5, 10, 15)
+            calculatedBossNumber = Math.floor(currentWave / bossWaveInterval);
+            
+            // Ensure at least boss #1 (avoid division by zero issues)
+            calculatedBossNumber = Math.max(1, calculatedBossNumber);
+            
+            if (this.isDev) {
+                console.debug(`[EnemyManager] Wave ${currentWave}: Calculated boss number: ${calculatedBossNumber}`);
+            }
+        }
+        
+        // Use the wave-based boss number for difficulty scaling instead of boss counter
+        const difficultyMultiplier = calculatedBossNumber <= 1 ? 
+            1 : Math.pow(this.bossScalingFactor, calculatedBossNumber - 1);
+        
+        if (this.isDev) {
+            console.debug(`[EnemyManager] Spawning boss #${calculatedBossNumber} with difficulty multiplier: ${difficultyMultiplier}x`);
+        }
+        
+        // Spawn the boss with scaled properties
+        const boss = this.spawnEnemy(bossType, x, y, {
+            healthMultiplier: difficultyMultiplier,
+            damageMultiplier: difficultyMultiplier,
+            speedMultiplier: Math.sqrt(difficultyMultiplier) * 0.5, // Square root for less extreme speed increase
+            scoreMultiplier: difficultyMultiplier,
+            isBossEncounter: true,
+            bossCounter: calculatedBossNumber // Use calculated value instead of bossCounter
+        });
+        
+        // If we successfully spawned a boss, apply scaling
+        if (boss) {
+            // Scale boss attributes directly for immediate effect
+            boss.baseHealth *= difficultyMultiplier;
+            boss.health = boss.baseHealth; // Set current health to the new max
+            boss.damage *= difficultyMultiplier;
+            boss.scoreValue *= difficultyMultiplier;
+            
+            // Apply moderate speed increase (don't make them too fast)
+            boss.speed *= Math.min(2, Math.sqrt(difficultyMultiplier) * 0.5);
+            
+            // Scale visual size slightly with each boss
+            const sizeScale = 1 + Math.min(1, Math.log10(difficultyMultiplier) * 0.3);
+            if (boss.sprite) {
+                const currentScale = boss.sprite.scale;
+                boss.sprite.setScale(currentScale * sizeScale);
+            }
+            
+            // Add simplified, guaranteed boss spawn console log with health
+            console.log(`BOSS SPAWNED - Health: ${boss.health}`);
+            
+            // NEW: Comprehensive console log of boss stats for debugging
+            console.log('%c🔥 BOSS SPAWNED 🔥', 'font-size: 14px; color: red; font-weight: bold;');
+            console.log({
+                name: `Boss #${calculatedBossNumber}`,
+                wave: this.scene.waveManager ? this.scene.waveManager.getCurrentWave() : 'unknown',
+                difficultyMultiplier: `${difficultyMultiplier.toFixed(2)}x`,
+                health: {
+                    base: boss.baseHealth / difficultyMultiplier, // Original health before multiplier
+                    current: boss.health,
+                    multiplied: `${difficultyMultiplier.toFixed(2)}x`,
+                },
+                damage: {
+                    value: boss.damage,
+                    multiplied: `${difficultyMultiplier.toFixed(2)}x`,
+                },
+                speed: {
+                    value: boss.speed,
+                    multiplied: `${Math.min(2, Math.sqrt(difficultyMultiplier) * 0.5).toFixed(2)}x`,
+                },
+                visualScale: sizeScale.toFixed(2),
+                scoreValue: boss.scoreValue,
+                position: { x, y },
+                bossType,
+                fullObject: boss
+            });
+            
+            // Display boss number and difficulty
+            const bossText = `BOSS #${calculatedBossNumber}`; // Use calculated boss number
+            const difficultyText = `POWER: ${difficultyMultiplier.toFixed(1)}x`;
+            
+            // Create floating text above boss
+            if (boss.sprite) {
+                const bossLabel = this.scene.add.text(
+                    boss.sprite.x, 
+                    boss.sprite.y - 60,
+                    bossText,
+                    { 
+                        fontFamily: 'Arial', 
+                        fontSize: '20px', 
+                        color: '#ff0000',
+                        stroke: '#000000',
+                        strokeThickness: 3
+                    }
+                ).setOrigin(0.5);
+                
+                const powerLabel = this.scene.add.text(
+                    boss.sprite.x, 
+                    boss.sprite.y - 40,
+                    difficultyText,
+                    { 
+                        fontFamily: 'Arial', 
+                        fontSize: '16px', 
+                        color: '#ffff00',
+                        stroke: '#000000',
+                        strokeThickness: 3
+                    }
+                ).setOrigin(0.5);
+                
+                // Make text follow boss
+                this.scene.time.addEvent({
+                    delay: 100,
+                    loop: true,
+                    callback: () => {
+                        if (boss && boss.sprite && boss.active) {
+                            bossLabel.setPosition(boss.sprite.x, boss.sprite.y - 60);
+                            powerLabel.setPosition(boss.sprite.x, boss.sprite.y - 40);
+                        } else {
+                            bossLabel.destroy();
+                            powerLabel.destroy();
+                        }
+                    }
+                });
+            }
+        }
         
         // Show boss warning message
         if (this.scene.showBossWarning) {
-            this.scene.showBossWarning();
+            this.scene.showBossWarning(calculatedBossNumber, difficultyMultiplier);
         } else {
             // Fallback warning if scene method not available
-            this.showBossWarning();
+            this.showBossWarning(calculatedBossNumber, difficultyMultiplier);
         }
         
         return boss;
