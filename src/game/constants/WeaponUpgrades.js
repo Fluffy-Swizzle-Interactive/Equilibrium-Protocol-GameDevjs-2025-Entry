@@ -111,9 +111,9 @@ export const WEAPON_UPGRADES = [
         category: UPGRADE_CATEGORIES.PIERCE,
         rarity: RARITY.RARE,
         price: 180, // Increased price to reflect higher value
-        effects: 'Bullets pierce 1 enemy',
+        effects: '+1 to pierce count',
         stats: {
-            bulletPierce: 1 // +1 to pierce count
+            bulletPierce: 1 // +1 to pierce count (allows hitting 2 enemies total)
         },
         visualProperties: {
             borderColor: 0xaa44aa,
@@ -122,17 +122,32 @@ export const WEAPON_UPGRADES = [
     },
     {
         id: 'pierce_2',
-        name: '📌📌 Advanced Piercing',
+        name: '📌 Advanced Piercing',
         category: UPGRADE_CATEGORIES.PIERCE,
         rarity: RARITY.EPIC,
         price: 300,
-        effects: 'Bullets pierce 2 enemies',
+        effects: '+2 to pierce count',
         stats: {
-            bulletPierce: 2 // +2 to pierce count (total of 3 with pierce_1)
+            bulletPierce: 2 // +2 to pierce count (allows hitting 3 enemies total)
         },
         visualProperties: {
             borderColor: 0xcc66cc,
             fillColor: 0x330033
+        }
+    },
+    {
+        id: 'pierce_3',
+        name: '📌 Master Piercing',
+        category: UPGRADE_CATEGORIES.PIERCE,
+        rarity: RARITY.LEGENDARY,
+        price: 450,
+        effects: '+5 to pierce count',
+        stats: {
+            bulletPierce: 4 // +4 to pierce count (allows hitting 5 enemies total)
+        },
+        visualProperties: {
+            borderColor: 0xffaa00,
+            fillColor: 0x553300
         }
     },
     {

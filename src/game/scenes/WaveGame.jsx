@@ -1318,15 +1318,16 @@ export class WaveGame extends Scene {
                                 // Explosive bullets always destroy after one hit
                                 bullet.health = 0;
                                 bullet.pierce = 0;
+                            } else if (bullet.pierce !== undefined) {
+                                // Decrement pierce value by 0.5 (100% scaling means pierce 1 = 2 enemies)
+                                bullet.pierce -= 0.5;
+
+                                // Track already hit enemies for bullets with pierce
+                                if (bullet.pierce > 0 && bullet.penetratedEnemies) {
+                                    bullet.penetratedEnemies.push(enemyGraphics.parentEnemy.id);
+                                }
                             } else if (bullet.health !== undefined) {
                                 bullet.health--;
-                            } else if (bullet.pierce !== undefined) {
-                                bullet.pierce--;
-                            }
-
-                            // Track already hit enemies for bullets with pierce
-                            if (bullet.pierce > 0 && bullet.penetratedEnemies) {
-                                bullet.penetratedEnemies.push(enemyGraphics.parentEnemy.id);
                             }
 
                             // Visual feedback - make bullet flash but preserve enemy faction tint
@@ -1360,8 +1361,8 @@ export class WaveGame extends Scene {
                             });
 
                             // Only release bullet back to pool if its health/pierce is depleted
-                            if ((bullet.health !== undefined && bullet.health <= 0) ||
-                                (bullet.pierce !== undefined && bullet.pierce <= 0)) {
+                            if ((bullet.pierce !== undefined && bullet.pierce <= 0) ||
+                                (bullet.health !== undefined && bullet.health <= 0)) {
                                 this.bulletPool.releaseBullet(bullet);
                             }
                         }
