@@ -704,6 +704,74 @@ export class ChaosManager {
     }
     
     /**
+     * Ensure all enemies have their proper faction tint applied
+     * This helps maintain visual faction identification after chaos events
+     * @private
+     */
+    ensureEnemyFactionTints() {
+        // Skip if we don't have a GroupManager reference
+        if (!this.scene || !this.scene.groupManager) return;
+        
+        // Get reference to all enemies by faction
+        const aiEnemies = this.scene.groupManager.getEntitiesInGroup(GroupId.AI) || [];
+        const coderEnemies = this.scene.groupManager.getEntitiesInGroup(GroupId.CODER) || [];
+        
+        // Process AI enemies
+        for (const enemy of aiEnemies) {
+            if (!enemy || !enemy.graphics) continue;
+            
+            // Get the proper faction tint, using stored value if available or default if not
+            const tintColor = enemy.factionTint || 0x3498db; // Blue tint for AI
+            
+            // Apply to main graphics object
+            if (enemy.graphics.setTint) {
+                enemy.graphics.setTint(tintColor);
+            }
+            
+            // Apply to nested sprite components
+            if (enemy.graphics.list && Array.isArray(enemy.graphics.list)) {
+                enemy.graphics.list.forEach(child => {
+                    if (child && child.setTint) {
+                        child.setTint(tintColor);
+                    }
+                });
+            }
+            
+            // Apply to sprite if it exists
+            if (enemy.sprite && enemy.sprite.setTint) {
+                enemy.sprite.setTint(tintColor);
+            }
+        }
+        
+        // Process CODER enemies
+        for (const enemy of coderEnemies) {
+            if (!enemy || !enemy.graphics) continue;
+            
+            // Get the proper faction tint, using stored value if available or default if not
+            const tintColor = enemy.factionTint || 0xe74c3c; // Red tint for CODER
+            
+            // Apply to main graphics object
+            if (enemy.graphics.setTint) {
+                enemy.graphics.setTint(tintColor);
+            }
+            
+            // Apply to nested sprite components
+            if (enemy.graphics.list && Array.isArray(enemy.graphics.list)) {
+                enemy.graphics.list.forEach(child => {
+                    if (child && child.setTint) {
+                        child.setTint(tintColor);
+                    }
+                });
+            }
+            
+            // Apply to sprite if it exists
+            if (enemy.sprite && enemy.sprite.setTint) {
+                enemy.sprite.setTint(tintColor);
+            }
+        }
+    }
+    
+    /**
      * Apply chaos oscillation for natural fluctuation
      * DISABLED: Chaos should only change based on player actions
      * @private
@@ -754,19 +822,18 @@ export class ChaosManager {
      * @private
      */
     emitChaosChanged(oldValue, newValue) {
-        // Add polarity information to event data
         EventBus.emit('chaos-changed', {
             oldValue,
             newValue,
-            normalized: this.getNormalizedChaos(),
-            polarity: this.getPolarity(),
-            absoluteValue: this.getAbsoluteChaos(),
-            percentage: this.getChaosPercentage(),
-            multipliers: {
-                [GroupId.AI]: this.multiplierCache[GroupId.AI],
-                [GroupId.CODER]: this.multiplierCache[GroupId.CODER]
-            }
+            direction: newValue > oldValue ? 1 : -1,
+            absolute: Math.abs(newValue)
         });
+        
+        // When chaos levels change significantly or return from extreme values,
+        // ensure all enemies have their proper faction tint applied
+        if (Math.abs(newValue - oldValue) >= 10 || this.extremeChaosTimeoutActive === false) {
+            this.ensureEnemyFactionTints();
+        }
     }
     
     /**

@@ -2,31 +2,16 @@
 
 ## Overview
 
-The Faction Battle System creates dynamic combat between enemy factions when they're in close proximity and chaos levels are high. This creates emergent gameplay where enemies will fight each other without player intervention, potentially providing strategic advantages to the player.
-
-## Core Concepts
-
-- **Proximity-based Detection**: When enough enemies from opposing factions are near each other, they may trigger a battle
-- **Chaos Threshold**: Battles only occur when chaos levels exceed 40% (in either direction)
-- **Battle Resolution**: Each enemy pairing has a 50% chance of winning their individual fight
-- **Victory Effects**: The winning faction receives temporary stat boosts
+The Faction Battle System creates dynamic battlefield scenarios where AI and Coder enemies fight each other without player intervention. This happens when chaos levels are high enough and enemies from opposing factions are in close proximity to each other.
 
 ## Key Components
 
-### FactionBattleManager
+### Detection System
 
-The central manager class that handles detection, execution, and resolution of faction battles.
-
-```javascript
-const factionBattleManager = new FactionBattleManager(scene, {
-    chaosThreshold: 40,               // Minimum chaos level (40%)
-    requiredEnemiesPerFaction: 5,     // Need 5 enemies from each faction
-    totalEnemiesRequired: 10,         // Total enemies needed
-    detectionRadius: 300,             // Detection radius in pixels
-    battleCheckInterval: 3000,        // Check every 3 seconds
-    victoryChance: 0.5                // 50% chance for either side to win
-});
-```
+* Automatically detects when enemy factions are close enough for a battle
+* Requires a minimum chaos level (45%)
+* Needs minimum enemy count from each faction (4)
+* Uses a grid system to efficiently find potential battle areas
 
 ### Battle Lifecycle
 
@@ -45,41 +30,20 @@ const factionBattleManager = new FactionBattleManager(scene, {
    - Losing enemies are eliminated
    - Winning enemies receive speed and damage boosts
    - Victory shifts chaos level +/- 10 points
+   
+4. **Visual Aftermath**:
+   - Winning enemies display a temporary pulsing aura of their faction color
+   - Faction tint is properly maintained after the visual effect ends
+   - Faction colors persist even after chaos events end (AI = blue, Coder = red)
 
-## Integration with Other Systems
+## Configuration Options
 
-### Chaos System Integration
-
-The Faction Battle System is closely tied to the Chaos System:
-- Battles are only possible above 40% chaos
-- Battle outcomes affect the chaos level
-- Higher chaos increases battle frequency
-
-### GroupManager Integration
-
-Relies on the GroupManager to:
-- Find groups of enemies by faction
-- Track enemy relations and positions
-- Register battle-related kills
-
-## Usage
-
-The FactionBattleManager is initialized in the main game scene and needs references to both the GroupManager and ChaosManager:
-
-```javascript
-// Create and register manager
-const factionBattleManager = new FactionBattleManager(this);
-
-// Initialize after all managers exist
-factionBattleManager.initialize();
-
-// Start/stop battle detection manually (also handled automatically)
-factionBattleManager.startBattleDetection();
-factionBattleManager.stopBattleDetection();
-
-// For debugging, force a battle at a specific location
-factionBattleManager.forceBattle(x, y, radius);
-```
+* `chaosThreshold`: Minimum chaos level required for battles (default: 45%)
+* `requiredEnemiesPerFaction`: Minimum enemies needed from each faction (default: 4)
+* `detectionRadius`: Range to check for enemy clusters (default: 350px)
+* `battleCheckInterval`: How often to check for potential battles (default: 2000ms)
+* `maxSimultaneousBattles`: Maximum concurrent battles (default: 1)
+* `battleCooldown`: Cooldown between battles (default: 15000ms)
 
 ## Events
 
@@ -94,6 +58,7 @@ The system emits the following events through the EventBus:
 - **Particles**: Colorful particle effects show active battles
 - **Victory Text**: Shows which faction won ("AI VICTORY!" or "CODER VICTORY!")
 - **Victory Aura**: Winning enemies glow with their faction's color
+- **Persistent Tinting**: Enemy faction colors remain consistent after battles and chaos events
 
 ## Strategic Impact
 
@@ -102,3 +67,18 @@ The Faction Battle System creates interesting strategic choices for players:
 - Manipulate chaos levels to encourage or prevent battles
 - Use battles as distractions to complete objectives
 - Take advantage of predictable enemy positioning during battles
+
+## Integration with Chaos System
+
+The Faction Battle System is tightly integrated with the Chaos System:
+- Battles only trigger when chaos is above the threshold
+- Battle outcomes affect the chaos meter
+- Chaos level changes may trigger or prevent faction battles
+- Both systems work together to ensure visual consistency with enemy colors
+
+## Technical Notes
+
+- Uses Phaser's particle system for visual effects
+- Implements spatial hashing for efficient enemy cluster detection
+- Maintains proper faction tinting through chaos transitions
+- Properly handles tint restoration for complex sprite hierarchies

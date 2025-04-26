@@ -197,14 +197,57 @@ export class EnemyManager {
         // Get enemy from pool
         const enemy = this.gameObjectManager.get(type, x, y, options);
         
+        if (!enemy) {
+            return null;
+        }
+
         // Make sure enemy has the correct group ID set
-        if (enemy && options.groupId && enemy.setGroup) {
+        if (options.groupId && enemy.setGroup) {
             enemy.setGroup(options.groupId);
+            
+            // Ensure the group's modifiers (including tint) are applied
+            // Some enemies might not get their tint from the setGroup method
+            if (this.scene.groupManager && enemy.groupId) {
+                this.scene.groupManager.applyModifiers(enemy, enemy.groupId);
+            }
+        }
+        
+        // Make sure the enemy has its faction tint applied, especially for chaos and boss spawns
+        if (enemy.groupId && enemy.graphics) {
+            const tintColors = {
+                'ai': 0x3498db,    // Blue tint for AI faction
+                'coder': 0xe74c3c  // Red tint for CODER faction
+            };
+            
+            const tintColor = tintColors[enemy.groupId];
+            if (tintColor) {
+                // Store the faction tint on the enemy
+                enemy.factionTint = tintColor;
+                
+                // Apply tint to the main graphics object
+                if (enemy.graphics.setTint) {
+                    enemy.graphics.setTint(tintColor);
+                }
+                
+                // Apply tint to any nested sprite components
+                if (enemy.graphics.list && Array.isArray(enemy.graphics.list)) {
+                    enemy.graphics.list.forEach(child => {
+                        if (child && child.setTint) {
+                            child.setTint(tintColor);
+                        }
+                    });
+                }
+                
+                // Apply to sprite if it exists
+                if (enemy.sprite && enemy.sprite.setTint) {
+                    enemy.sprite.setTint(tintColor);
+                }
+            }
         }
         
         // Mark this enemy as tracked by the WaveManager if it's created through normal spawning
         // This prevents double counting by both GroupManager and WaveManager
-        if (enemy && !options.externalSpawn) {
+        if (!options.externalSpawn) {
             enemy._registeredWithWaveManager = true;
         }
         
