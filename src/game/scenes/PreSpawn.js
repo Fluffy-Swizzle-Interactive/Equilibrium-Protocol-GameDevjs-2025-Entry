@@ -412,38 +412,67 @@ Both sides are necessary — but too much power in either direction will collaps
 
 Chaos Meter (Balance System)
 
-The Chaos Meter measures the world's imbalance between Coders and AI.
+The Chaos Meter is the heartbeat of Equilibrium Protocol.
+Every kill you make tips the world closer to Coder dominance or AI control — and with it, the battlefield changes in real time.
 
-  • Meter Range: -100 (AI dominance) to +100 (Coder dominance)
-  • Default: 0 (Perfect Balance)
+Core Mechanics
+- Meter Range: -100 (AI dominance) to +100 (Coder dominance)
+- Default: 0 (Perfect Balance)
+- Kill Impact:
+  - Each enemy kill shifts the meter by 1 point, but your impact can grow dramatically through Momentum.
 
-Every enemy you defeat shifts the Chaos Meter.
-Momentum builds with consecutive kills, amplifying your influence up to 4.9x.
-Momentum naturally decays by 4% per cycle, preventing runaway effects.
+Momentum System
+- Each consecutive kill builds Momentum, increasing your chaos impact by up to 4.9x.
+- Momentum naturally decays over time (about 4% loss per update), so staying aggressive is key.
+- High Momentum lets you rapidly shift the Chaos Meter, but comes with greater risks.
 
-As chaos tilts:
-  • The dominant faction grows stronger.
-  • Enemy HP, damage, fire rate, and dodge ability scale upward.
-  • The losing side spawns more enemies to push back.
+Faction Power Scaling
+As Chaos tilts toward one side:
+- The dominant faction (whichever side has the advantage) becomes significantly stronger.
+- Enemies gain increased HP, damage, fire rate, and dodge ability — scaling non-linearly with chaos level.
 
-Extreme imbalance (±100) triggers a cooldown, then resets chaos to 25% to prevent collapse.
+Example maximum buffs at ±100 Chaos:
+  - HP: ~2.4x
+  - Damage: ~2.6x
+  - Fire Rate: ~2.3x
+  - Dodge: ~2.7x
 
+Dynamic Spawn Adjustments
+- As one side gains dominance, the other side starts spawning more frequently.
+- For example:
+  - If Coders dominate, more AI enemies will spawn to push back.
+  - If AI dominates, more Coders emerge to resist.
+
+This self-balancing system keeps fights dynamic and unpredictable.
+
+Extreme Value Protection
+- If the meter hits ±100, a cooldown starts.
+- After cooldown, the Chaos Meter resets to 25% of the extreme value.
+- This prevents one faction from permanently taking over.
+
+In Summary:
+- Stay balanced: Favor neither side too heavily, or prepare for chaos.
+- Master momentum: Chain kills to control the battlefield.
+- Adapt: Expect the world to push back if you push too far.
+
+Your choices shape the war.
 Stay balanced — or survive the consequences.
 
 === UPGRADE SYSTEM ===
 
-Earn upgrade points by defeating enemies and completing objectives.
+Earn skill points by defeating enemies, collecting XP and leveling up.
 
 Upgrades include:
   • Weapon Enhancements — stronger bullets, faster fire rates.
   • Defensive Upgrades — shields, speed boosts, dodge improvements.
   • Drones, Explosives, Homing ammo and more!
 
-Customize your Sentient to fit your strategy.
+Customize your Sentient to fit your strategy — aggressive, defensive, or perfectly balanced..
 
 === DRONE SYSTEM ===
 
-Unlock autonomous drones to assist you in battle.
+Drones are your essential battlefield companions.
+As you progress, you unlock deployable combat drones that hover around you and shoot wherever you shoot.
 
   • Up to 5 drones can orbit and fire automatically.
   • Drones share your upgrades and scale with you.
@@ -457,9 +486,13 @@ Major battles erupt as AI and Coders clash for dominance.
 
   • Both sides fight each other — and you.
   • Imbalance can cause one faction to overwhelm the battlefield.
-  • Strategic intervention is critical to survival.
 
-Tip the scales carefully. Total dominance by either side is a disaster.
+These dynamic battles are shaped by the current state of the Chaos Meter:
+- Favoring one faction too heavily will make them a dominant threat.
+- Maintaining balance will keep both sides in check — but at the cost of constant tension.
+
+Strategic intervention in these battles is critical. 
+Choose carefully: destroy the wrong side too quickly, and the world could collapse into unstoppable chaos.
 
 === MAINTAIN THE BALANCE. SURVIVE THE CHAOS. FULFILL THE PROTOCOL. ===
 
