@@ -112,6 +112,18 @@ export class WaveGame extends Scene {
             loop: true
         });
 
+        // Initialize shop music
+        this.soundManager.initBackgroundMusic('shop_music', {
+            volume: 0.4,  // Same volume as ambient music
+            loop: true
+        });
+
+        // Initialize action music for wave gameplay
+        this.soundManager.initBackgroundMusic('action_music', {
+            volume: 0.4,  // Same volume as other music
+            loop: true
+        });
+
         // Initialize sound effects
         this.soundManager.initSoundEffect('shoot_weapon', {
             volume: 0.5,
@@ -149,8 +161,8 @@ export class WaveGame extends Scene {
             });
         }
 
-        // Start playing ambient music with fade in
-        this.soundManager.playMusic('ambient_music', {
+        // Start playing shop music with fade in
+        this.soundManager.playMusic('shop_music', {
             fadeIn: 2000  // 2 second fade in
         });
     }
@@ -255,10 +267,17 @@ export class WaveGame extends Scene {
             }
         });
 
-        // Listen for wave-completed events on the EventBus to play sound
+        // Listen for wave-completed events on the EventBus to play sound and switch music
         EventBus.on('wave-completed', () => {
             if (this.soundManager) {
+                // Play wave end sound
                 this.soundManager.playRandomWaveEndSound();
+
+                // Switch to shop music with crossfade
+                this.soundManager.playMusic('shop_music', {
+                    fadeIn: 2000,  // 2 second fade in
+                    fadeOut: 2000  // 2 second fade out for current music
+                });
             }
         });
 
@@ -290,6 +309,12 @@ export class WaveGame extends Scene {
                     detune: Math.random() * 50 - 25 // Slight random detune for variety
                 });
             }
+        });
+
+        // Listen for wave-start events on the EventBus
+        // Note: The actual music change is handled in the onWaveStart method
+        EventBus.on('wave-start', () => {
+            // This listener is kept for consistency and potential future use
         });
     }
 
@@ -751,6 +776,14 @@ export class WaveGame extends Scene {
         // Log wave start
         if (this.isDev) {
             console.debug(`Wave ${data.wave} started. Boss wave: ${data.isBossWave}`);
+        }
+
+        // Switch to action music when a wave starts
+        if (this.soundManager) {
+            this.soundManager.playMusic('action_music', {
+                fadeIn: 2000,  // 2 second fade in
+                fadeOut: 2000  // 2 second fade out for current music
+            });
         }
     }
 
@@ -1477,6 +1510,7 @@ export class WaveGame extends Scene {
         EventBus.off('collectible-collected');
         EventBus.off('player-damaged');
         EventBus.off('player-death');
+        EventBus.off('wave-start');
 
         // Call parent shutdown method
         super.shutdown();

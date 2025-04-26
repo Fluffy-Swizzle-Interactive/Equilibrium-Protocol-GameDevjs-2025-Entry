@@ -103,6 +103,8 @@ export class Preloader extends Scene
         // Load music
         this.load.audio('ambient_music', 'assets/audio/ambient/ambient_loop.mp3');
         this.load.audio('menu_music', 'assets/audio/music/mainMenu.mp3');
+        this.load.audio('shop_music', 'assets/audio/music/track1.mp3');
+        this.load.audio('action_music', 'assets/audio/music/actionTrack1.mp3');
     }
 
     /**
