@@ -47,9 +47,8 @@ export class PreSpawn extends Scene
         const instructions = [
             'MOVEMENT: Use WASD keys to move your character',
             'SPECIAL: Use Q or E to use special abilities (Unlockable)',
-            'AIM: Use mouse to aim in any direction',
-            'SHOOT: Hold left mouse button to fire your weapon',
-            'COLLECT: Automatically gather XP and cash from defeated enemies',
+            'AIM & SHOOT: Use mouse to aim in any direction, and Left Click to fire your weapon',
+            'COLLECT: Automatically gather XP and pickup cash or health from defeated enemies',
             'UPGRADE: Use cash to purchase upgrades between waves',
             'PAUSE: Spacebar to pause the game',
             'VOLUME: 9 and 0 keys to adjust volume',
