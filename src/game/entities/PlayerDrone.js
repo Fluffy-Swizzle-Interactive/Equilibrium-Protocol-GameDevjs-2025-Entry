@@ -76,7 +76,7 @@ export class PlayerDrone {
             this.graphics.play('drone_hover');
             
             // Scale to an appropriate size (increased by 75% from 0.5)
-            this.graphics.setScale(0.875);
+            this.graphics.setScale(0.8);
             
             // Use appropriate depth to appear below player but above bullets
             this.graphics.setDepth(DEPTHS.PLAYER - 1);
