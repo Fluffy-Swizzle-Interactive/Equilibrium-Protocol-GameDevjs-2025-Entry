@@ -25,7 +25,7 @@ export class WeaponManager {
         this.bulletDamage = 0;
         this.bulletColor = 0;
         this.bulletHealth = 0;
-        this.bulletPierce = 1; // Default pierce value
+        this.bulletPierce = 0; // Default pierce value (0 means bullets destroy after one hit)
         this.bulletCount = 1;
         this.bulletRange = options.bulletRange || 600;
 

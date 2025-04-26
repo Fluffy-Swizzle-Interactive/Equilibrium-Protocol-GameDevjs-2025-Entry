@@ -110,14 +110,29 @@ export const WEAPON_UPGRADES = [
         name: '📌 Piercing Shot',
         category: UPGRADE_CATEGORIES.PIERCE,
         rarity: RARITY.RARE,
-        price: 150,
-        effects: '+1 Enemy Pierce',
+        price: 180, // Increased price to reflect higher value
+        effects: 'Bullets pierce 1 enemy',
         stats: {
             bulletPierce: 1 // +1 to pierce count
         },
         visualProperties: {
             borderColor: 0xaa44aa,
             fillColor: 0x220022
+        }
+    },
+    {
+        id: 'pierce_2',
+        name: '📌📌 Advanced Piercing',
+        category: UPGRADE_CATEGORIES.PIERCE,
+        rarity: RARITY.EPIC,
+        price: 300,
+        effects: 'Bullets pierce 2 enemies',
+        stats: {
+            bulletPierce: 2 // +2 to pierce count (total of 3 with pierce_1)
+        },
+        visualProperties: {
+            borderColor: 0xcc66cc,
+            fillColor: 0x330033
         }
     },
     {
@@ -276,6 +291,12 @@ export function scaleUpgradeByLevel(upgrade, playerLevel) {
     // If no level provided or level is less than 10, return original upgrade
     if (!playerLevel || playerLevel < 10) {
         return upgrade;
+    }
+
+    // Check if this is an EPIC or LEGENDARY upgrade - if so, don't scale it
+    if (upgrade.rarity && (upgrade.rarity.name === 'Epic' || upgrade.rarity.name === 'Legendary')) {
+        // Return a copy to avoid modifying the original
+        return JSON.parse(JSON.stringify(upgrade));
     }
 
     // Calculate level tier (increases every 10 levels)
@@ -457,59 +478,72 @@ export function getRandomWeaponUpgrades(count = 3, rng, playerLevel = 1) {
             upgradeCopy.rarity = randomRarity;
         }
 
-        // Adjust price based on new rarity
-        const rarityPriceMultiplier = randomRarity.multiplier;
-        upgradeCopy.price = Math.round(upgradeCopy.price * rarityPriceMultiplier);
+        // Check if this was originally an EPIC or LEGENDARY upgrade
+        const wasEpicOrLegendary = selected.rarity.name === 'Epic' || selected.rarity.name === 'Legendary';
 
-        // Adjust stats based on new rarity if they are numeric
-        if (upgradeCopy.stats) {
-            Object.entries(upgradeCopy.stats).forEach(([stat, value]) => {
-                if (typeof value === 'number' && !isNaN(value)) {
-                    // Special handling for fireRate
-                    if (stat === 'fireRate') {
-                        // For fireRate < 1, we want to make it even smaller (better) with higher rarities
-                        if (value < 1) {
-                            // Calculate how much below 1 the value is
-                            const reduction = 1 - value;
-                            // Scale the reduction by the rarity multiplier
-                            const scaledReduction = reduction * rarityPriceMultiplier;
-                            // Apply the scaled reduction, ensuring it doesn't go below 0.5
-                            upgradeCopy.stats[stat] = Math.max(0.5, 1 - scaledReduction);
-                        } else {
-                            // For fireRate > 1, we want to make it even larger with higher rarities
-                            // since it will be inverted when applied
+        // Only adjust price and stats if it wasn't originally EPIC or LEGENDARY
+        if (!wasEpicOrLegendary) {
+            // Adjust price based on new rarity
+            const rarityPriceMultiplier = randomRarity.multiplier;
+            upgradeCopy.price = Math.round(upgradeCopy.price * rarityPriceMultiplier);
+
+            // Adjust stats based on new rarity if they are numeric
+            if (upgradeCopy.stats) {
+                Object.entries(upgradeCopy.stats).forEach(([stat, value]) => {
+                    if (typeof value === 'number' && !isNaN(value)) {
+                        // Special handling for fireRate
+                        if (stat === 'fireRate') {
+                            // For fireRate < 1, we want to make it even smaller (better) with higher rarities
+                            if (value < 1) {
+                                // Calculate how much below 1 the value is
+                                const reduction = 1 - value;
+                                // Scale the reduction by the rarity multiplier
+                                const scaledReduction = reduction * rarityPriceMultiplier;
+                                // Apply the scaled reduction, ensuring it doesn't go below 0.5
+                                upgradeCopy.stats[stat] = Math.max(0.5, 1 - scaledReduction);
+                            } else {
+                                // For fireRate > 1, we want to make it even larger with higher rarities
+                                // since it will be inverted when applied
+                                const bonus = value - 1;
+                                const scaledBonus = bonus * rarityPriceMultiplier;
+                                upgradeCopy.stats[stat] = 1 + scaledBonus;
+                            }
+                        }
+                        // For multiplicative stats (values > 1), scale the bonus portion
+                        else if (value > 1) {
+                            // Extract the bonus portion (e.g., 1.1 has a 0.1 bonus)
                             const bonus = value - 1;
+                            // Scale the bonus by the rarity multiplier
                             const scaledBonus = bonus * rarityPriceMultiplier;
+                            // Apply the scaled bonus
                             upgradeCopy.stats[stat] = 1 + scaledBonus;
                         }
+                        // For additive stats, simply multiply by the rarity multiplier
+                        else {
+                            upgradeCopy.stats[stat] = value * rarityPriceMultiplier;
+                        }
                     }
-                    // For multiplicative stats (values > 1), scale the bonus portion
-                    else if (value > 1) {
-                        // Extract the bonus portion (e.g., 1.1 has a 0.1 bonus)
-                        const bonus = value - 1;
-                        // Scale the bonus by the rarity multiplier
-                        const scaledBonus = bonus * rarityPriceMultiplier;
-                        // Apply the scaled bonus
-                        upgradeCopy.stats[stat] = 1 + scaledBonus;
-                    }
-                    // For additive stats, simply multiply by the rarity multiplier
-                    else {
-                        upgradeCopy.stats[stat] = value * rarityPriceMultiplier;
-                    }
-                }
-            });
+                });
+            }
         }
 
-        // Update the effects description to reflect the new rarity
+        // Update the effects description to reflect the rarity
         if (upgradeCopy.effects) {
-            // Extract the base effect without any previous rarity or level indicators
-            let baseEffect = upgradeCopy.effects;
-            if (baseEffect.includes('(')) {
-                baseEffect = baseEffect.substring(0, baseEffect.indexOf('(')).trim();
-            }
+            // For EPIC and LEGENDARY upgrades, keep the original effects description
+            if (wasEpicOrLegendary) {
+                // Keep the original effects description
+                upgradeCopy.effects = selected.effects;
+            } else {
+                // For COMMON and RARE upgrades that got randomized, update the description
+                // Extract the base effect without any previous rarity or level indicators
+                let baseEffect = upgradeCopy.effects;
+                if (baseEffect.includes('(')) {
+                    baseEffect = baseEffect.substring(0, baseEffect.indexOf('(')).trim();
+                }
 
-            // Add rarity indicator
-            upgradeCopy.effects = `${baseEffect} (${randomRarity.name})`;
+                // Add rarity indicator
+                upgradeCopy.effects = `${baseEffect} (${randomRarity.name})`;
+            }
         }
 
         // Scale the upgrade based on player level

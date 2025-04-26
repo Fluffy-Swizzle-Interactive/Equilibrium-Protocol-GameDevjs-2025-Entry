@@ -196,6 +196,12 @@ export function scalePlayerUpgradeByLevel(upgrade, playerLevel) {
         return upgrade;
     }
 
+    // Check if this is an EPIC or LEGENDARY upgrade - if so, don't scale it
+    if (upgrade.rarity && (upgrade.rarity.name === 'Epic' || upgrade.rarity.name === 'Legendary')) {
+        // Return a copy to avoid modifying the original
+        return JSON.parse(JSON.stringify(upgrade));
+    }
+
     // Calculate level tier (increases every 10 levels)
     const levelTier = Math.floor(playerLevel / 10);
 
@@ -411,16 +417,26 @@ export function getRandomPlayerUpgrades(count = 3, rng, playerLevel = 1, playerS
 
         // Player upgrade stats don't scale with rarity - they only use the base values
 
-        // Update the description to reflect the new rarity (visual only)
-        if (upgradeCopy.description) {
-            // Extract the base description without any previous rarity or level indicators
-            let baseDescription = upgradeCopy.description;
-            if (baseDescription.includes('(')) {
-                baseDescription = baseDescription.substring(0, baseDescription.indexOf('(')).trim();
-            }
+        // Check if this was originally an EPIC or LEGENDARY upgrade
+        const wasEpicOrLegendary = selected.rarity.name === 'Epic' || selected.rarity.name === 'Legendary';
 
-            // Add rarity indicator (visual only - stats don't change with rarity)
-            upgradeCopy.description = `${baseDescription} (${randomRarity.name})`;
+        // Update the description to reflect the rarity (visual only)
+        if (upgradeCopy.description) {
+            // For EPIC and LEGENDARY upgrades, keep the original description
+            if (wasEpicOrLegendary) {
+                // Keep the original description
+                upgradeCopy.description = selected.description;
+            } else {
+                // For COMMON and RARE upgrades that got randomized, update the description
+                // Extract the base description without any previous rarity or level indicators
+                let baseDescription = upgradeCopy.description;
+                if (baseDescription.includes('(')) {
+                    baseDescription = baseDescription.substring(0, baseDescription.indexOf('(')).trim();
+                }
+
+                // Add rarity indicator (visual only - stats don't change with rarity)
+                upgradeCopy.description = `${baseDescription} (${randomRarity.name})`;
+            }
         }
 
         // Scale the upgrade based on player level
