@@ -247,10 +247,50 @@ export class EnemyManager {
         
         return {
             weights: {...this.groupWeightManager.groupWeights},
-            probabilities: this.groupWeightManager.getProbabilities()
+            probabilities: this.groupWeightManager.getProbabilities(),
+            killPercentages: this.getKillPercentages()
         };
     }
     
+    /**
+     * Get the current kill percentages
+     * @returns {Object} Object with group IDs as keys and kill percentages as values
+     */
+    getKillPercentages() {
+        if (!this.groupWeightManager || !this.groupWeightManager.killHistory) {
+            return {};
+        }
+        
+        const killHistory = this.groupWeightManager.killHistory;
+        const totalKills = Object.values(killHistory).reduce((sum, kills) => sum + kills, 0);
+        
+        if (totalKills === 0) return {};
+        
+        const killPercentages = {};
+        for (const groupId in killHistory) {
+            killPercentages[groupId] = killHistory[groupId] / totalKills;
+        }
+        
+        return killPercentages;
+    }
+    
+    /**
+     * Check and fix any extreme imbalance in group weights
+     * @returns {boolean} True if weights were rebalanced
+     */
+    checkAndRebalanceGroupWeights() {
+        if (!this.groupWeightManager) return false;
+        
+        // Call the GroupWeightManager's rebalance method
+        const wasRebalanced = this.groupWeightManager.forceRebalanceWeights();
+        
+        if (wasRebalanced && this.isDev) {
+            console.debug('Enemy group weights were rebalanced due to extreme imbalance');
+        }
+        
+        return wasRebalanced;
+    }
+
     /**
      * Set the volatility factor for group weight adjustments
      * @param {Number} value - Volatility value (0-1)

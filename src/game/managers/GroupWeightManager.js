@@ -241,7 +241,7 @@ export class GroupWeightManager {
 
     /**
      * Adjust weights based on kill history to maintain balance
-     * Now with more balanced and predictable adjustments
+     * Now with improved balancing to prevent extreme weight disparities
      */
     adjustWeightsBasedOnKills() {
         // Only adjust if we have multiple groups
@@ -258,23 +258,58 @@ export class GroupWeightManager {
             killPercentages[groupId] = this.killHistory[groupId] / totalKills;
         }
         
-        // Apply more balanced adjustment to create moderate imbalance
-        // This creates a natural balancing effect without random fluctuations
+        // IMPROVED BALANCING: Calculate the ratio between the groups' weights
+        // This helps identify when weights are becoming too imbalanced
+        const weightRatios = {};
+        const weightValues = Object.values(this.groupWeights);
+        const maxWeight = Math.max(...weightValues);
+        const minWeight = Math.min(...weightValues);
+        const weightImbalance = maxWeight / Math.max(1, minWeight);
+        
+        // Calculate target weights based on the inverse of kill percentages
+        // When kill percentage is high, target weight should be higher (to spawn more)
+        const targetWeights = {};
+        const baseWeight = 50; // Base reference weight
+        
+        for (const groupId in killPercentages) {
+            // Calculate target weight - inverse relationship with kill percentage
+            // When kill percentage is high, we want to spawn more of this group to maintain balance
+            const killPercentage = killPercentages[groupId];
+            
+            // More aggressive balancing when weights are extremely imbalanced
+            if (weightImbalance > 5) {
+                // Hard correction when weights are extremely imbalanced
+                const oppositeGroup = groups.find(g => g !== groupId);
+                if (this.groupWeights[groupId] > this.groupWeights[oppositeGroup] * 5) {
+                    // This group's weight is way too high - force a reduction
+                    targetWeights[groupId] = Math.floor(this.groupWeights[oppositeGroup] * 1.5);
+                } else if (this.groupWeights[groupId] * 5 < this.groupWeights[oppositeGroup]) {
+                    // This group's weight is way too low - force an increase
+                    targetWeights[groupId] = Math.floor(this.groupWeights[oppositeGroup] / 1.5);
+                }
+            } else {
+                // Normal balancing - adjust based on kill percentage
+                // Higher kill percentage = higher weight (more spawns)
+                targetWeights[groupId] = baseWeight + (killPercentage * 100);
+            }
+        }
+        
+        // Apply gradual adjustments toward target weights
         for (const groupId in this.groupWeights) {
-            if (killPercentages[groupId] !== undefined) {
-                // Calculate imbalance - how far from equal distribution this group is
-                const equalShare = 1 / groups.length;
-                const imbalance = equalShare - killPercentages[groupId];
+            if (targetWeights[groupId] !== undefined) {
+                const currentWeight = this.groupWeights[groupId];
+                const targetWeight = targetWeights[groupId];
+                const diff = targetWeight - currentWeight;
                 
-                // Apply less aggressive non-linear adjustment
-                const imbalanceFactor = Math.pow(Math.abs(imbalance) * 1.8, 1.3);
-                const direction = imbalance >= 0 ? -1 : 1; // Inverse relationship
-                
-                // Calculate adjustment - more moderate than before
-                const adjustment = direction * imbalanceFactor * this.volatility * 100; // Reduced for more gradual changes
+                // Apply adjustment with a smoothing factor for gradual change
+                // Larger differences result in faster adjustments
+                const adjustmentSize = Math.sign(diff) * Math.min(
+                    Math.abs(diff) * 0.1, // 10% of the difference
+                    10 // Max adjustment per update
+                );
                 
                 // Apply adjustment with minimum and maximum weight caps
-                const newWeight = this.groupWeights[groupId] + adjustment;
+                const newWeight = currentWeight + adjustmentSize;
                 this.groupWeights[groupId] = Math.max(this.minWeight, Math.min(this.maxWeight, newWeight));
             }
         }
@@ -407,5 +442,45 @@ export class GroupWeightManager {
             this.killHistory[groupId] = 0;
         }
         this.recentKills = [];
+    }
+
+    /**
+     * Force an immediate rebalance of weights if they've become extremely skewed
+     * This is useful for recovering from unintended extreme imbalances
+     * @returns {boolean} Whether weights were rebalanced
+     */
+    forceRebalanceWeights() {
+        const groups = Object.keys(this.groupWeights);
+        if (groups.length <= 1) return false;
+        
+        // Check current weight imbalance
+        const weightValues = Object.values(this.groupWeights);
+        const maxWeight = Math.max(...weightValues);
+        const minWeight = Math.min(...weightValues);
+        const weightImbalance = maxWeight / Math.max(1, minWeight);
+        
+        // Only rebalance if there's significant imbalance (more than 5:1 ratio)
+        if (weightImbalance > 5) {
+            // Reset to balanced weights around 50
+            const baseWeight = 50;
+            for (const groupId of groups) {
+                // Apply some randomness to avoid perfect balance
+                const randomFactor = 0.8 + (Math.random() * 0.4); // 0.8-1.2
+                this.groupWeights[groupId] = Math.floor(baseWeight * randomFactor);
+            }
+            
+            this.totalWeight = this.calculateTotalWeight();
+            
+            if (this.isDev) {
+                console.debug('Extreme weight imbalance detected and corrected:', {
+                    previousImbalance: weightImbalance,
+                    newWeights: {...this.groupWeights}
+                });
+            }
+            
+            return true;
+        }
+        
+        return false;
     }
 }
