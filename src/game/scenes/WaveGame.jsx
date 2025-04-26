@@ -667,6 +667,10 @@ export class WaveGame extends Scene {
 
         // Set up spacebar for pause
         this.pauseKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+
+        // Set up volume control keys (9 for volume down, 0 for volume up)
+        this.volumeDownKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.NINE);
+        this.volumeUpKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ZERO);
     }
 
     /**
@@ -744,11 +748,105 @@ export class WaveGame extends Scene {
         this.setPauseState(!this.isPaused, 'toggle');
     }
 
+    /**
+     * Handle volume control keys (9 for volume down, 0 for volume up)
+     */
+    handleVolumeControls() {
+        if (!this.soundManager) return;
+
+        const volumeStep = 0.05; // 5% volume change per key press
+        let volumeChanged = false;
+        let newVolume = this.soundManager.musicVolume;
+
+        // Check for volume down key (9)
+        if (Phaser.Input.Keyboard.JustDown(this.volumeDownKey)) {
+            newVolume = Math.max(0, newVolume - volumeStep);
+            volumeChanged = true;
+        }
+
+        // Check for volume up key (0)
+        if (Phaser.Input.Keyboard.JustDown(this.volumeUpKey)) {
+            newVolume = Math.min(1, newVolume + volumeStep);
+            volumeChanged = true;
+        }
+
+        // Update volume if changed
+        if (volumeChanged) {
+            this.soundManager.setMusicVolume(newVolume);
+            this.soundManager.setEffectsVolume(newVolume);
+
+            // Show volume indicator
+            this.showVolumeIndicator(newVolume);
+        }
+    }
+
+    /**
+     * Show a temporary volume indicator on screen
+     * @param {number} volume - Current volume level (0-1)
+     */
+    showVolumeIndicator(volume) {
+        // Remove existing volume indicator if present
+        if (this.volumeIndicator) {
+            this.volumeIndicator.destroy();
+        }
+
+        // Calculate percentage for display
+        const volumePercent = Math.round(volume * 100);
+
+        // Get camera dimensions
+        const camera = this.cameras.main;
+        const width = camera.width;
+        const height = camera.height;
+
+        // Create container for volume indicator
+        // Position at bottom center of the camera view
+        this.volumeIndicator = this.add.container(camera.scrollX + width / 2, camera.scrollY + height - 50).setDepth(200);
+
+        // Create background
+        const bgWidth = 200;
+        const bgHeight = 40;
+
+        const bg = this.add.rectangle(
+            0, // Centered in container
+            0, // Centered in container
+            bgWidth,
+            bgHeight,
+            0x000000,
+            0.7
+        ).setOrigin(0.5);
+
+        // Create volume text
+        const text = this.add.text(
+            0, // Centered in container
+            0, // Centered in container
+            `Volume: ${volumePercent}%`,
+            {
+                fontFamily: 'Arial',
+                fontSize: 18,
+                color: '#ffffff'
+            }
+        ).setOrigin(0.5);
+
+        // Add to container
+        this.volumeIndicator.add([bg, text]);
+
+        // Auto-destroy after a short delay
+        this.time.delayedCall(1500, () => {
+            if (this.volumeIndicator) {
+                this.volumeIndicator.destroy();
+                this.volumeIndicator = null;
+            }
+        });
+    }
+
     update(time, delta) {
         // Handle pause state
         if (Phaser.Input.Keyboard.JustDown(this.pauseKey)) {
             this.togglePause();
         }
+
+        // Handle volume control keys (always active, even when paused)
+        this.handleVolumeControls();
 
         // If game is paused or over, don't update game logic
         if (this.isPaused || this.isGameOver) {

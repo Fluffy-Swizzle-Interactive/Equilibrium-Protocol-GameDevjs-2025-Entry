@@ -2,6 +2,7 @@ import { EventBus } from '../EventBus';
 import { Scene } from 'phaser';
 import { SoundManager } from '../managers/SoundManager';
 import { DEPTHS } from '../constants';
+import { VolumeSlider } from '../ui/VolumeSlider';
 
 /**
  * MainMenu scene
@@ -40,7 +41,49 @@ export class MainMenu extends Scene
         // Setup sound manager and start menu music
         this.setupSoundManager();
 
+        // Add volume slider in the top right corner
+        this.createVolumeSlider();
+
+        // Setup input for volume control
+        this.setupInput();
+
         EventBus.emit('current-scene-ready', this);
+    }
+
+    /**
+     * Create volume slider in the top right corner
+     */
+    createVolumeSlider() {
+        // Get the width and height of the game
+        const width = this.cameras.main.width;
+        const height = this.cameras.main.height;
+
+        // Create volume slider
+        this.volumeSlider = new VolumeSlider(this, width - 100, 40, {
+            width: 150,
+            height: 10,
+            trackColor: 0x444444,
+            fillColor: 0x39C66B, // Match the green color of the start button
+            knobColor: 0xffffff,
+            knobRadius: 8,
+            initialValue: this.soundManager ? this.soundManager.musicVolume : 0.5,
+            depth: 100,
+            label: 'Volume',
+            labelStyle: {
+                fontFamily: 'Arial',
+                fontSize: 16,
+                color: '#ffffff',
+                stroke: '#000000',
+                strokeThickness: 2
+            },
+            onChange: (value) => {
+                // Update both music and effects volume
+                if (this.soundManager) {
+                    this.soundManager.setMusicVolume(value);
+                    this.soundManager.setEffectsVolume(value);
+                }
+            }
+        });
     }
 
     /**
@@ -110,6 +153,119 @@ export class MainMenu extends Scene
             this.selectedWeapon = gameMode;
             this.startGame('adventure');
         }
+    }
+
+    /**
+     * Set up input handlers for keyboard
+     */
+    setupInput() {
+        // Set up volume control keys (9 for volume down, 0 for volume up)
+        this.volumeDownKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.NINE);
+        this.volumeUpKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ZERO);
+    }
+
+    /**
+     * Update method called every frame
+     */
+    update() {
+        // Handle volume control keys
+        this.handleVolumeControls();
+    }
+
+    /**
+     * Handle volume control keys (9 for volume down, 0 for volume up)
+     */
+    handleVolumeControls() {
+        if (!this.soundManager) return;
+
+        const volumeStep = 0.05; // 5% volume change per key press
+        let volumeChanged = false;
+        let newVolume = this.soundManager.musicVolume;
+
+        // Check for volume down key (9)
+        if (Phaser.Input.Keyboard.JustDown(this.volumeDownKey)) {
+            newVolume = Math.max(0, newVolume - volumeStep);
+            volumeChanged = true;
+        }
+
+        // Check for volume up key (0)
+        if (Phaser.Input.Keyboard.JustDown(this.volumeUpKey)) {
+            newVolume = Math.min(1, newVolume + volumeStep);
+            volumeChanged = true;
+        }
+
+        // Update volume if changed
+        if (volumeChanged) {
+            this.soundManager.setMusicVolume(newVolume);
+            this.soundManager.setEffectsVolume(newVolume);
+
+            // Update volume slider if it exists
+            if (this.volumeSlider) {
+                this.volumeSlider.setValue(newVolume);
+            }
+
+            // Show volume indicator
+            this.showVolumeIndicator(newVolume);
+        }
+    }
+
+    /**
+     * Show a temporary volume indicator on screen
+     * @param {number} volume - Current volume level (0-1)
+     */
+    showVolumeIndicator(volume) {
+        // Remove existing volume indicator if present
+        if (this.volumeIndicator) {
+            this.volumeIndicator.destroy();
+        }
+
+        // Calculate percentage for display
+        const volumePercent = Math.round(volume * 100);
+
+        // Get camera dimensions
+        const camera = this.cameras.main;
+        const width = camera.width;
+        const height = camera.height;
+
+        // Create container for volume indicator
+        // Position at bottom center of the camera view
+        this.volumeIndicator = this.add.container(width / 2, height - 50).setDepth(200);
+
+        // Create background
+        const bgWidth = 200;
+        const bgHeight = 40;
+
+        const bg = this.add.rectangle(
+            0, // Centered in container
+            0, // Centered in container
+            bgWidth,
+            bgHeight,
+            0x000000,
+            0.7
+        ).setOrigin(0.5);
+
+        // Create volume text
+        const text = this.add.text(
+            0, // Centered in container
+            0, // Centered in container
+            `Volume: ${volumePercent}%`,
+            {
+                fontFamily: 'Arial',
+                fontSize: 18,
+                color: '#ffffff'
+            }
+        ).setOrigin(0.5);
+
+        // Add to container
+        this.volumeIndicator.add([bg, text]);
+
+        // Auto-destroy after a short delay
+        this.time.delayedCall(1500, () => {
+            if (this.volumeIndicator) {
+                this.volumeIndicator.destroy();
+                this.volumeIndicator = null;
+            }
+        });
     }
 
     moveLogo (reactCallback)
