@@ -26,7 +26,7 @@ export class PreSpawn extends Scene
     create ()
     {
         // Create background
-        this.add.image(512, 384, 'background').setAlpha(0.7);
+        this.add.image(512, 384, 'intro_card').setAlpha(0.7);
 
         // Add semi-transparent overlay
         this.add.rectangle(512, 384, 1024, 768, 0x000000, 0.6)
@@ -50,6 +50,8 @@ export class PreSpawn extends Scene
             'SHOOT: Hold left mouse button to fire your weapon',
             'COLLECT: Automatically gather XP and cash from defeated enemies',
             'UPGRADE: Use cash to purchase upgrades between waves',
+            'PAUSE: Spacebar to pause the game',
+            'VOLUME: 9 and 0 keys to adjust volume',
             '',
             'SURVIVE and defeat ALL WAVES to win!'
         ];
@@ -65,31 +67,6 @@ export class PreSpawn extends Scene
                 align: 'center'
             }).setOrigin(0.5).setDepth(DEPTHS.UI_TEXT);
         });
-
-        // Weapon info
-        this.add.text(512, 460, 'YOUR WEAPON', {
-            fontFamily: 'Arial Black',
-            fontSize: 32,
-            color: '#ffff00',
-            stroke: '#000000',
-            strokeThickness: 4,
-            align: 'center'
-        }).setOrigin(0.5).setDepth(DEPTHS.UI_TEXT);
-
-        // Weapon description
-        this.add.text(512, 510, 'Standard blaster with balanced damage and fire rate', {
-            fontFamily: 'Arial',
-            fontSize: 22,
-            color: '#ffffff',
-            stroke: '#000000',
-            strokeThickness: 3,
-            align: 'center'
-        }).setOrigin(0.5).setDepth(DEPTHS.UI_TEXT);
-
-        // Create a preview of the weapon bullet
-        this.add.circle(512, 560, 8, 0xffff00)
-            .setStrokeStyle(2, 0xffffff)
-            .setDepth(DEPTHS.UI_ELEMENTS);
 
         // Start game button
         const startButton = this.add.rectangle(512, 650, 300, 70, 0x39C66B)

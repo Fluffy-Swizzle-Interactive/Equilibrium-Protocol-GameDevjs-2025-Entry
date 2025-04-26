@@ -39,6 +39,7 @@ export class Preloader extends Scene
 
         this.load.image('logo', 'assets/images/logo.png');
         this.load.image('background', 'assets/images/bg.png');
+        this.load.image('intro_card', 'assets/images/intro_card.png');
 
         // Load bullet sprite
         this.load.image('bullet', 'assets/sprites/BULLETS/bullet_7.png');
