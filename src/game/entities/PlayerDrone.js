@@ -53,18 +53,42 @@ export class PlayerDrone {
      * @param {number} y - Initial y position
      */
     initGraphics(x, y) {
-        // Use testplayer sprite for drone as specified
-        if (this.scene.textures.exists('testplayer')) {
-            this.graphics = this.scene.add.sprite(x, y, 'testplayer');
+        // Use drone sprite atlas for our drone
+        if (this.scene.textures.exists('drone')) {
+            this.graphics = this.scene.add.sprite(x, y, 'drone');
             
-            // Scale to an appropriate size (drones should be smaller than player)
-            this.graphics.setScale(0.05);
+            // Create drone animation if it doesn't exist
+            if (!this.scene.anims.exists('drone_hover')) {
+                this.scene.anims.create({
+                    key: 'drone_hover',
+                    frames: this.scene.anims.generateFrameNames('drone', {
+                        prefix: 'drone_',
+                        start: 0,
+                        end: 5,
+                        suffix: '.png'
+                    }),
+                    frameRate: 12,
+                    repeat: -1
+                });
+            }
+            
+            // Play the hover animation
+            this.graphics.play('drone_hover');
+            
+            // Scale to an appropriate size (increased by 75% from 0.5)
+            this.graphics.setScale(0.875);
             
             // Use appropriate depth to appear below player but above bullets
             this.graphics.setDepth(DEPTHS.PLAYER - 1);
         } else {
-            // Fallback to a simple circle if texture not available
-            this.graphics = this.scene.add.circle(x, y, this.radius, 0x00ffff);
+            // Fallback to testplayer sprite if drone texture not available
+            if (this.scene.textures.exists('testplayer')) {
+                this.graphics = this.scene.add.sprite(x, y, 'testplayer');
+                this.graphics.setScale(0.05);
+            } else {
+                // Fallback to a simple circle if no textures available
+                this.graphics = this.scene.add.circle(x, y, this.radius, 0x00ffff);
+            }
             this.graphics.setDepth(DEPTHS.PLAYER - 1);
         }
         
