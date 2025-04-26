@@ -145,11 +145,23 @@ export class Boss1 extends BaseEnemy {
             
             // Visual indicator for attack start
             if (this.sprite) {
+                // Check if animation exists before trying to play it
+                const attackAnimKey = pattern.name === 'charge' ? `${this.type}_run` : `${this.type}_attack`;
+                
                 if (this.scene.textures.exists(this.type) && 
-                    this.scene.anims.exists(`${this.type}_attack`)) {
-                    this.sprite.play(`${this.type}_attack`);
+                    this.scene.anims.exists(attackAnimKey) &&
+                    this.scene.anims.get(attackAnimKey).frames.length > 0) {
+                    try {
+                        this.sprite.play(attackAnimKey);
+                    } catch(e) {
+                        console.warn(`Failed to play animation '${attackAnimKey}': ${e.message}`);
+                        // Fallback to just setting the tint without animation
+                        this.sprite.setTint(0xffff00);
+                    }
+                } else {
+                    // Just set tint if animation doesn't exist
+                    this.sprite.setTint(0xffff00); // Yellow tint when charging attack
                 }
-                this.sprite.setTint(0xffff00); // Yellow tint when charging attack
             } else if (this.graphics) {
                 this.graphics.setStrokeStyle(2, 0xffff00);
             }
@@ -174,7 +186,16 @@ export class Boss1 extends BaseEnemy {
                 
                 if (this.sprite) {
                     this.sprite.clearTint();
-                    this.sprite.play(`${this.type}_idle`);
+                    // Check if idle animation exists before trying to play it
+                    const idleAnimKey = `${this.type}_idle`;
+                    if (this.scene.anims.exists(idleAnimKey) &&
+                        this.scene.anims.get(idleAnimKey).frames.length > 0) {
+                        try {
+                            this.sprite.play(idleAnimKey);
+                        } catch(e) {
+                            console.warn(`Failed to play animation '${idleAnimKey}': ${e.message}`);
+                        }
+                    }
                 } else if (this.graphics) {
                     this.graphics.setStrokeStyle(0); // Remove visual indicator
                 }
@@ -264,7 +285,11 @@ export class Boss1 extends BaseEnemy {
                 // Play charge/run animation if available
                 if (this.scene.anims.exists(`${this.type}_run`)) {
                     this.sprite.play(`${this.type}_run`, true);
-                    this.sprite.anims.setTimeScale(2); // Speed up animation
+                    
+                    // Only attempt to set time scale if the anims object and method exists
+                    if (this.sprite.anims && typeof this.sprite.anims.setTimeScale === 'function') {
+                        this.sprite.anims.setTimeScale(2); // Speed up animation
+                    }
                 }
             } else {
                 this.graphics.setFillStyle(0xff0000);
@@ -281,7 +306,10 @@ export class Boss1 extends BaseEnemy {
             this.chargeDirection = null;
             if (this.sprite) {
                 this.sprite.clearTint();
-                this.sprite.anims.setTimeScale(1); // Reset animation speed
+                // Only attempt to reset time scale if the anims object and method exists
+                if (this.sprite.anims && typeof this.sprite.anims.setTimeScale === 'function') {
+                    this.sprite.anims.setTimeScale(1); // Reset animation speed
+                }
             } else if (this.graphics) {
                 this.graphics.setFillStyle(this.color);
             }
@@ -346,6 +374,26 @@ export class Boss1 extends BaseEnemy {
      */
     spawnProjectile(playerPos) {
         const visual = this.sprite || this.graphics;
+        
+        // Play shoot animation if available - with better error handling
+        if (this.sprite) {
+            const shootAnimKey = `${this.type}_shoot`;
+            // Verify the animation exists AND has frames before trying to play it
+            if (this.scene.anims.exists(shootAnimKey) && 
+                this.scene.anims.get(shootAnimKey) && 
+                this.scene.anims.get(shootAnimKey).frames && 
+                this.scene.anims.get(shootAnimKey).frames.length > 0) {
+                try {
+                    // Only change animation if not already playing death animation
+                    if (!this.sprite.anims.isPlaying || this.sprite.anims.currentAnim?.key !== `${this.type}_death`) {
+                        this.sprite.play(shootAnimKey);
+                    }
+                } catch(e) {
+                    console.warn(`Failed to play ${shootAnimKey} animation: ${e.message}`);
+                    // Continue with projectile spawn even if animation fails
+                }
+            }
+        }
         
         // Calculate direction to player
         const dx = playerPos.x - visual.x;

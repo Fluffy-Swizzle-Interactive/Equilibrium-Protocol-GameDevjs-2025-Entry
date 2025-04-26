@@ -64,6 +64,23 @@ export class GroupManager {
             return null;
         }
         
+        // Get WaveManager reference if available
+        const waveManager = this.scene.waveManager;
+        
+        // Check if this enemy was already registered with another group
+        const previousGroup = enemy._groupId;
+        if (previousGroup && previousGroup !== groupId) {
+            // Move enemy from one group to another
+            this.deregister(enemy, previousGroup);
+        } else if (!previousGroup && waveManager) {
+            // If this is a completely new enemy (not previously registered) and
+            // if it wasn't created by the WaveManager itself, count it as an external spawn
+            if (!enemy._registeredWithWaveManager && typeof waveManager.registerExternalEnemySpawn === 'function') {
+                waveManager.registerExternalEnemySpawn(1);
+                enemy._registeredWithWaveManager = true;
+            }
+        }
+        
         // Update counts
         this.counts[groupId]++;
         
@@ -71,6 +88,9 @@ export class GroupManager {
         if (!this.enemiesByGroup[groupId].includes(enemy)) {
             this.enemiesByGroup[groupId].push(enemy);
         }
+        
+        // Store group ID directly on the enemy for easier lookup
+        enemy._groupId = groupId;
         
         // Apply group-specific modifiers
         const modifiers = this.applyModifiers(enemy, groupId);

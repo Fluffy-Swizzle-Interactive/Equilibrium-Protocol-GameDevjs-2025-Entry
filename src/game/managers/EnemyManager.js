@@ -202,6 +202,12 @@ export class EnemyManager {
             enemy.setGroup(options.groupId);
         }
         
+        // Mark this enemy as tracked by the WaveManager if it's created through normal spawning
+        // This prevents double counting by both GroupManager and WaveManager
+        if (enemy && !options.externalSpawn) {
+            enemy._registeredWithWaveManager = true;
+        }
+        
         return enemy;
     }
     
@@ -499,13 +505,18 @@ export class EnemyManager {
      * @param {BaseEnemy} enemy - The enemy to release
      */
     releaseEnemy(enemy) {
+        if (!enemy) {
+            console.warn('Attempted to release null or undefined enemy');
+            return;
+        }
+        
         // Remove from tracking array
         const index = this.enemies.indexOf(enemy);
         if (index !== -1) {
             this.enemies.splice(index, 1);
             
             // Notify WaveManager of this removal if it hasn't already been counted via onEnemyKilled
-            if (!enemy.killCounted && this.scene.waveManager) {
+            if (this.scene.waveManager && !enemy.killCounted) {
                 // Determine if this is a boss
                 const isBoss = enemy.isBossEnemy ? enemy.isBossEnemy() : enemy.type.includes('boss');
                 
@@ -515,6 +526,11 @@ export class EnemyManager {
                 // Mark as counted
                 enemy.killCounted = true;
             }
+        }
+        
+        // Deregister from group if applicable
+        if (enemy.groupId && this.scene.groupManager) {
+            this.scene.groupManager.deregister(enemy, enemy.groupId);
         }
         
         // Release back to appropriate pool based on type

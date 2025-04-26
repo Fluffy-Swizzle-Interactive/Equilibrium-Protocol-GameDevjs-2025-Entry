@@ -574,4 +574,40 @@ export class BaseEnemy {
     isBossEnemy() {
         return this.type.includes('boss');
     }
+
+    /**
+     * Destroy this enemy instance and clean up resources
+     * This ensures all references are properly cleaned up to prevent memory leaks
+     * and counting issues
+     */
+    destroy() {
+        // Mark as inactive
+        this.active = false;
+        
+        // If we have a group ID, deregister from GroupManager
+        if (this.groupId && this.scene.groupManager) {
+            this.scene.groupManager.deregister(this, this.groupId);
+            this.groupId = null;
+        }
+        
+        // Destroy visual components if they exist
+        if (this.sprite) {
+            this.sprite.destroy();
+            this.sprite = null;
+        }
+        
+        if (this.graphics) {
+            this.graphics.destroy();
+            this.graphics = null;
+        }
+        
+        // Clean up healthbar
+        this.cleanupHealthBar();
+        
+        // Nullify references
+        this._originalStats = null;
+        
+        // Emit destroyed event
+        EventBus.emit('enemy-destroyed', { enemy: this });
+    }
 }

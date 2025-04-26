@@ -191,14 +191,29 @@ export class ChaosManager {
     }
     
     /**
-     * Trigger a dramatic faction surge in the weight manager
+     * Trigger a faction surge in the weight manager
      * @param {String} factionId - The faction to trigger a surge for
      */
     triggerFactionSurge(factionId) {
         if (!this.groupWeightManager) return;
         
+        // Get WaveManager reference to track any extra spawns
+        const waveManager = this.scene.waveManager;
+        
+        // Calculate potential surge enemies (1-3 extra enemies)
+        const surgeEnemiesCount = Math.floor(Math.random() * 3) + 1;
+        
         // Temporarily boost the enemy spawn rate for the target faction
         this.groupWeightManager.temporaryBoost(factionId, 3.0, 10000);
+        
+        // Register these potential enemy spawns with WaveManager
+        if (waveManager && typeof waveManager.registerExternalEnemySpawn === 'function') {
+            waveManager.registerExternalEnemySpawn(surgeEnemiesCount);
+            
+            if (this.isDev) {
+                console.debug(`[ChaosManager] Registered ${surgeEnemiesCount} surge enemies with WaveManager`);
+            }
+        }
         
         // Emit event for UI notifications
         if (this.scene.events) {

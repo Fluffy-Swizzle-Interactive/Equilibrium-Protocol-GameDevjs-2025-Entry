@@ -62,6 +62,10 @@ export class GroupWeightManager {
         // Flag to enable/disable dynamic weight adjustment
         this.dynamicAdjustment = true;
         
+        // Add min/max weight caps to prevent extreme imbalances
+        this.minWeight = options.minWeight || 15;
+        this.maxWeight = options.maxWeight || 500; // Add reasonable maximum cap
+        
         // Log initialization
         if (this.isDev) {
             console.debug('GroupWeightManager initialized with randomized weights:', this.groupWeights);
@@ -91,12 +95,12 @@ export class GroupWeightManager {
      * @param {Number} weight - The weight value to set
      */
     setWeight(groupId, weight) {
-        // Ensure weight is at least 1
-        this.groupWeights[groupId] = Math.max(1, weight);
+        // Ensure weight is within bounds
+        this.groupWeights[groupId] = Math.max(this.minWeight, Math.min(this.maxWeight, weight));
         this.totalWeight = this.calculateTotalWeight();
         
         if (this.isDev) {
-            console.debug(`Set weight for group ${groupId} to ${weight}. New total: ${this.totalWeight}`);
+            console.debug(`Set weight for group ${groupId} to ${this.groupWeights[groupId]}. New total: ${this.totalWeight}`);
         }
     }
 
@@ -106,7 +110,7 @@ export class GroupWeightManager {
      */
     setWeights(weights) {
         for (const [groupId, weight] of Object.entries(weights)) {
-            this.groupWeights[groupId] = Math.max(1, weight);
+            this.groupWeights[groupId] = Math.max(this.minWeight, Math.min(this.maxWeight, weight));
         }
         this.totalWeight = this.calculateTotalWeight();
     }
@@ -269,8 +273,9 @@ export class GroupWeightManager {
                 // Calculate adjustment - more moderate than before
                 const adjustment = direction * imbalanceFactor * this.volatility * 100; // Reduced for more gradual changes
                 
-                // Apply adjustment with minimum weight
-                this.groupWeights[groupId] = Math.max(15, this.groupWeights[groupId] + adjustment);
+                // Apply adjustment with minimum and maximum weight caps
+                const newWeight = this.groupWeights[groupId] + adjustment;
+                this.groupWeights[groupId] = Math.max(this.minWeight, Math.min(this.maxWeight, newWeight));
             }
         }
         
@@ -313,19 +318,25 @@ export class GroupWeightManager {
      * @param {String} groupId - The group to boost
      * @param {Number} multiplier - How much to boost by (e.g., 2.0 = double)
      * @param {Number} duration - How long the boost lasts in ms
+     * @returns {Number} Estimated number of extra spawns this boost will create
      */
     temporaryBoost(groupId, multiplier = 2.0, duration = 5000) {
-        if (!this.groupWeights[groupId]) return;
+        if (!this.groupWeights[groupId]) return 0;
         
         const originalWeight = this.groupWeights[groupId];
-        const boostedWeight = originalWeight * multiplier;
+        const boostedWeight = Math.min(this.maxWeight, originalWeight * multiplier);
         
         // Apply boost
         this.groupWeights[groupId] = boostedWeight;
         this.totalWeight = this.calculateTotalWeight();
         
+        // Estimate additional enemies that might spawn from this boost
+        // This is a rough estimate based on the boost multiplier and duration
+        const estimatedExtraSpawns = Math.floor((multiplier - 1) * (duration / 1000));
+        
         if (this.isDev) {
             console.debug(`Temporary boost applied to ${groupId}: ${originalWeight} → ${boostedWeight} for ${duration}ms`);
+            console.debug(`Estimated extra spawns from boost: ${estimatedExtraSpawns}`);
         }
         
         // Schedule reversion
@@ -339,6 +350,9 @@ export class GroupWeightManager {
                 }
             }
         });
+        
+        // Return the estimated extra spawns for integration with WaveManager
+        return estimatedExtraSpawns;
     }
 
     /**

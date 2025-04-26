@@ -577,6 +577,30 @@ export class WaveGame extends Scene {
                 frameRate: 10,
                 repeat: 0
             });
+            
+            this.anims.create({
+                key: 'boss1_run',
+                frames: this.anims.generateFrameNames('boss1', {
+                    prefix: 'boss1_run_',
+                    suffix: '.png',
+                    start: 0,
+                    end: 5
+                }),
+                frameRate: 12,
+                repeat: -1
+            });
+            
+            this.anims.create({
+                key: 'boss1_shoot',
+                frames: this.anims.generateFrameNames('boss1', {
+                    prefix: 'boss1_shoot_',
+                    suffix: '.png',
+                    start: 0,
+                    end: 4
+                }),
+                frameRate: 14,
+                repeat: 0
+            });
 
             this.anims.create({
                 key: 'boss1_death',
@@ -874,6 +898,37 @@ export class WaveGame extends Scene {
 
         // Set up spacebar for pause
         this.pauseKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+        
+        // DEV ONLY: Add debug key "V" to force verification of enemy counts
+        if (this.isDev) {
+            this.input.keyboard.addKey('V').on('down', () => {
+                if (this.waveManager) {
+                    console.log('[DEBUG] Manually triggering enemy count verification');
+                    this.waveManager.verifyEnemyCount();
+                }
+            });
+            
+            // Add debug key "F" to force wave completion
+            this.input.keyboard.addKey('F').on('down', () => {
+                if (this.waveManager && this.waveManager.isWaveActive) {
+                    console.log('[DEBUG] Manually forcing wave completion');
+                    this.waveManager.completeWave();
+                }
+            });
+            
+            // Add debug key "C" to debug and print all current enemies
+            this.input.keyboard.addKey('C').on('down', () => {
+                if (this.enemyManager) {
+                    console.log('[DEBUG] Current enemies:', this.enemyManager.enemies.length);
+                    this.enemyManager.enemies.forEach((enemy, i) => {
+                        console.log(`Enemy ${i}:`, enemy.type, enemy.groupId, 
+                                    'active:', enemy.active, 
+                                    'position:', enemy.graphics ? 
+                                        {x: enemy.graphics.x, y: enemy.graphics.y} : 'no graphics');
+                    });
+                }
+            });
+        }
     }
 
     /**
@@ -1287,7 +1342,9 @@ export class WaveGame extends Scene {
     onEnemyKilled(isBoss, x, y, enemyType, enemy) {
         // Skip if this enemy has already been counted
         if (enemy && enemy.killCounted) {
-            console.log(`Skipping already counted enemy: ${enemyType}`);
+            if (this.isDev) {
+                console.debug(`[WaveGame] Skipping already counted enemy: ${enemyType}`);
+            }
             return;
         }
         
@@ -1297,7 +1354,9 @@ export class WaveGame extends Scene {
         }
         
         // Debug logging to track kill events
-        console.log(`Enemy killed: ${enemyType}, isBoss: ${isBoss}, at position: ${x},${y}`);
+        if (this.isDev) {
+            console.debug(`[WaveGame] Enemy killed: ${enemyType}, isBoss: ${isBoss}, at position: ${x},${y}`);
+        }
         
         // Increment total kill count
         this.killCount++;
@@ -1353,7 +1412,7 @@ export class WaveGame extends Scene {
             this.regularKillCount++;
         }
 
-        // IMPORTANT: Register kill with ChaosManager
+        // Register kill with ChaosManager
         if (this.chaosManager) {
             // Look up the enemy by position in the enemy manager, since we might not have the actual enemy object
             const deadEnemy = this.findEnemyByPosition(x, y, enemyType);
@@ -1371,6 +1430,10 @@ export class WaveGame extends Scene {
         // IMPORTANT: Notify the WaveManager about the killed enemy
         if (this.waveManager) {
             this.waveManager.onEnemyKilled(isBoss, enemyType);
+            
+            // Manually verify enemy count after each kill to ensure wave progression
+            // This adds resiliency to the wave completion system
+            this.waveManager.verifyEnemyCount();
         }
     }
 

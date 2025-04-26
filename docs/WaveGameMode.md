@@ -363,6 +363,38 @@ completeAllWaves() {
 }
 ```
 
+### Wave Completion Logic
+
+The WaveManager uses a flexible approach to determine when a wave is complete:
+
+```javascript
+// In WaveManager.js - verifyEnemyCount method
+// Check if the target number of enemies has been surpassed (not requiring exact count)
+const enemySpawnThresholdMet = this.enemiesSpawned >= this.enemiesToSpawn;
+
+// Check if the wave should be completed
+if (enemySpawnThresholdMet && this.activeEnemies === 0) {
+    if (isBossWave) {
+        // For boss wave, ensure both regular enemies and boss are defeated
+        if (this.activeBosses === 0) {
+            this.completeWave();
+        }
+    } else {
+        // For regular waves, all enemies must be defeated
+        this.completeWave();
+    }
+}
+```
+
+This flexible completion logic ensures:
+
+1. **Threshold-based completion**: Wave ends when we've spawned *at least* the required number of enemies (not requiring an exact match)
+2. **All enemies defeated**: All active enemies must be defeated for the wave to end
+3. **Boss wave handling**: For boss waves, both regular enemies and the boss must be defeated
+4. **Resiliency**: The system handles unexpected additional enemies from external systems
+
+This approach makes the wave system more robust when integrated with other systems that might spawn additional enemies.
+
 ## UI Integration
 
 The wave mode integrates with the UI to show wave information:
@@ -802,6 +834,153 @@ updateGameObjects() {
     // Update other game objects...
 }
 ```
+
+## Integration with Enemy Management Systems
+
+### External Enemy Spawning
+
+The wave system properly integrates with other managers that can spawn enemies:
+
+```javascript
+// In WaveManager.js
+/**
+ * Register enemies that are spawned by external systems
+ * This method allows systems like FactionBattleManager to notify WaveManager
+ * about enemies they spawn outside normal wave spawning
+ * 
+ * @param {number} count - Number of enemies spawned externally
+ */
+registerExternalEnemySpawn(count) {
+    if (typeof count !== 'number' || count <= 0) return;
+    
+    // Track these as part of our spawn counts
+    this.enemiesSpawned += count;
+    this.activeEnemies += count;
+    
+    if (this.scene.isDev) {
+        console.debug(`[WaveManager] Registered ${count} external enemy spawns. New totals: Spawned=${this.enemiesSpawned}, Active=${this.activeEnemies}`);
+    }
+}
+```
+
+Systems that spawn enemies externally (such as FactionBattleManager and ChaosManager) call this method to ensure proper tracking:
+
+```javascript
+// Example from FactionBattleManager
+triggerFactionSurge(factionId) {
+    if (!this.groupWeightManager) return;
+    
+    // Get WaveManager reference to track any extra spawns
+    const waveManager = this.scene.waveManager;
+    
+    // Calculate potential surge enemies
+    const surgeEnemiesCount = Math.floor(Math.random() * 3) + 1; // 1-3 enemies
+    
+    // Register these potential enemy spawns with WaveManager
+    if (waveManager && typeof waveManager.registerExternalEnemySpawn === 'function') {
+        waveManager.registerExternalEnemySpawn(surgeEnemiesCount);
+    }
+    
+    // Continue with faction surge logic...
+}
+```
+
+This ensures that all enemies are properly tracked in the wave system, regardless of which manager spawned them.
+
+### Enemy Count Verification
+
+To prevent waves from getting stuck due to inconsistent enemy counts, the WaveManager periodically verifies its internal tracking against the actual number of enemies in the scene:
+
+```javascript
+verifyEnemyCount() {
+    if (!this.scene.enemyManager || !this.isWaveActive) return;
+    
+    // Get the actual count from enemy manager
+    const actualEnemyCount = this.scene.enemyManager.getEnemyCount();
+    const actualBossCount = this.scene.enemyManager.getEnemyCount('boss1');
+    
+    // If there's a mismatch, update our tracking to match reality
+    if (actualEnemyCount !== this.activeEnemies || actualBossCount !== this.activeBosses) {
+        // Update our tracking to match reality
+        this.activeEnemies = actualEnemyCount;
+        this.activeBosses = actualBossCount;
+    }
+    
+    // Check if wave should complete
+    // ...
+}
+```
+
+This mechanism ensures accurate enemy counting and proper wave progression.
+
+## End of Wave Shop Integration
+
+The wave system is designed to integrate seamlessly with the shop system between waves. This integration happens automatically through:
+
+1. Event-based communication via `EventBus`
+2. Direct callback registration via the WaveManager
+
+### Event-Based Integration
+
+When a wave is completed, the WaveManager emits both scene events and EventBus events:
+
+```javascript
+// In WaveManager.js - completeWave method
+completeWave() {
+    // Mark wave as complete
+    this.isWaveActive = false;
+    
+    // ...other code...
+    
+    // Emit wave completed event on both scene events and EventBus
+    const eventData = {
+        wave: this.currentWave,
+        isLastWave
+    };
+    
+    this.scene.events.emit('wave-completed', eventData);
+    
+    // Also emit on EventBus to ensure ShopManager receives it
+    EventBus.emit('wave-completed', eventData);
+}
+```
+
+The ShopManager listens for these events:
+
+```javascript
+// In ShopManager.js
+constructor(scene, player, weapon, rng) {
+    // ...other initialization...
+    
+    // Listen for wave completed events
+    EventBus.on('wave-completed', this.onWaveCompleted);
+}
+```
+
+### Direct Callback Registration
+
+For more robust integration, systems like the ShopManager can register callbacks directly with the WaveManager:
+
+```javascript
+// In ShopManager.js
+constructor(scene, player, weapon, rng) {
+    // ...other initialization...
+    
+    // Direct integration with WaveManager
+    if (scene.waveManager) {
+        scene.waveManager.registerEndOfRoundCallback(this.onWaveCompleted);
+    }
+    
+    // Clean up when scene is destroyed
+    this.scene.events.once('shutdown', () => {
+        if (this.scene.waveManager) {
+            this.scene.waveManager.unregisterEndOfRoundCallback(this.onWaveCompleted);
+        }
+    });
+}
+```
+
+This ensures the shop is displayed at the end of each wave, allowing players to spend their earned currency on upgrades before proceeding to the next wave.
 
 ---
 

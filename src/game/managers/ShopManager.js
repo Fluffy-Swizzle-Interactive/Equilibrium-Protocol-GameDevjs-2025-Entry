@@ -33,9 +33,17 @@ export default class ShopManager {
     // Listen for wave completed events to update the next wave button
     EventBus.on('wave-completed', this.onWaveCompleted);
 
+    // Direct integration with WaveManager for round end
+    if (scene.waveManager) {
+      scene.waveManager.registerEndOfRoundCallback(this.onWaveCompleted);
+    }
+
     // Clean up event listeners when scene is destroyed
     this.scene.events.once('shutdown', () => {
       EventBus.off('wave-completed', this.onWaveCompleted);
+      if (this.scene.waveManager) {
+        this.scene.waveManager.unregisterEndOfRoundCallback(this.onWaveCompleted);
+      }
     });
 
     // For debugging: Log when the shop manager is initialized

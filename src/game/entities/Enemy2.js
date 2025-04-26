@@ -96,7 +96,10 @@ export class Enemy2 extends BaseEnemy {
                 if (this.sprite) {
                     // Play run animation at faster rate during dash
                     this.sprite.play('enemy2_run', true);
-                    this.sprite.anims.setTimeScale(2); // Speed up animation
+                    // Use frameRate instead of setTimeScale to control animation speed
+                    if (this.sprite.anims && this.sprite.anims.currentAnim) {
+                        this.sprite.anims.currentAnim.frameRate = 20; // Increase frame rate for faster animation
+                    }
                     this.sprite.setTint(0xff0000); // Red during dash
                 } else if (this.graphics) {
                     this.graphics.setFillStyle(0xff0000); // Red during dash
@@ -127,7 +130,10 @@ export class Enemy2 extends BaseEnemy {
                 this.dashCooldown = currentTime + this.dashCooldownTime;
                 
                 if (this.sprite) {
-                    this.sprite.anims.setTimeScale(1); // Reset animation speed
+                    // Reset animation speed using frameRate
+                    if (this.sprite.anims && this.sprite.anims.currentAnim) {
+                        this.sprite.anims.currentAnim.frameRate = 10; // Reset to normal frame rate
+                    }
                     this.sprite.clearTint();
                     // Return to idle animation after dash
                     this.sprite.play('enemy2_idle', true);
