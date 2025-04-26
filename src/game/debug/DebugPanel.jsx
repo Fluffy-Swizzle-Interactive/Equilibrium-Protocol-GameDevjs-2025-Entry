@@ -313,6 +313,17 @@ export function DebugPanel({ gameRef }) {
         }
     };
 
+    const showVictoryUI = () => {
+        const scene = gameRef.current?.scene;
+        if (scene && scene.uiManager) {
+            // Call the showVictoryUI method on the UIManager
+            scene.uiManager.showVictoryUI();
+            console.log('Debug: Victory UI shown');
+        } else {
+            console.warn('UIManager not found in current scene');
+        }
+    };
+
     const executeDebugAction = (action, e) => {
         const button = e.target;
         const originalBg = button.style.backgroundColor;
@@ -469,7 +480,8 @@ export function DebugPanel({ gameRef }) {
                 {renderActionButton("Add XP (50)", addXP)}
                 {renderActionButton("Add Cash ($100)", addCash)}
                 {renderActionButton("Toggle Chaos", switchChaos)}
-                {renderActionButton("Increase Fire Rate", increaseFireRate)} {/* New Button */}
+                {renderActionButton("Increase Fire Rate", increaseFireRate)}
+                {renderActionButton("Show Victory UI", showVictoryUI)}
             </>, "actions")}
         </div>
     );

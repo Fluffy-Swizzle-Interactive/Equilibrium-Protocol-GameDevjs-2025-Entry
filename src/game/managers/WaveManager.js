@@ -20,6 +20,8 @@ export class WaveManager {
         this.baseEnemyCount = options.baseEnemyCount || 20;
         this.enemyCountGrowth = options.enemyCountGrowth || 1.2;
         this.bossWaveInterval = options.bossWaveInterval || 5;
+        // Add a maximum cap on enemies per wave to prevent excessive numbers
+        this.maxEnemiesPerWave = options.maxEnemiesPerWave || 500;
 
         // Wave state
         this.isPaused = false;
@@ -129,8 +131,17 @@ export class WaveManager {
             this.hasBoss = false;
         }
 
+        // Clamp enemy count to maximum allowed
+        enemyCount = Math.min(enemyCount, this.maxEnemiesPerWave);
+
         // Set the number of enemies to spawn this wave
         this.enemiesToSpawn = enemyCount;
+        
+        // Log information about the wave in dev mode
+        if (this.scene.isDev) {
+            console.debug(`[WaveManager] Wave ${this.currentWave} calculated enemy count: ${enemyCount} (capped at ${this.maxEnemiesPerWave})`);
+            console.debug(`[WaveManager] Raw count before cap: ${Math.round(this.baseEnemyCount * Math.pow(this.enemyCountGrowth, this.currentWave - 1))}`);
+        }
     }
 
     /**
