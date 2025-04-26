@@ -15,7 +15,7 @@ This documentation is organized into modular sections for easier navigation and 
 
 ### Core Systems
 
-- [Architecture](Architecture.md) - System architecture and project structure
+- [Architecture](/docs/Architecture.md) - System architecture and project structure
 - [Game Entities](GameEntities.md) - Player, enemies, and other game objects
 - [Game Mechanics](GameMechanics.md) - Core gameplay systems and interactions
 - [Scene Transitions](SceneTransitions.md) - Scene flow and transition screens
