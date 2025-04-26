@@ -176,6 +176,12 @@ export class WaveGame extends Scene {
             rate: 1.0
         });
 
+        // Initialize explosion sound effect for explosive shots (with reduced volume)
+        this.soundManager.initSoundEffect('explosion', {
+            volume: 0.15, // Reduced volume to make explosions quieter
+            rate: 1.0
+        });
+
         // Initialize wave end sound effects (7 variations)
         for (let i = 1; i <= 7; i++) {
             this.soundManager.initSoundEffect(`waveEnd${i}`, {
@@ -1300,10 +1306,19 @@ export class WaveGame extends Scene {
                             // Damage enemy with bullet's damage value (potentially critical)
                             if (enemyGraphics.parentEnemy && typeof enemyGraphics.parentEnemy.takeDamage === 'function') {
                                 enemyGraphics.parentEnemy.takeDamage(finalDamage);
+
+                                // Check if bullet has AOE properties and create explosion
+                                if (bullet.aoeRadius && bullet.aoeDamage) {
+                                    this.createExplosion(bullet.x, bullet.y, bullet.aoeRadius, bullet.damage * bullet.aoeDamage);
+                                }
                             }
 
                             // Reduce bullet health/pierce
-                            if (bullet.health !== undefined) {
+                            if (bullet.aoeRadius && bullet.aoeDamage) {
+                                // Explosive bullets always destroy after one hit
+                                bullet.health = 0;
+                                bullet.pierce = 0;
+                            } else if (bullet.health !== undefined) {
                                 bullet.health--;
                             } else if (bullet.pierce !== undefined) {
                                 bullet.pierce--;
@@ -1672,6 +1687,226 @@ export class WaveGame extends Scene {
                 this.time.delayedCall(300, () => {
                     particles.destroy();
                 });
+            });
+        }
+    }
+
+    /**
+     * Create an explosion effect that damages enemies in an area
+     * @param {number} x - X position of the explosion center
+     * @param {number} y - Y position of the explosion center
+     * @param {number} radius - Radius of the explosion
+     * @param {number} damage - Amount of damage to deal to enemies in the area
+     */
+    createExplosion(x, y, radius, damage) {
+        // Skip if no enemy manager
+        if (!this.enemyManager) return;
+
+        // Create visual explosion effect
+        this.createExplosionVisual(x, y, radius);
+
+        // Play explosion sound (with reduced volume)
+        if (this.soundManager) {
+            this.soundManager.playSoundEffect('explosion', {
+                volume: 0.15, // Reduced from 0.4 to make it quieter
+                detune: Phaser.Math.Between(-300, 300)
+            });
+        }
+
+        // Get all active enemies
+        const activeEnemies = this.enemyManager.enemies;
+        if (!activeEnemies || activeEnemies.length === 0) return;
+
+        // Debug visualization of explosion radius in development mode
+        if (this.isDev) {
+            const debugCircle = this.add.circle(x, y, radius, 0xff0000, 0.2);
+            debugCircle.setStrokeStyle(2, 0xff0000, 0.8);
+            debugCircle.setDepth(DEPTHS.BULLETS + 20);
+
+            // Auto-destroy after a short time
+            this.time.delayedCall(300, () => {
+                debugCircle.destroy();
+            });
+        }
+
+        // Track how many enemies were damaged for debugging
+        let enemiesDamaged = 0;
+
+        // Check each enemy for distance to explosion
+        for (const enemy of activeEnemies) {
+            // Skip inactive enemies or enemies without graphics
+            if (!enemy || !enemy.active || !enemy.graphics || !enemy.graphics.active) continue;
+
+            // Calculate distance to enemy
+            const dx = enemy.graphics.x - x;
+            const dy = enemy.graphics.y - y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+
+            // If enemy is within explosion radius, damage it
+            if (distance <= radius) {
+                // Calculate damage falloff based on distance (full damage at center, less at edges)
+                const falloff = 1 - (distance / radius);
+                const explosionDamage = Math.max(1, Math.floor(damage * falloff));
+
+                // Apply damage to enemy
+                if (typeof enemy.takeDamage === 'function') {
+                    enemy.takeDamage(explosionDamage);
+                    enemiesDamaged++;
+
+                    // Create small hit effect on each affected enemy
+                    this.createExplosionHitEffect(enemy.graphics.x, enemy.graphics.y);
+                }
+            }
+        }
+
+        // Log how many enemies were damaged in development mode
+        if (this.isDev && enemiesDamaged > 0) {
+            console.debug(`Explosion at (${Math.floor(x)},${Math.floor(y)}) with radius ${radius} damaged ${enemiesDamaged} enemies`);
+        }
+    }
+
+    /**
+     * Create visual explosion effect
+     * @param {number} x - X position of the explosion
+     * @param {number} y - Y position of the explosion
+     * @param {number} radius - Radius of the explosion
+     */
+    createExplosionVisual(x, y, radius) {
+        // Create a circle to represent the explosion area
+        const explosionCircle = this.add.circle(x, y, radius, 0xffaa00, 0.4);
+        explosionCircle.setStrokeStyle(3, 0xff6600, 0.7); // Add a stroke to make the radius more visible
+        explosionCircle.setDepth(DEPTHS.BULLETS - 1);
+
+        // Create a smaller, brighter inner circle for the explosion core
+        const innerCircle = this.add.circle(x, y, radius * 0.5, 0xffff00, 0.7);
+        innerCircle.setDepth(DEPTHS.BULLETS);
+
+        // Animate the explosion circles
+        this.tweens.add({
+            targets: explosionCircle,
+            alpha: 0,
+            scale: 1.3,
+            duration: 400, // Slightly longer duration to match damage application
+            ease: 'Power2',
+            onComplete: () => {
+                explosionCircle.destroy();
+            }
+        });
+
+        this.tweens.add({
+            targets: innerCircle,
+            alpha: 0,
+            scale: 1.8,
+            duration: 300,
+            ease: 'Power2',
+            onComplete: () => {
+                innerCircle.destroy();
+            }
+        });
+
+        // Create particle effect for the explosion
+        const particles = this.add.particles(x, y, 'particle_texture', {
+            speed: { min: 50, max: 250 },
+            scale: { start: 0.5, end: 0 },
+            alpha: { start: 1, end: 0 },
+            lifespan: 500,
+            blendMode: 'ADD',
+            quantity: 30, // More particles for a more dramatic effect
+            tint: [0xffff00, 0xff6600, 0xff4400],
+            angle: { min: 0, max: 360 }
+        });
+
+        // Create a shockwave ring effect
+        const shockwave = this.add.circle(x, y, 5, 0xffffff, 0.7);
+        shockwave.setDepth(DEPTHS.BULLETS + 5);
+
+        this.tweens.add({
+            targets: shockwave,
+            radius: radius * 1.2,
+            alpha: 0,
+            duration: 300,
+            ease: 'Cubic.Out',
+            onComplete: () => {
+                shockwave.destroy();
+            }
+        });
+
+        // Auto-destroy the emitter after it's done
+        particles.setDepth(DEPTHS.BULLETS + 10);
+        this.time.delayedCall(600, () => {
+            particles.destroy();
+        });
+    }
+
+    /**
+     * Create a small hit effect when an enemy is damaged by an explosion
+     * @param {number} x - X position of the hit
+     * @param {number} y - Y position of the hit
+     */
+    createExplosionHitEffect(x, y) {
+        // Create a small flash circle at the hit point
+        const hitFlash = this.add.circle(x, y, 10, 0xffffff, 0.8);
+        hitFlash.setDepth(DEPTHS.BULLETS + 15);
+
+        // Animate the flash
+        this.tweens.add({
+            targets: hitFlash,
+            alpha: 0,
+            scale: 1.5,
+            duration: 150,
+            ease: 'Power2',
+            onComplete: () => {
+                hitFlash.destroy();
+            }
+        });
+
+        // Create a small particle burst
+        const particles = this.add.particles(x, y, 'particle_texture', {
+            speed: { min: 30, max: 100 },
+            scale: { start: 0.3, end: 0 },
+            alpha: { start: 0.9, end: 0 },
+            lifespan: 250,
+            blendMode: 'ADD',
+            quantity: 8, // More particles for better visibility
+            tint: [0xff6600, 0xff8800], // Orange-yellow for fire effect
+            angle: { min: 0, max: 360 }
+        });
+
+        // Auto-destroy the emitter after it's done
+        particles.setDepth(DEPTHS.BULLETS + 5);
+        this.time.delayedCall(300, () => {
+            particles.destroy();
+        });
+
+        // Optional: Add a small damage number
+        if (Math.random() < 0.3) { // Only show for 30% of hits to avoid clutter
+            const damageText = this.add.text(
+                x + Phaser.Math.Between(-10, 10),
+                y - 15,
+                '!',
+                {
+                    fontFamily: 'Arial',
+                    fontSize: '16px',
+                    fontStyle: 'bold',
+                    color: '#ff8800',
+                    stroke: '#000000',
+                    strokeThickness: 2
+                }
+            );
+            damageText.setOrigin(0.5);
+            damageText.setDepth(DEPTHS.BULLETS + 20);
+
+            // Animate the text
+            this.tweens.add({
+                targets: damageText,
+                y: y - 30,
+                alpha: 0,
+                scale: 1.2,
+                duration: 300,
+                ease: 'Power1',
+                onComplete: () => {
+                    damageText.destroy();
+                }
             });
         }
     }

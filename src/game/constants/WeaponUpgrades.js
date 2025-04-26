@@ -154,11 +154,11 @@ export const WEAPON_UPGRADES = [
         id: 'area_1',
         name: '🔥 Explosive Rounds',
         category: UPGRADE_CATEGORIES.AREA,
-        rarity: RARITY.EPIC,
-        price: 200,
-        effects: 'Self Explanatory 💣',
+        rarity: RARITY.LEGENDARY,
+        price: 650,
+        effects: '+80 AoE -50% damage',
         stats: {
-            aoeRadius: 30, // Small explosion radius
+            aoeRadius: 80, // Small explosion radius
             aoeDamage: 0.5 // 50% of bullet damage
         },
         visualProperties: {
@@ -201,7 +201,7 @@ export const WEAPON_UPGRADES = [
         id: 'critical_damage_1',
         name: '💥 Critical Power',
         category: UPGRADE_CATEGORIES.CRITICAL,
-        rarity: RARITY.LEGENDARY,
+        rarity: RARITY.EPIC,
         price: 250,
         effects: '+50% Critical Damage',
         stats: {
@@ -433,8 +433,11 @@ export function getRandomWeaponUpgrades(count = 3, rng, playerLevel = 1) {
         if (upgradeCopy.isDroneUpgrade) {
             // Keep original rarity for drone upgrades
             randomRarity = upgradeCopy.rarity;
+        } else if (upgradeCopy.rarity.name === 'Epic' || upgradeCopy.rarity.name === 'Legendary') {
+            // Keep original rarity for EPIC and LEGENDARY upgrades
+            randomRarity = upgradeCopy.rarity;
         } else {
-            // Randomly assign a new rarity using weights for non-drone upgrades
+            // Only randomly assign a new rarity for COMMON and RARE upgrades
             const rarityValues = Object.values(RARITY);
 
             // Create a weighted pool for rarities

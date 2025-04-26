@@ -386,7 +386,10 @@ export class WeaponManager {
                 speed: this.bulletSpeed,
                 pierce: this.bulletPierce,
                 criticalChance: this.criticalHitChance,
-                criticalDamage: this.criticalDamageMultiplier
+                criticalDamage: this.criticalDamageMultiplier,
+                aoeRadius: this.bulletAoeRadius,
+                aoeDamage: this.bulletAoeDamage,
+                homing: this.bulletHoming
             }
         });
     }
@@ -413,6 +416,9 @@ export class WeaponManager {
             pierce: this.bulletPierce,
             criticalChance: this.criticalHitChance,
             criticalDamage: this.criticalDamageMultiplier,
+            aoeRadius: this.bulletAoeRadius,
+            aoeDamage: this.bulletAoeDamage,
+            homing: this.bulletHoming,
             droneCount: this.drones.length,
             maxDrones: this.maxDrones
         };

@@ -103,6 +103,7 @@ export class Preloader extends Scene
         this.load.audio('shop_upgrade', 'assets/audio/sfx/shopUpgrade.wav');
         this.load.audio('boss_alert', 'assets/audio/sfx/bossAlert.mp3');
         this.load.audio('boss_defeat', 'assets/audio/sfx/bossDefeat.mp3');
+        this.load.audio('explosion', 'assets/audio/sfx/explosion1.wav');
 
         // Load wave end sound effects (7 variations)
         for (let i = 1; i <= 7; i++) {

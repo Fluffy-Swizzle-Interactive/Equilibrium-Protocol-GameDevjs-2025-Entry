@@ -32,6 +32,18 @@ export default class UpgradeManager {
             weapon: new Set(),  // Store upgrade IDs
             player: new Set()   // Store upgrade IDs
         };
+
+        // Track upgrades that should never appear again in the shop
+        // These are permanently excluded across all shop sessions
+        this.permanentlyPurchasedUpgrades = new Set();
+
+        // Check if player already has certain upgrades that should be excluded
+        // This needs to be called after a short delay to ensure player is fully initialized
+        if (player && player.scene) {
+            player.scene.time.delayedCall(100, () => {
+                this.checkExistingUpgrades();
+            });
+        }
     }
 
     /**
@@ -55,6 +67,12 @@ export default class UpgradeManager {
         if (this.purchasedUpgradesThisSession.weapon.size > 0) {
             weaponUpgrades = weaponUpgrades.filter(upgrade =>
                 !this.purchasedUpgradesThisSession.weapon.has(upgrade.id));
+        }
+
+        // Filter out permanently purchased upgrades (like homing shot)
+        if (this.permanentlyPurchasedUpgrades.size > 0) {
+            weaponUpgrades = weaponUpgrades.filter(upgrade =>
+                !this.permanentlyPurchasedUpgrades.has(upgrade.id));
         }
 
         // Limit to 3 upgrades (in case we got extras for filtering)
@@ -166,6 +184,71 @@ export default class UpgradeManager {
         // Clear the purchased upgrades tracking for the next shop session
         this.purchasedUpgradesThisSession.weapon.clear();
         this.purchasedUpgradesThisSession.player.clear();
+
+        // Check if player already has homing shots and update permanent exclusions
+        this.checkExistingUpgrades();
+    }
+
+    /**
+     * Check if player already has certain upgrades and update permanent exclusions
+     * Called when shop is initialized and when shop is reset
+     */
+    checkExistingUpgrades() {
+        // Skip if player is not available
+        if (!this.player) return;
+
+        // Check for legendary upgrades the player might already have
+
+        // 1. Check for homing shots (homing_1)
+        let playerHasHoming = false;
+
+        // Check player's weapon manager if available
+        if (this.player.weaponManager) {
+            playerHasHoming = this.player.weaponManager.bulletHoming === true;
+        }
+        // Fallback to direct player properties
+        else {
+            playerHasHoming = this.player.bulletHoming === true;
+        }
+
+        // If player already has homing, add it to permanent exclusions
+        if (playerHasHoming) {
+            this.permanentlyPurchasedUpgrades.add('homing_1');
+            console.log('Player already has homing shots - excluding from shop');
+        }
+
+        // 2. Check for explosive rounds (area_1)
+        let playerHasExplosiveRounds = false;
+
+        // Check player's weapon manager if available
+        if (this.player.weaponManager) {
+            playerHasExplosiveRounds = this.player.weaponManager.bulletAoeRadius > 0;
+        }
+        // Fallback to direct player properties
+        else {
+            playerHasExplosiveRounds = this.player.bulletAoeRadius > 0;
+        }
+
+        // If player already has explosive rounds, add it to permanent exclusions
+        if (playerHasExplosiveRounds) {
+            this.permanentlyPurchasedUpgrades.add('area_1');
+            console.log('Player already has explosive rounds - excluding from shop');
+        }
+
+        // 3. Check for Combat Drone III (drone_3)
+        // This is harder to check directly, so we'll check if the player has 3 or more drones
+        let playerHasMaxDrones = false;
+
+        // Check player's weapon manager if available
+        if (this.player.weaponManager && this.player.weaponManager.drones) {
+            playerHasMaxDrones = this.player.weaponManager.drones.length >= 3;
+        }
+
+        // If player already has max drones, add it to permanent exclusions
+        if (playerHasMaxDrones) {
+            this.permanentlyPurchasedUpgrades.add('drone_3');
+            console.log('Player already has max drones - excluding from shop');
+        }
     }
 
     /**
@@ -190,6 +273,12 @@ export default class UpgradeManager {
         // Track this upgrade as purchased for this shop session
         if (upgrade.id) {
             this.trackPurchasedUpgrade('weapon', upgrade.id);
+
+            // Special handling for LEGENDARY rarity upgrades - permanently exclude them from future shops
+            if (upgrade.rarity && upgrade.rarity.name === 'Legendary') {
+                this.permanentlyPurchasedUpgrades.add(upgrade.id);
+                console.log(`Legendary upgrade "${upgrade.name}" purchased - will no longer appear in shop`);
+            }
         }
 
         // Check if this is a drone upgrade
@@ -275,6 +364,12 @@ export default class UpgradeManager {
                 case 'homing':
                     this.player.bulletHoming = value;
                     this.player.homingForce = upgrade.stats.homingForce || 0.05;
+
+                    // Only permanently exclude if it's a LEGENDARY rarity upgrade
+                    if (upgrade.rarity && upgrade.rarity.name === 'Legendary') {
+                        this.permanentlyPurchasedUpgrades.add('homing_1');
+                        console.log('Legendary homing shot applied to player - will no longer appear in shop');
+                    }
                     break;
 
                 default:

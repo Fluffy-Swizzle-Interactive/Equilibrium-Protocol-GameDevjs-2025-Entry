@@ -380,23 +380,31 @@ export function getRandomPlayerUpgrades(count = 3, rng, playerLevel = 1, playerS
         // Create a deep copy of the selected upgrade
         const upgradeCopy = JSON.parse(JSON.stringify(selected));
 
-        // Randomly assign a new rarity using weights
-        const rarityValues = Object.values(RARITY);
+        // Determine if we should randomize the rarity
+        let randomRarity;
 
-        // Create a weighted pool for rarities
-        const rarityPool = [];
-        rarityValues.forEach(rarity => {
-            // Add each rarity to the pool based on its weight
-            for (let i = 0; i < rarity.weight; i++) {
-                rarityPool.push(rarity);
-            }
-        });
+        if (upgradeCopy.rarity.name === 'Epic' || upgradeCopy.rarity.name === 'Legendary') {
+            // Keep original rarity for EPIC and LEGENDARY upgrades
+            randomRarity = upgradeCopy.rarity;
+        } else {
+            // Only randomly assign a new rarity for COMMON and RARE upgrades
+            const rarityValues = Object.values(RARITY);
 
-        // Select a random rarity from the weighted pool
-        const randomRarityIndex = Math.floor(rng.range(0, rarityPool.length - 1));
-        const randomRarity = rarityPool[randomRarityIndex];
+            // Create a weighted pool for rarities
+            const rarityPool = [];
+            rarityValues.forEach(rarity => {
+                // Add each rarity to the pool based on its weight
+                for (let i = 0; i < rarity.weight; i++) {
+                    rarityPool.push(rarity);
+                }
+            });
 
-        // Apply the new rarity
+            // Select a random rarity from the weighted pool
+            const randomRarityIndex = Math.floor(rng.range(0, rarityPool.length - 1));
+            randomRarity = rarityPool[randomRarityIndex];
+        }
+
+        // Apply the rarity
         upgradeCopy.rarity = randomRarity;
 
         // Skill point cost doesn't change with rarity
