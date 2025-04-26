@@ -137,8 +137,8 @@ export const PLAYER_UPGRADES = [
         id: 'regen_1',
         name: '💉 Regeneration',
         category: UPGRADE_CATEGORIES.HEALTH,
-        rarity: RARITY.EPIC,
-        skillPointCost: 1,
+        rarity: RARITY.LEGENDARY,
+        skillPointCost: 3,
         description: 'Slowly regenerate 1 health point every 2 seconds.',
         stats: {
             healthRegen: 0.5 // 0.5 health per second

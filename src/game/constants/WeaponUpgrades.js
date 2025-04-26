@@ -314,16 +314,17 @@ export const WEAPON_UPGRADES = [
         name: '🤖 Combat Drone IV',
         category: UPGRADE_CATEGORIES.DRONE,
         rarity: RARITY.LEGENDARY,
-        price: 750,
-        effects: 'Adds a 3rd Combat Drone',
+        price: 1000,
+        effects: 'Adds a 4th Combat Drone',
         stats: {
             drone: true,
             droneCount: 1
         },
         isDroneUpgrade: true,
+        minWave: 15, // Only available after wave 15
         visualProperties: {
-            borderColor: 0x22ffff,
-            fillColor: 0x114455
+            borderColor: 0x00ffaa,
+            fillColor: 0x115544
         }
     },
     {
@@ -331,16 +332,17 @@ export const WEAPON_UPGRADES = [
         name: '🤖 Combat Drone V',
         category: UPGRADE_CATEGORIES.DRONE,
         rarity: RARITY.LEGENDARY,
-        price: 750,
-        effects: 'Adds a 3rd Combat Drone',
+        price: 1500,
+        effects: 'Adds a 5th Combat Drone',
         stats: {
             drone: true,
             droneCount: 1
         },
         isDroneUpgrade: true,
+        minWave: 15, // Only available after wave 15
         visualProperties: {
-            borderColor: 0x22ffff,
-            fillColor: 0x114455
+            borderColor: 0x00ffcc,
+            fillColor: 0x116655
         }
     },
 ];
@@ -445,9 +447,10 @@ export function scaleUpgradeByLevel(upgrade, playerLevel) {
  * @param {number} count - Number of upgrades to get
  * @param {Object} rng - Random number generator object with pick method
  * @param {number} playerLevel - Current player level for scaling upgrades
+ * @param {number} currentWave - Current wave number (optional)
  * @returns {Array} - Array of random weapon upgrades
  */
-export function getRandomWeaponUpgrades(count = 3, rng, playerLevel = 1) {
+export function getRandomWeaponUpgrades(count = 3, rng, playerLevel = 1, currentWave = 1) {
     if (!rng || (typeof rng.pick !== 'function' && typeof rng.range !== 'function')) {
         // Fallback if no RNG is provided
         return WEAPON_UPGRADES.slice(0, count);
@@ -462,7 +465,12 @@ export function getRandomWeaponUpgrades(count = 3, rng, playerLevel = 1) {
     }
 
     // Create a copy to avoid modifying the original array
-    const availableUpgrades = [...WEAPON_UPGRADES];
+    // Filter out upgrades that have a minWave requirement that hasn't been met
+    const availableUpgrades = WEAPON_UPGRADES.filter(upgrade => {
+        // Include the upgrade if it doesn't have a minWave property or if the current wave is >= minWave
+        return !upgrade.minWave || currentWave >= upgrade.minWave;
+    });
+
     const selectedUpgrades = [];
 
     // Create a weighted pool based on rarity

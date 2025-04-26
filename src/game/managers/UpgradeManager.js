@@ -57,8 +57,14 @@ export default class UpgradeManager {
             (this.player && this.player.scene && this.player.scene.xpManager ?
             this.player.scene.xpManager.getCurrentLevel() : 1);
 
+        // Get current wave from the wave manager if available
+        let currentWave = 1;
+        if (this.player && this.player.scene && this.player.scene.waveManager) {
+            currentWave = this.player.scene.waveManager.getCurrentWave();
+        }
+
         // Get all weapon upgrades
-        let weaponUpgrades = getRandomWeaponUpgrades(6, this.rng, currentLevel); // Get more to account for filtering
+        let weaponUpgrades = getRandomWeaponUpgrades(6, this.rng, currentLevel, currentWave); // Get more to account for filtering
 
         // Filter out purchased drone upgrades and enforce drone upgrade dependencies
         weaponUpgrades = this.filterDroneUpgrades(weaponUpgrades);
@@ -141,6 +147,12 @@ export default class UpgradeManager {
             } else if (upgrade.id === 'drone_3') {
                 // Drone 3 requires drone 2 to be purchased
                 return this.purchasedDroneUpgrades.has('drone_2');
+            } else if (upgrade.id === 'drone_4') {
+                // Drone 4 requires drone 3 to be purchased
+                return this.purchasedDroneUpgrades.has('drone_3');
+            } else if (upgrade.id === 'drone_5') {
+                // Drone 5 requires drone 4 to be purchased
+                return this.purchasedDroneUpgrades.has('drone_4');
             }
 
             // Default case - allow the upgrade
@@ -235,19 +247,33 @@ export default class UpgradeManager {
             console.log('Player already has explosive rounds - excluding from shop');
         }
 
-        // 3. Check for Combat Drone III (drone_3)
-        // This is harder to check directly, so we'll check if the player has 3 or more drones
-        let playerHasMaxDrones = false;
+        // 3. Check for Combat Drones
+        // Check how many drones the player has and exclude the appropriate upgrades
+        let playerDroneCount = 0;
 
         // Check player's weapon manager if available
         if (this.player.weaponManager && this.player.weaponManager.drones) {
-            playerHasMaxDrones = this.player.weaponManager.drones.length >= 3;
+            playerDroneCount = this.player.weaponManager.drones.length;
         }
 
-        // If player already has max drones, add it to permanent exclusions
-        if (playerHasMaxDrones) {
-            this.permanentlyPurchasedUpgrades.add('drone_3');
-            console.log('Player already has max drones - excluding from shop');
+        // Add the appropriate drone upgrades to the purchased list based on count
+        if (playerDroneCount >= 1) {
+            this.purchasedDroneUpgrades.add('drone_1');
+        }
+        if (playerDroneCount >= 2) {
+            this.purchasedDroneUpgrades.add('drone_2');
+        }
+        if (playerDroneCount >= 3) {
+            this.purchasedDroneUpgrades.add('drone_3');
+        }
+        if (playerDroneCount >= 4) {
+            this.purchasedDroneUpgrades.add('drone_4');
+        }
+        if (playerDroneCount >= 5) {
+            this.purchasedDroneUpgrades.add('drone_5');
+            // If player has 5 drones, permanently exclude drone_5 from the shop
+            this.permanentlyPurchasedUpgrades.add('drone_5');
+            console.log('Player already has max drones (5) - excluding from shop');
         }
     }
 
@@ -294,6 +320,8 @@ export default class UpgradeManager {
                 if (upgrade.id === 'drone_1') this.currentDroneLevel = 1;
                 if (upgrade.id === 'drone_2') this.currentDroneLevel = 2;
                 if (upgrade.id === 'drone_3') this.currentDroneLevel = 3;
+                if (upgrade.id === 'drone_4') this.currentDroneLevel = 4;
+                if (upgrade.id === 'drone_5') this.currentDroneLevel = 5;
             }
 
             // Emit event for drone addition
