@@ -294,7 +294,8 @@ export class SoundManager {
         const defaultOptions = {
             volume: this.effectsVolume,
             rate: 1.0,
-            detune: 0
+            detune: 0,
+            loop: false // Explicitly set loop to false by default for all sound effects
         };
 
         const soundOptions = { ...defaultOptions, ...options };
@@ -317,7 +318,8 @@ export class SoundManager {
                 console.debug(`Sound effect "${key}" not found in SoundManager, initializing on-demand`);
                 this.initSoundEffect(key, {
                     volume: this.effectsVolume,
-                    rate: 1.0
+                    rate: 1.0,
+                    loop: false // Ensure loop is false
                 });
             } else {
                 console.warn(`Sound effect "${key}" not found and cannot be created`);
@@ -334,7 +336,9 @@ export class SoundManager {
                 // Try playing the sound after the system is unlocked
                 if (this.soundEffects[key]) {
                     console.debug(`Audio system unlocked, now playing "${key}"`);
-                    this.soundEffects[key].play(options);
+                    // Ensure loop is false when playing
+                    const playOptions = { ...options, loop: false };
+                    this.soundEffects[key].play(playOptions);
                 }
             });
 
@@ -343,9 +347,17 @@ export class SoundManager {
             return null;
         }
 
+        // If the sound is already playing, stop it first to prevent overlapping
+        if (this.soundEffects[key] && this.soundEffects[key].isPlaying) {
+            this.soundEffects[key].stop();
+        }
+
+        // Ensure loop is false in the options
+        const playOptions = { ...options, loop: false };
+
         // Sound exists and audio system is ready, play the sound
         try {
-            return this.soundEffects[key].play(options);
+            return this.soundEffects[key].play(playOptions);
         } catch (error) {
             console.warn(`Error playing sound "${key}":`, error);
             return null;
@@ -375,14 +387,35 @@ export class SoundManager {
         const defaultOptions = {
             volume: 0.7,
             // Add slight pitch variation for more variety
-            detune: Math.random() * 100 - 50 // Random detune between -50 and +50
+            detune: Math.random() * 100 - 50, // Random detune between -50 and +50
+            loop: false, // Explicitly set loop to false to prevent looping
+            duration: 2000 // Set a maximum duration to ensure the sound stops
         };
 
         // Merge default options with provided options
         const soundOptions = { ...defaultOptions, ...options };
 
+        // Get the sound instance
+        const sound = this.soundEffects[soundKey];
+
+        // If the sound is already playing, stop it first
+        if (sound && sound.isPlaying) {
+            sound.stop();
+        }
+
         // Play the random wave end sound
-        return this.playSoundEffect(soundKey, soundOptions);
+        const soundInstance = this.playSoundEffect(soundKey, soundOptions);
+
+        // Add a safety timeout to ensure the sound stops after a certain time
+        if (soundInstance) {
+            this.scene.time.delayedCall(3000, () => {
+                if (soundInstance.isPlaying) {
+                    soundInstance.stop();
+                }
+            });
+        }
+
+        return soundInstance;
     }
 
     /**

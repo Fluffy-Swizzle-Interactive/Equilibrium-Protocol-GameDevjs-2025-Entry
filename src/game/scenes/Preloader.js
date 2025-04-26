@@ -89,6 +89,9 @@ export class Preloader extends Scene
         // Load sound effects
         this.load.audio('shoot_weapon', 'assets/audio/sfx/laserShoot.wav');
         this.load.audio('level_up', 'assets/audio/sfx/levelUp.wav');
+        this.load.audio('cash_pickup', 'assets/audio/sfx/pickupCash.wav');
+        this.load.audio('player_hit', 'assets/audio/sfx/hitHurt.wav');
+        this.load.audio('player_death', 'assets/audio/sfx/explosion1.wav');
         //TEMP REMOVE OR REPLACE
         this.load.audio('button_click', 'assets/audio/sfx/laserShoot.wav');
 

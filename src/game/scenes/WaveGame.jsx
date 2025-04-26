@@ -123,6 +123,24 @@ export class WaveGame extends Scene {
             rate: 1.0
         });
 
+        // Initialize cash pickup sound effect
+        this.soundManager.initSoundEffect('cash_pickup', {
+            volume: 0.5,
+            rate: 1.0
+        });
+
+        // Initialize player hit sound effect
+        this.soundManager.initSoundEffect('player_hit', {
+            volume: 0.6,
+            rate: 1.0
+        });
+
+        // Initialize player death sound effect
+        this.soundManager.initSoundEffect('player_death', {
+            volume: 0.7,
+            rate: 1.0
+        });
+
         // Initialize wave end sound effects (7 variations)
         for (let i = 1; i <= 7; i++) {
             this.soundManager.initSoundEffect(`waveEnd${i}`, {
@@ -228,12 +246,49 @@ export class WaveGame extends Scene {
             if (this.uiManager) {
                 this.uiManager.showLevelUpAnimation(data.level);
             }
+
+            // Play level up sound when player levels up
+            if (this.soundManager) {
+                this.soundManager.playSoundEffect('level_up', {
+                    volume: 0.7
+                });
+            }
         });
 
         // Listen for wave-completed events on the EventBus to play sound
         EventBus.on('wave-completed', () => {
             if (this.soundManager) {
                 this.soundManager.playRandomWaveEndSound();
+            }
+        });
+
+        // Listen for collectible-collected events on the EventBus to play appropriate sounds
+        EventBus.on('collectible-collected', (data) => {
+            if (this.soundManager && data && data.type === 'cash_pickup') {
+                this.soundManager.playSoundEffect('cash_pickup', {
+                    volume: 0.5,
+                    detune: Math.random() * 100 - 50 // Random detune between -50 and +50 for variety
+                });
+            }
+        });
+
+        // Listen for player-damaged events on the EventBus to play hit sound
+        EventBus.on('player-damaged', () => {
+            if (this.soundManager) {
+                this.soundManager.playSoundEffect('player_hit', {
+                    volume: 0.6,
+                    detune: Math.random() * 100 - 50 // Random detune between -50 and +50 for variety
+                });
+            }
+        });
+
+        // Listen for player-death events on the EventBus to play death sound
+        EventBus.on('player-death', () => {
+            if (this.soundManager) {
+                this.soundManager.playSoundEffect('player_death', {
+                    volume: 0.7,
+                    detune: Math.random() * 50 - 25 // Slight random detune for variety
+                });
             }
         });
     }
@@ -1419,6 +1474,9 @@ export class WaveGame extends Scene {
         EventBus.off('xp-updated');
         EventBus.off('level-up');
         EventBus.off('wave-completed');
+        EventBus.off('collectible-collected');
+        EventBus.off('player-damaged');
+        EventBus.off('player-death');
 
         // Call parent shutdown method
         super.shutdown();
