@@ -44,6 +44,9 @@ export class WaveGame extends Scene {
         // Check if we're in development mode
         this.isDev = import.meta.env.DEV;
 
+        // Debug options
+        this.showHitboxes = false; // Debug option to show hitboxes
+
         // Spatial grid for collision optimization
         this.gridCellSize = 100; // Size of each grid cell in pixels
         this.spatialGrid = {}; // Will store enemies by grid cell for faster collision checks
@@ -771,6 +774,17 @@ export class WaveGame extends Scene {
                     });
                 }
             });
+
+            // Toggle hitbox visualization
+            this.input.keyboard.addKey('U').on('down', () => {
+                this.showHitboxes = !this.showHitboxes;
+                this.enemies.getChildren().forEach(enemy => {
+                    if (enemy.graphics) {
+                        enemy.graphics.setStrokeStyle(this.showHitboxes ? 1 : 0, 0xff0000);
+                    }
+                });
+                console.log('[DEBUG] Hitbox visualization', this.showHitboxes ? 'enabled' : 'disabled');
+            });
         }
     }
 
@@ -893,6 +907,11 @@ export class WaveGame extends Scene {
 
         // Check for collisions
         this.checkCollisions();
+        
+        // Draw hitboxes if debug option is enabled (DEV MODE ONLY)
+        if (this.isDev && this.showHitboxes) {
+            this.drawHitboxes();
+        }
     }
 
     /**
@@ -1417,5 +1436,76 @@ export class WaveGame extends Scene {
         this.time.delayedCall(500, () => {
             particles.destroy();
         });
+    }
+
+    /**
+     * Draw hitboxes for enemies and bullets when debug option is enabled
+     * DEV MODE ONLY - This is only called when isDev && showHitboxes are both true
+     */
+    drawHitboxes() {
+        // Create graphics object if it doesn't exist
+        if (!this.hitboxGraphics) {
+            this.hitboxGraphics = this.add.graphics();
+            this.hitboxGraphics.setDepth(1000); // Very high depth to render above everything
+        }
+
+        // Clear previous frame's drawings
+        this.hitboxGraphics.clear();
+
+        // Set styles for different hitbox types
+        const enemyStyle = { lineWidth: 1, lineColor: 0xff0000, lineAlpha: 0.8 }; // Red for enemies
+        const bulletStyle = { lineWidth: 1, lineColor: 0x00ff00, lineAlpha: 0.8 }; // Green for bullets
+        
+        // Draw enemy hitboxes
+        if (this.enemyManager && this.enemyManager.enemies) {
+            this.enemyManager.enemies.forEach(enemy => {
+                if (enemy && enemy.active && enemy.graphics && enemy.graphics.active) {
+                    // Set enemy hitbox style
+                    this.hitboxGraphics.lineStyle(enemyStyle.lineWidth, enemyStyle.lineColor, enemyStyle.lineAlpha);
+                    
+                    // Draw circle for enemy hitbox
+                    this.hitboxGraphics.strokeCircle(
+                        enemy.graphics.x, 
+                        enemy.graphics.y, 
+                        enemy.size / 2
+                    );
+                    
+                    // Draw a small cross at the center for better visibility
+                    const crossSize = 3;
+                    this.hitboxGraphics.lineBetween(
+                        enemy.graphics.x - crossSize, 
+                        enemy.graphics.y, 
+                        enemy.graphics.x + crossSize, 
+                        enemy.graphics.y
+                    );
+                    this.hitboxGraphics.lineBetween(
+                        enemy.graphics.x, 
+                        enemy.graphics.y - crossSize, 
+                        enemy.graphics.x, 
+                        enemy.graphics.y + crossSize
+                    );
+                }
+            });
+        }
+        
+        // Draw bullet hitboxes
+        if (this.bullets) {
+            this.bullets.getChildren().forEach(bullet => {
+                if (bullet && bullet.active) {
+                    // Set bullet hitbox style
+                    this.hitboxGraphics.lineStyle(bulletStyle.lineWidth, bulletStyle.lineColor, bulletStyle.lineAlpha);
+                    
+                    // Get bullet size - either from the bullet itself or from the player's weapon
+                    const bulletSize = bullet.radius || this.player.caliber || 5;
+                    
+                    // Draw circle for bullet hitbox
+                    this.hitboxGraphics.strokeCircle(
+                        bullet.x, 
+                        bullet.y, 
+                        bulletSize
+                    );
+                }
+            });
+        }
     }
 }
