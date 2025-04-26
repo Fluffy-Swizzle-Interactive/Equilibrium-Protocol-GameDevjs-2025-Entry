@@ -1240,8 +1240,12 @@ export class WaveGame extends Scene {
                 const dy = bullet.y - playerPos.y;
                 const distance = Math.sqrt(dx * dx + dy * dy);
 
+                // Get the bullet's range or use a default value
+                const bulletRange = bullet.range ||
+                    (this.player.weaponManager ? this.player.weaponManager.bulletRange : 1000);
+
                 // Return true if bullet should be culled (too far or too old)
-                return distance > 1000 || bullet.lifetime > 3000;
+                return distance > bulletRange || bullet.lifetime > 3000;
             }
         );
     }

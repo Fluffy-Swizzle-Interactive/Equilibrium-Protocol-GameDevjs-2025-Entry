@@ -63,6 +63,9 @@ export class Player {
             maxDrones: 0, // Start with no drones
             bulletRange: 600
         });
+
+        // Set the initial aiming distance based on the weapon's bullet range
+        this.maxMouseDistance = this.weaponManager.bulletRange * 0.5; // 50% of bullet range
     }
 
     /**

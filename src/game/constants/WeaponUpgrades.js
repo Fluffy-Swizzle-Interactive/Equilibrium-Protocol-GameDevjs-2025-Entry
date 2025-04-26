@@ -96,13 +96,28 @@ export const WEAPON_UPGRADES = [
         category: UPGRADE_CATEGORIES.RANGE,
         rarity: RARITY.COMMON,
         price: 80,
-        effects: '+10% Range',
+        effects: '+20% Range',
         stats: {
-            bulletRange: 1.1 // 10% range boost
+            bulletRange: 1.2 // 20% range boost
         },
         visualProperties: {
             borderColor: 0x33aa33,
             fillColor: 0x002200
+        }
+    },
+    {
+        id: 'range_2',
+        name: '🏹🏹 Superior Range',
+        category: UPGRADE_CATEGORIES.RANGE,
+        rarity: RARITY.EPIC,
+        price: 200,
+        effects: '+40% Range',
+        stats: {
+            bulletRange: 1.4 // 40% range boost
+        },
+        visualProperties: {
+            borderColor: 0x55cc55,
+            fillColor: 0x003300
         }
     },
     {
@@ -293,7 +308,41 @@ export const WEAPON_UPGRADES = [
             borderColor: 0x22ffff,
             fillColor: 0x114455
         }
-    }
+    },
+    {
+        id: 'drone_4',
+        name: '🤖 Combat Drone IV',
+        category: UPGRADE_CATEGORIES.DRONE,
+        rarity: RARITY.LEGENDARY,
+        price: 750,
+        effects: 'Adds a 3rd Combat Drone',
+        stats: {
+            drone: true,
+            droneCount: 1
+        },
+        isDroneUpgrade: true,
+        visualProperties: {
+            borderColor: 0x22ffff,
+            fillColor: 0x114455
+        }
+    },
+    {
+        id: 'drone_5',
+        name: '🤖 Combat Drone V',
+        category: UPGRADE_CATEGORIES.DRONE,
+        rarity: RARITY.LEGENDARY,
+        price: 750,
+        effects: 'Adds a 3rd Combat Drone',
+        stats: {
+            drone: true,
+            droneCount: 1
+        },
+        isDroneUpgrade: true,
+        visualProperties: {
+            borderColor: 0x22ffff,
+            fillColor: 0x114455
+        }
+    },
 ];
 
 /**

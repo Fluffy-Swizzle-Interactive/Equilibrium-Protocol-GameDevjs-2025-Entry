@@ -337,6 +337,10 @@ export class WeaponManager {
 
                 case 'bulletRange':
                     this.bulletRange *= value;
+                    // Update player's aiming distance when bullet range changes
+                    if (this.player && typeof this.player.maxMouseDistance !== 'undefined') {
+                        this.player.maxMouseDistance = this.bulletRange * 0.5; // 50% of bullet range
+                    }
                     break;
 
                 case 'bulletSpeed':
