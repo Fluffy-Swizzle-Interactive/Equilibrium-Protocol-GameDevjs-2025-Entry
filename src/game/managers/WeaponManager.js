@@ -303,7 +303,11 @@ export class WeaponManager {
                 this.scene.sound.unlock();
             }
 
-            this.scene.soundManager.playSoundEffect('shoot_weapon', { detune });
+            // Explicitly set the volume to ensure consistency
+            this.scene.soundManager.playSoundEffect('shoot_weapon', {
+                detune,
+                volume: 0.05 // Explicitly set volume to prevent it from increasing
+            });
         } catch (error) {
             console.warn('Error playing weapon sound:', error);
         }

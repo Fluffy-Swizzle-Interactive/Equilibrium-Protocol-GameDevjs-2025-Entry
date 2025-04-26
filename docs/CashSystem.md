@@ -36,8 +36,8 @@ The Cash System integrates with:
 
 When enemies are defeated, they have a chance to drop cash pickups:
 
-- **Regular enemies**: 40% chance to drop cash
-- **Elite enemies** (types 2 and 3): 40% chance to drop cash with 1.5x multiplier
+- **Regular enemies**: 48% chance to drop cash
+- **Elite enemies** (types 2 and 3): 48% chance to drop cash with 1.5x multiplier
 - **Boss enemies**: Always drop cash with 2.0x multiplier
 
 Cash value is calculated based on the enemy's base score value multiplied by the appropriate type multiplier. These drops only appear after the enemy's death animation completes.
@@ -53,21 +53,21 @@ The cash drop system is implemented in the `completeCleanup()` method of the Bas
 ```javascript
 // From BaseEnemy.completeCleanup():
 if (this.scene.cashManager) {
-    // Always drop cash for bosses, 40% chance for regular enemies
-    const shouldDropCash = isBoss || Math.random() < 0.4;
-    
+    // Always drop cash for bosses, 48% chance for regular enemies
+    const shouldDropCash = isBoss || Math.random() < 0.48;
+
     if (shouldDropCash) {
         // Calculate cash value based on enemy type
         let cashMultiplier = 1.0; // Regular enemy
-        
+
         if (isBoss) {
             cashMultiplier = 2.0; // Boss enemies drop more cash
         } else if (this.type === 'enemy2' || this.type === 'enemy3') {
             cashMultiplier = 1.5; // Elite enemies (types 2 and 3) drop more cash
         }
-        
+
         const cashValue = Math.ceil(this.scoreValue * cashMultiplier);
-        
+
         // Spawn cash pickup at enemy position
         this.scene.cashManager.spawnCashPickup(
             position.x,

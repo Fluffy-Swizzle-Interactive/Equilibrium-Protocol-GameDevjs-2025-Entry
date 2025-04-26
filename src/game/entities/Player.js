@@ -749,7 +749,7 @@ export class Player {
 
             this.scene.soundManager.playSoundEffect(soundKey, {
                 detune: -300, // Lower pitch for dash
-                volume: 0.4
+                volume: 0.04 // Reduced to 10% of original value (0.4 -> 0.04)
             });
         }
     }
@@ -923,7 +923,7 @@ export class Player {
 
             this.scene.soundManager.playSoundEffect(soundKey, {
                 detune: 600, // Higher pitch for shield activation
-                volume: 0.5
+                volume: 0.05 // Reduced to 10% of original value (0.5 -> 0.05)
             });
         }
     }
@@ -940,7 +940,7 @@ export class Player {
 
             this.scene.soundManager.playSoundEffect(soundKey, {
                 detune: -600, // Lower pitch for shield deactivation
-                volume: 0.4
+                volume: 0.04 // Reduced to 10% of original value (0.4 -> 0.04)
             });
         }
     }
@@ -991,7 +991,7 @@ export class Player {
 
                         this.scene.soundManager.playSoundEffect(soundKey, {
                             detune: 1200, // Higher pitch for XP collection
-                            volume: 0.3
+                            volume: 0.03 // Reduced to 10% of original value (0.3 -> 0.03)
                         });
                     }
                 }

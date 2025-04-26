@@ -14,7 +14,7 @@ export const ButtonSoundHelper = {
         // Default options
         const config = {
             event: 'pointerdown',
-            volume: 0.6,
+            volume: 0.06, // Reduced to 10% of original value (0.6 -> 0.06)
             detune: -200, // Pitch down slightly
             rate: 1.2, // Speed up slightly
             ...options
@@ -40,7 +40,7 @@ export const ButtonSoundHelper = {
         // Initialize button_click sound effect if it doesn't exist
         if (scene.soundManager && !scene.soundManager.hasSound('button_click')) {
             scene.soundManager.initSoundEffect('button_click', {
-                volume: 0.6,
+                volume: 0.06, // Reduced to 10% of original value (0.6 -> 0.06)
                 rate: 1.2, // Speed up slightly
                 detune: -200 // Pitch down slightly
             });
@@ -50,7 +50,7 @@ export const ButtonSoundHelper = {
         EventBus.on('button-click', (data) => {
             if (scene.soundManager) {
                 scene.soundManager.playSoundEffect('button_click', {
-                    volume: data?.volume || 0.6,
+                    volume: data?.volume || 0.06, // Reduced to 10% of original value (0.6 -> 0.06)
                     detune: data?.detune || -200, // Pitch down slightly
                     rate: data?.rate || 1.2 // Speed up slightly
                 });

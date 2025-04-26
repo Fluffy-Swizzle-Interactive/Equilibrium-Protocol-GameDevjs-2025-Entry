@@ -49,7 +49,7 @@ export class CashManager {
                 : 'laserShoot'; // Fallback to an existing sound
 
             this.scene.soundManager.playSoundEffect(soundKey, {
-                volume: 0.5,
+                volume: 0.05, // Reduced to 10% of original value (0.5 -> 0.05)
                 rate: 1.0,
                 detune: Math.random() * 100 - 50 // Random detune between -50 and +50 for variety
             });

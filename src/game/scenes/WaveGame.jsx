@@ -112,80 +112,80 @@ export class WaveGame extends Scene {
 
         // Initialize ambient music
         this.soundManager.initBackgroundMusic('ambient_music', {
-            volume: 0.4,  // Slightly lower volume for ambient music
+            volume: 0.04,  // Reduced to 10% of original value (0.4 -> 0.04)
             loop: true
         });
 
         // Initialize shop music
         this.soundManager.initBackgroundMusic('shop_music', {
-            volume: 0.4,  // Same volume as ambient music
+            volume: 0.04,  // Reduced to 10% of original value (0.4 -> 0.04)
             loop: true
         });
 
         // Initialize action music for wave gameplay
         this.soundManager.initBackgroundMusic('action_music', {
-            volume: 0.4,  // Same volume as other music
+            volume: 0.03,  // Further reduced to ensure it's not too loud
             loop: true
         });
 
         // Initialize sound effects
         this.soundManager.initSoundEffect('shoot_weapon', {
-            volume: 0.5,
+            volume: 0.05, // Reduced to 10% of original value (0.5 -> 0.05)
             rate: 1.0
         });
 
         this.soundManager.initSoundEffect('level_up', {
-            volume: 0.7,
+            volume: 0.07, // Reduced to 10% of original value (0.7 -> 0.07)
             rate: 1.0
         });
 
         // Initialize cash pickup sound effect
         this.soundManager.initSoundEffect('cash_pickup', {
-            volume: 0.5,
+            volume: 0.05, // Reduced to 10% of original value (0.5 -> 0.05)
             rate: 1.0
         });
 
         // Initialize player hit sound effect
         this.soundManager.initSoundEffect('player_hit', {
-            volume: 0.6,
+            volume: 0.06, // Reduced to 10% of original value (0.6 -> 0.06)
             rate: 1.0
         });
 
         // Initialize player death sound effect
         this.soundManager.initSoundEffect('player_death', {
-            volume: 0.7,
+            volume: 0.07, // Reduced to 10% of original value (0.7 -> 0.07)
             rate: 1.0
         });
 
         // Initialize shop upgrade sound effect
         this.soundManager.initSoundEffect('shop_upgrade', {
-            volume: 0.6,
+            volume: 0.06, // Reduced to 10% of original value (0.6 -> 0.06)
             rate: 1.1,
             detune: -100
         });
 
         // Initialize boss alert sound effect
         this.soundManager.initSoundEffect('boss_alert', {
-            volume: 0.8,
+            volume: 0.08, // Reduced to 10% of original value (0.8 -> 0.08)
             rate: 1.0
         });
 
         // Initialize boss defeat sound effect
         this.soundManager.initSoundEffect('boss_defeat', {
-            volume: 0.8,
+            volume: 0.08, // Reduced to 10% of original value (0.8 -> 0.08)
             rate: 1.0
         });
 
         // Initialize explosion sound effect for explosive shots (with reduced volume)
         this.soundManager.initSoundEffect('explosion', {
-            volume: 0.15, // Reduced volume to make explosions quieter
+            volume: 0.015, // Reduced to 10% of original value (0.15 -> 0.015)
             rate: 1.0
         });
 
         // Initialize wave end sound effects (7 variations)
         for (let i = 1; i <= 7; i++) {
             this.soundManager.initSoundEffect(`waveEnd${i}`, {
-                volume: 0.7,
+                volume: 0.07, // Reduced to 10% of original value (0.7 -> 0.07)
                 rate: 1.0
             });
         }
@@ -291,7 +291,7 @@ export class WaveGame extends Scene {
             // Play level up sound when player levels up
             if (this.soundManager) {
                 this.soundManager.playSoundEffect('level_up', {
-                    volume: 0.7
+                    volume: 0.07 // Reduced to 10% of original value (0.7 -> 0.07)
                 });
             }
         });
@@ -314,7 +314,7 @@ export class WaveGame extends Scene {
         EventBus.on('collectible-collected', (data) => {
             if (this.soundManager && data && data.type === 'cash_pickup') {
                 this.soundManager.playSoundEffect('cash_pickup', {
-                    volume: 0.5,
+                    volume: 0.05, // Reduced to 10% of original value (0.5 -> 0.05)
                     detune: Math.random() * 100 - 50 // Random detune between -50 and +50 for variety
                 });
             }
@@ -324,7 +324,7 @@ export class WaveGame extends Scene {
         EventBus.on('player-damaged', () => {
             if (this.soundManager) {
                 this.soundManager.playSoundEffect('player_hit', {
-                    volume: 0.6,
+                    volume: 0.06, // Reduced to 10% of original value (0.6 -> 0.06)
                     detune: Math.random() * 100 - 50 // Random detune between -50 and +50 for variety
                 });
             }
@@ -334,7 +334,7 @@ export class WaveGame extends Scene {
         EventBus.on('player-death', () => {
             if (this.soundManager) {
                 this.soundManager.playSoundEffect('player_death', {
-                    volume: 0.7,
+                    volume: 0.07, // Reduced to 10% of original value (0.7 -> 0.07)
                     detune: Math.random() * 50 - 25 // Slight random detune for variety
                 });
             }
@@ -344,7 +344,7 @@ export class WaveGame extends Scene {
         EventBus.on('shop-upgrade-click', (data) => {
             if (this.soundManager) {
                 this.soundManager.playSoundEffect('shop_upgrade', {
-                    volume: data?.volume || 0.6,
+                    volume: (data?.volume || 0.6) * 0.1, // Reduced to 10% of original value
                     detune: (data?.detune || -100) + (Math.random() * 50 - 25), // Add slight random variation
                     rate: data?.rate || 1.1
                 });
@@ -355,7 +355,7 @@ export class WaveGame extends Scene {
         EventBus.on('boss-spawned', (data) => {
             if (this.soundManager) {
                 this.soundManager.playSoundEffect('boss_alert', {
-                    volume: 0.8,
+                    volume: 0.08, // Reduced to 10% of original value (0.8 -> 0.08)
                     // No detune or rate variation to keep the alert sound consistent
                 });
 
@@ -370,7 +370,7 @@ export class WaveGame extends Scene {
         EventBus.on('boss-defeated', (data) => {
             if (this.soundManager) {
                 this.soundManager.playSoundEffect('boss_defeat', {
-                    volume: 0.8,
+                    volume: 0.08, // Reduced to 10% of original value (0.8 -> 0.08)
                     // No detune or rate variation to keep the defeat sound consistent
                 });
 
@@ -1026,9 +1026,57 @@ export class WaveGame extends Scene {
 
         // Switch to action music when a wave starts
         if (this.soundManager) {
-            this.soundManager.playMusic('action_music', {
-                fadeIn: 2000,  // 2 second fade in
-                fadeOut: 2000  // 2 second fade out for current music
+            // Create a custom method to play action music with special handling
+            this.playActionMusicWithSpecialFade();
+        }
+    }
+
+    /**
+     * Play action music with special fade handling
+     * Starts muted and fades to 0.09 volume
+     */
+    playActionMusicWithSpecialFade() {
+        // Make sure the track exists
+        if (!this.soundManager.musicTracks['action_music']) {
+            console.warn('Action music track not found');
+            return;
+        }
+
+        // Fade out current music if playing
+        if (this.soundManager.currentMusic) {
+            this.tweens.add({
+                targets: this.soundManager.currentMusic,
+                volume: 0,
+                duration: 1000,
+                onComplete: () => {
+                    this.soundManager.currentMusic.stop();
+
+                    // Start action music completely muted
+                    this.soundManager.currentMusic = this.soundManager.musicTracks['action_music'];
+                    this.soundManager.currentMusic.volume = 0;
+                    this.soundManager.currentMusic.play();
+
+                    // Fade in to exactly 0.05 volume over 3 seconds
+                    this.tweens.add({
+                        targets: this.soundManager.currentMusic,
+                        volume: 0.05,
+                        duration: 3000,
+                        ease: 'Linear'
+                    });
+                }
+            });
+        } else {
+            // No music playing, start action music muted
+            this.soundManager.currentMusic = this.soundManager.musicTracks['action_music'];
+            this.soundManager.currentMusic.volume = 0;
+            this.soundManager.currentMusic.play();
+
+            // Fade in to exactly 0.05 volume over 3 seconds
+            this.tweens.add({
+                targets: this.soundManager.currentMusic,
+                volume: 0.05,
+                duration: 3000,
+                ease: 'Linear'
             });
         }
     }
@@ -1108,7 +1156,7 @@ export class WaveGame extends Scene {
     handleVolumeControls() {
         if (!this.soundManager) return;
 
-        const volumeStep = 0.05; // 5% volume change per key press
+        const volumeStep = 0.01; // 1% volume change per key press (of the 0-0.1 range)
         let volumeChanged = false;
         let newVolume = this.soundManager.musicVolume;
 
@@ -1120,7 +1168,7 @@ export class WaveGame extends Scene {
 
         // Check for volume up key (0)
         if (Phaser.Input.Keyboard.JustDown(this.volumeUpKey)) {
-            newVolume = Math.min(1, newVolume + volumeStep);
+            newVolume = Math.min(0.1, newVolume + volumeStep);
             volumeChanged = true;
         }
 

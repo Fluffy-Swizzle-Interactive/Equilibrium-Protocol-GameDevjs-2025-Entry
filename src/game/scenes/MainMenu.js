@@ -34,7 +34,7 @@ export class MainMenu extends Scene
         waveButton.on('pointerdown', () => {
             // Emit button click event for sound
             EventBus.emit('button-click', {
-                volume: 0.6,
+                volume: 0.06, // Reduced to 10% of original value (0.6 -> 0.06)
                 detune: -200, // Pitch down slightly
                 rate: 1.2 // Speed up slightly
             });
@@ -111,13 +111,13 @@ export class MainMenu extends Scene
 
         // Initialize menu music
         this.soundManager.initBackgroundMusic('menu_music', {
-            volume: 0.4,  // Set appropriate volume for menu music
+            volume: 0.04,  // Reduced to 10% of original value (0.4 -> 0.04)
             loop: true
         });
 
         // Initialize UI sound effects
         this.soundManager.initSoundEffect('button_click', {
-            volume: 0.6,
+            volume: 0.06, // Reduced to 10% of original value (0.6 -> 0.06)
             rate: 1.0
         });
 
@@ -194,7 +194,7 @@ export class MainMenu extends Scene
     handleVolumeControls() {
         if (!this.soundManager) return;
 
-        const volumeStep = 0.05; // 5% volume change per key press
+        const volumeStep = 0.01; // 1% volume change per key press (of the 0-0.1 range)
         let volumeChanged = false;
         let newVolume = this.soundManager.musicVolume;
 
@@ -206,7 +206,7 @@ export class MainMenu extends Scene
 
         // Check for volume up key (0)
         if (Phaser.Input.Keyboard.JustDown(this.volumeUpKey)) {
-            newVolume = Math.min(1, newVolume + volumeStep);
+            newVolume = Math.min(0.1, newVolume + volumeStep);
             volumeChanged = true;
         }
 

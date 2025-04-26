@@ -163,7 +163,7 @@ export default class ShopManager {
     if (this.scene.soundManager) {
       this.scene.soundManager.playSoundEffect('shoot_minigun', {
         detune: -600,
-        volume: 0.5
+        volume: 0.05 // Reduced to 10% of original value (0.5 -> 0.05)
       });
     }
 
@@ -204,7 +204,7 @@ export default class ShopManager {
     // Play purchase sound
     if (this.scene.soundManager) {
       this.scene.soundManager.playSoundEffect('levelUp', {
-        volume: 0.5
+        volume: 0.05 // Reduced to 10% of original value (0.5 -> 0.05)
       });
     }
 
@@ -244,7 +244,7 @@ export default class ShopManager {
     // Play purchase sound
     if (this.scene.soundManager) {
       this.scene.soundManager.playSoundEffect('levelUp', {
-        volume: 0.5
+        volume: 0.05 // Reduced to 10% of original value (0.5 -> 0.05)
       });
     }
 
