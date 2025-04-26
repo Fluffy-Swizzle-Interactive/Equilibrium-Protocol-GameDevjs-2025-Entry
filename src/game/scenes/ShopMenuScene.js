@@ -792,11 +792,11 @@ export default class ShopMenuScene extends Phaser.Scene {
      */
     createBottomButtons(container, buttonY) {
         // Calculate button positions
-        const buttonSpacing = 100;
+        const buttonSpacing = 130; // Increased from 100 to 130 to accommodate wider reroll button
 
         // Create reroll button (green button on left)
         const rerollContainer = this.add.container(-buttonSpacing, buttonY);
-        const rerollBg = this.add.rectangle(0, 0, 120, 36, 0x2a4d2a);
+        const rerollBg = this.add.rectangle(0, 0, 180, 36, 0x2a4d2a); // Increased width from 120 to 180
         rerollBg.setStrokeStyle(2, 0x44aa44);
 
         // Get the initial reroll cost from the shop manager
@@ -806,11 +806,11 @@ export default class ShopMenuScene extends Phaser.Scene {
             this.shopManager.upgradeManager.maxRerollsPerRound - initialRerollCount : 5;
 
         const costText = initialRerollCost === 0 ? 'Free Reroll' : `Reroll ($${initialRerollCost})`;
-        const rerollButtonText = `${costText} (${rerollsRemaining} left)`;
+        const rerollButtonText = `${costText} [${rerollsRemaining}/${this.shopManager?.upgradeManager.maxRerollsPerRound || 5}]`;
 
         const rerollText = this.add.text(0, 0, rerollButtonText, {
             fontFamily: 'Arial',
-            fontSize: '16px',
+            fontSize: '14px', // Reduced from 16px to 14px for better fit
             color: '#ffffff',
             fontStyle: 'bold'
         }).setOrigin(0.5);
@@ -1155,7 +1155,7 @@ export default class ShopMenuScene extends Phaser.Scene {
             // Show "Free Reroll" if the cost is 0, otherwise show the cost
             // Also show remaining rerolls
             const costText = newRerollCost === 0 ? 'Free Reroll' : `Reroll ($${newRerollCost})`;
-            const buttonText = `${costText} (${rerollsRemaining} left)`;
+            const buttonText = `${costText} [${rerollsRemaining}/${this.shopManager?.upgradeManager.maxRerollsPerRound || 5}]`;
             this.rerollButton.text.setText(buttonText);
 
             // Disable the reroll button if no rerolls are remaining
