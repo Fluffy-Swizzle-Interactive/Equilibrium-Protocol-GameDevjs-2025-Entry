@@ -11,7 +11,7 @@ export class SoundManager {
         this.musicVolume = 0.5;
         this.effectsVolume = 0.7;
         this.isMuted = false;
-        
+
         // Initialize pause-related state properties
         this._musicPaused = false;
         this._musicWasPlaying = false;
@@ -34,7 +34,7 @@ export class SoundManager {
 
         // Merge default options with provided options
         const musicOptions = { ...defaultOptions, ...options };
-        
+
         // Create the music object
         this.musicTracks[key] = this.scene.sound.add(key, {
             volume: musicOptions.volume,
@@ -69,7 +69,7 @@ export class SoundManager {
                 duration: playOptions.fadeOut,
                 onComplete: () => {
                     this.currentMusic.stop();
-                    
+
                     // Start new music with fade in
                     this.startNewMusic(key, playOptions.fadeIn, playOptions.delay);
                 }
@@ -96,15 +96,15 @@ export class SoundManager {
 
         // Set as current music
         this.currentMusic = this.musicTracks[key];
-        
+
         // Start with volume 0
         this.currentMusic.volume = 0;
-        
+
         // Start playback
         this.currentMusic.play({
             delay: delay / 1000 // Convert ms to seconds
         });
-        
+
         // Fade in
         this.scene.tweens.add({
             targets: this.currentMusic,
@@ -145,27 +145,27 @@ export class SoundManager {
         if (this.currentMusic) {
             // Store the current music state and position
             this._musicWasPlaying = this.currentMusic.isPlaying;
-            
+
             if (this._musicWasPlaying) {
                 // Store information needed to resume properly
                 this._originalVolume = this.currentMusic.volume;
                 this._musicKey = this._getMusicKeyByTrack(this.currentMusic);
                 this._seekPosition = this.currentMusic.seek; // Store current position
-                
+
                 // Cancel any existing volume tweens to prevent conflicts
                 this.scene.tweens.killTweensOf(this.currentMusic);
-                
+
                 // Stop the music completely
                 this.currentMusic.stop();
-                
+
                 // Set the flag to indicate we specifically stopped it
                 this._musicPaused = true;
-                
+
                 // For extra safety, directly pause the WebAudio node if possible
                 if (this.scene.sound.context && !this.scene.sound.context.suspended) {
                     this.scene.sound.pauseAll(); // This helps ensure all audio pauses
                 }
-                
+
                 console.debug(`Background music paused at position ${this._seekPosition}`);
             }
         }
@@ -181,31 +181,31 @@ export class SoundManager {
             if (this.scene.sound.context && this.scene.sound.context.suspended) {
                 this.scene.sound.resumeAll();
             }
-            
+
             // Get the track
             const track = this.musicTracks[this._musicKey];
-            
+
             if (track) {
                 // Make sure track is stopped before restarting it
                 if (track.isPlaying) {
                     track.stop();
                 }
-                
+
                 // Reset this track as current
                 this.currentMusic = track;
-                
+
                 // Start the music from where it was paused
                 this.currentMusic.play({
                     loop: true,
                     volume: this._originalVolume || this.musicVolume,
                     seek: this._seekPosition || 0
                 });
-                
+
                 console.debug(`Background music resumed from position ${this._seekPosition}`);
             } else {
                 console.warn(`Could not resume music: track ${this._musicKey} not found`);
             }
-            
+
             // Clear the pause state
             this._musicPaused = false;
             this._musicWasPlaying = false;
@@ -223,14 +223,14 @@ export class SoundManager {
      */
     _getMusicKeyByTrack(track) {
         if (!track) return null;
-        
+
         // Find the key by comparing the track references
         for (const [key, value] of Object.entries(this.musicTracks)) {
             if (value === track) {
                 return key;
             }
         }
-        
+
         return null;
     }
 
@@ -259,12 +259,12 @@ export class SoundManager {
      */
     setMusicVolume(volume) {
         this.musicVolume = Phaser.Math.Clamp(volume, 0, 1);
-        
+
         // Apply to current music if playing
         if (this.currentMusic) {
             this.currentMusic.volume = this.musicVolume;
         }
-        
+
         // Apply to all stored music tracks
         Object.values(this.musicTracks).forEach(track => {
             track.volume = this.musicVolume;
@@ -277,7 +277,7 @@ export class SoundManager {
      */
     setEffectsVolume(volume) {
         this.effectsVolume = Phaser.Math.Clamp(volume, 0, 1);
-        
+
         // Apply to all sound effects
         Object.values(this.soundEffects).forEach(sound => {
             sound.volume = this.effectsVolume;
@@ -294,11 +294,12 @@ export class SoundManager {
         const defaultOptions = {
             volume: this.effectsVolume,
             rate: 1.0,
-            detune: 0
+            detune: 0,
+            loop: false // Explicitly set loop to false by default for all sound effects
         };
 
         const soundOptions = { ...defaultOptions, ...options };
-        
+
         this.soundEffects[key] = this.scene.sound.add(key, soundOptions);
         return this.soundEffects[key];
     }
@@ -317,7 +318,8 @@ export class SoundManager {
                 console.debug(`Sound effect "${key}" not found in SoundManager, initializing on-demand`);
                 this.initSoundEffect(key, {
                     volume: this.effectsVolume,
-                    rate: 1.0
+                    rate: 1.0,
+                    loop: false // Ensure loop is false
                 });
             } else {
                 console.warn(`Sound effect "${key}" not found and cannot be created`);
@@ -328,24 +330,34 @@ export class SoundManager {
         // Check if audio system is ready
         if (this.scene.sound.locked) {
             console.debug(`Audio system is locked, attempting to unlock before playing "${key}"`);
-            
+
             // Create a one-time event listener for the unlock event
             this.scene.sound.once('unlocked', () => {
                 // Try playing the sound after the system is unlocked
                 if (this.soundEffects[key]) {
                     console.debug(`Audio system unlocked, now playing "${key}"`);
-                    this.soundEffects[key].play(options);
+                    // Ensure loop is false when playing
+                    const playOptions = { ...options, loop: false };
+                    this.soundEffects[key].play(playOptions);
                 }
             });
-            
+
             // Also try to unlock the audio system manually (needed in some browsers)
             this.scene.sound.unlock();
             return null;
         }
 
+        // If the sound is already playing, stop it first to prevent overlapping
+        if (this.soundEffects[key] && this.soundEffects[key].isPlaying) {
+            this.soundEffects[key].stop();
+        }
+
+        // Ensure loop is false in the options
+        const playOptions = { ...options, loop: false };
+
         // Sound exists and audio system is ready, play the sound
         try {
-            return this.soundEffects[key].play(options);
+            return this.soundEffects[key].play(playOptions);
         } catch (error) {
             console.warn(`Error playing sound "${key}":`, error);
             return null;
@@ -361,6 +373,52 @@ export class SoundManager {
     }
 
     /**
+     * Play a random wave end sound effect
+     * Selects one of the waveEnd1-7 sound effects randomly
+     * @param {Object} options - Optional playback options
+     * @returns {Phaser.Sound.BaseSound} The sound instance
+     */
+    playRandomWaveEndSound(options = {}) {
+        // Get a random number between 1 and 7 (inclusive)
+        const randomNum = Math.floor(Math.random() * 7) + 1;
+        const soundKey = `waveEnd${randomNum}`;
+
+        // Default options for wave end sounds
+        const defaultOptions = {
+            volume: 0.7,
+            // Add slight pitch variation for more variety
+            detune: Math.random() * 100 - 50, // Random detune between -50 and +50
+            loop: false, // Explicitly set loop to false to prevent looping
+            duration: 2000 // Set a maximum duration to ensure the sound stops
+        };
+
+        // Merge default options with provided options
+        const soundOptions = { ...defaultOptions, ...options };
+
+        // Get the sound instance
+        const sound = this.soundEffects[soundKey];
+
+        // If the sound is already playing, stop it first
+        if (sound && sound.isPlaying) {
+            sound.stop();
+        }
+
+        // Play the random wave end sound
+        const soundInstance = this.playSoundEffect(soundKey, soundOptions);
+
+        // Add a safety timeout to ensure the sound stops after a certain time
+        if (soundInstance) {
+            this.scene.time.delayedCall(3000, () => {
+                if (soundInstance.isPlaying) {
+                    soundInstance.stop();
+                }
+            });
+        }
+
+        return soundInstance;
+    }
+
+    /**
      * Cleanup and remove all sounds
      */
     destroy() {
@@ -369,13 +427,13 @@ export class SoundManager {
             track.stop();
             track.destroy();
         });
-        
+
         // Stop and destroy all sound effects
         Object.values(this.soundEffects).forEach(sound => {
             sound.stop();
             sound.destroy();
         });
-        
+
         this.musicTracks = {};
         this.soundEffects = {};
         this.currentMusic = null;

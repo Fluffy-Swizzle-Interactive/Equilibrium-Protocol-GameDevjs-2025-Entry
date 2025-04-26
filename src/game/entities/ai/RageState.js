@@ -4,7 +4,7 @@
  * Causes enemies to aggressively rush towards the player with increased speed and damage.
  */
 
-import { CHAOS, GroupId } from '../../constants';
+import { DEPTHS, GroupId } from '../../constants';
 import { EventBus } from '../../EventBus';
 
 /**
@@ -20,55 +20,87 @@ export class RageState {
     constructor(enemy) {
         this.enemy = enemy;
         this.scene = enemy.scene;
-        this.lastStateUpdateTime = 0;
-        this.stateDuration = CHAOS.PANIC_DURATION; // Reusing the same duration constant
         
-        // Store original stats to restore later
+        // Save original stats
         this.originalStats = {
             speed: enemy.speed,
-            damage: enemy.damage
+            damage: enemy.damage,
+            color: enemy.color
         };
         
-        // Boost factors for rage state
-        this.speedBoost = 1.8;  // Move 80% faster
-        this.damageBoost = 1.5; // Deal 50% more damage
+        // Store original animation speed if applicable
+        if (enemy.sprite && enemy.sprite.anims && enemy.sprite.anims.currentAnim) {
+            this.originalStats.animSpeed = enemy.sprite.anims.currentAnim.frameRate;
+        }
+        
+        // Rage effects
+        this.speedMultiplier = 1.7;  // 70% faster
+        this.damageMultiplier = 1.5; // 50% more damage
+        
+        // Outline graphic for visual indicator
+        this.outlineGraphic = null;
+        
+        // Graphics for rage particles
+        this.particles = null;
+        this.emitter = null;
     }
     
     /**
      * Enter this state - runs once when state is activated
      */
     enter() {
-        // Apply stat boosts
-        this.enemy.speed *= this.speedBoost;
-        this.enemy.damage *= this.damageBoost;
+        // Apply rage effects
+        this.enemy.speed = this.originalStats.speed * this.speedMultiplier;
+        this.enemy.damage = this.originalStats.damage * this.damageMultiplier;
         
-        // Visual indicator for rage (white outline glow)
-        if (this.enemy.graphics) {
-            // Create an outline graphic as a child of the enemy
-            this.createRageOutline();
+        // Get reference to enemy's visual representation
+        const visual = this.enemy.sprite || this.enemy.graphics;
+        
+        // Create rage visual effects
+        this.createRageOutline();
+        
+        // Change sprite appearance if this is a sprite-based enemy
+        if (this.enemy.sprite) {
+            // Apply red tint to sprite (keep this for compatibility)
+            this.enemy.sprite.setTint(0xff4040);
             
-            // Add scale pulsing for extra rage effect
-            this._scaleTween = this.scene.tweens.add({
-                targets: this.enemy.graphics,
-                scaleX: { from: 1, to: 1.15 },
-                scaleY: { from: 1, to: 1.15 },
-                duration: 300,
+            // Add pulsing effect using a tween
+            this.pulseTween = this.scene.tweens.add({
+                targets: this.enemy.sprite,
+                scaleX: { from: 1.5, to: 1.7 }, // Slightly larger than default scale
+                scaleY: { from: 1.5, to: 1.7 },
+                duration: 200,
                 yoyo: true,
                 repeat: -1
             });
+            
+            // Speed up animations if applicable - using a different approach for compatibility
+            if (this.enemy.sprite.anims && this.enemy.sprite.anims.currentAnim) {
+                // Get current animation key
+                const currentAnimKey = this.enemy.sprite.anims.currentAnim.key;
+                
+                // Store current frame
+                const currentFrame = this.enemy.sprite.anims.currentFrame;
+                
+                // Restart the animation with increased speed by manually setting the duration
+                // This is more compatible than using setTimeScale which might not exist
+                const frameRate = this.originalStats.animSpeed || 24;  // Default to 24fps if not set
+                this.enemy.sprite.anims.stop();
+                this.enemy.sprite.play({
+                    key: currentAnimKey,
+                    frameRate: frameRate * 1.3,  // 30% faster animation
+                    repeat: -1
+                });
+            }
+        } else if (this.enemy.graphics) {
+            // Change color for geometry-based enemies
+            this.enemy.graphics.setFillStyle(0xff0000); // Bright red
         }
         
-        // Start the rage timer
-        this.lastStateUpdateTime = this.scene.time.now;
-        
-        // Emit an event that this enemy has entered rage state
+        // Emit rage event for sound effects and other systems
         EventBus.emit('enemy-rage-started', {
             enemy: this.enemy,
-            groupId: this.enemy.groupId,
-            position: {
-                x: this.enemy.graphics ? this.enemy.graphics.x : 0,
-                y: this.enemy.graphics ? this.enemy.graphics.y : 0
-            }
+            position: visual ? { x: visual.x, y: visual.y } : null
         });
     }
     
@@ -77,32 +109,53 @@ export class RageState {
      * @private
      */
     createRageOutline() {
-        // Remove any existing outline
-        this.removeRageOutline();
+        // Get the enemy visual representation
+        const visual = this.enemy.sprite || this.enemy.graphics;
+        if (!visual) return;
         
-        // Create a slightly larger rectangle with white color for the outline
-        const outlineSize = this.enemy.size + 4; // Make outline 4px larger than the enemy
-        
-        // Create outline as a separate game object that follows the enemy
-        this._outlineGfx = this.scene.add.rectangle(
-            this.enemy.graphics.x,
-            this.enemy.graphics.y,
-            outlineSize,
-            outlineSize,
-             0xffffff  // Changed from red (0xff0000) to white (0xffffff)
-        );
-        
-        // Set depth to be behind the enemy
-        this._outlineGfx.setDepth(this.enemy.graphics.depth - 1);
-        
-        // Create pulsing/flashing effect on the outline
-        this._outlineTween = this.scene.tweens.add({
-            targets: this._outlineGfx,
-            alpha: { from: 0.9, to: 0.3 },
-            duration: 200,
-            yoyo: true,
-            repeat: -1
-        });
+        // Create particle emitter for rage effect if particle system exists
+        if (this.scene.particles) {
+            // Create particle emitter following the enemy
+            this.particles = this.scene.add.particles(visual.x, visual.y, 'particle_texture', {
+                scale: { start: 0.1, end: 0 },
+                speed: { min: 5, max: 20 },
+                alpha: { start: 0.6, end: 0 },
+                tint: 0xff0000,
+                lifespan: 300,
+                blendMode: 'ADD',
+                frequency: 20
+            });
+            
+            // Make sure particles are at correct depth
+            this.particles.setDepth(visual.depth - 1);
+            
+            // Set up to follow the enemy
+            this.scene.tweens.add({
+                targets: this.particles,
+                x: visual.x,
+                y: visual.y,
+                duration: 0,
+                ease: 'Linear',
+                loop: -1,
+                onUpdate: () => {
+                    if (this.particles && visual.active) {
+                        this.particles.setPosition(visual.x, visual.y);
+                    }
+                }
+            });
+        } else {
+            // Fallback if particle system not available: create outline graphic
+            const outlineSize = this.enemy.size * 1.2;
+            this.outlineGraphic = this.scene.add.circle(
+                visual.x, visual.y, 
+                outlineSize / 2, // Convert diameter to radius
+                0xff0000, 0.3
+            );
+            this.outlineGraphic.setStrokeStyle(2, 0xff0000);
+            
+            // Put outline behind enemy
+            this.outlineGraphic.setDepth(visual.depth - 1);
+        }
     }
     
     /**
@@ -110,14 +163,16 @@ export class RageState {
      * @private
      */
     removeRageOutline() {
-        if (this._outlineTween) {
-            this._outlineTween.stop();
-            this._outlineTween = null;
+        // Clean up particle emitter if it exists
+        if (this.particles) {
+            this.particles.destroy();
+            this.particles = null;
         }
         
-        if (this._outlineGfx) {
-            this._outlineGfx.destroy();
-            this._outlineGfx = null;
+        // Clean up outline graphic if it exists
+        if (this.outlineGraphic) {
+            this.outlineGraphic.destroy();
+            this.outlineGraphic = null;
         }
     }
     
@@ -125,18 +180,15 @@ export class RageState {
      * Execute the state behavior - runs every frame
      * @param {number} delta - Time since last update
      */
-    execute(delta) {
-        const currentTime = this.scene.time.now;
-        
-        // Check if rage state should end
-        if (currentTime - this.lastStateUpdateTime > this.stateDuration) {
-            return false; // Return false to indicate state can exit
+    update(delta) {
+        // Update outline position to follow enemy
+        const visual = this.enemy.sprite || this.enemy.graphics;
+        if (visual && this.outlineGraphic) {
+            this.outlineGraphic.setPosition(visual.x, visual.y);
         }
         
-        // Execute rage behavior - rush towards player
-        this.rushTowardsPlayer();
-        
-        return true; // Stay in this state
+        // Nothing else to update in rage state - using enemy's normal update
+        // with enhanced stats
     }
     
     /**
@@ -144,44 +196,8 @@ export class RageState {
      * @private
      */
     rushTowardsPlayer() {
-        if (!this.enemy.graphics || !this.scene.player) {
-            return;
-        }
-        
-        const playerPos = this.scene.player.getPosition();
-        
-        // Calculate direction to player
-        const dx = playerPos.x - this.enemy.graphics.x;
-        const dy = playerPos.y - this.enemy.graphics.y;
-        
-        // Normalize the direction
-        const distance = Math.sqrt(dx * dx + dy * dy);
-        
-        if (distance > 0) {
-            // Move directly toward player
-            const dirX = dx / distance;
-            const dirY = dy / distance;
-            
-            // More aggressive movement
-            this.enemy.graphics.x += dirX * this.enemy.speed;
-            this.enemy.graphics.y += dirY * this.enemy.speed;
-            
-            // Add slight zigzag for more aggressive feel
-            if (this.scene.time.now % 30 < 15) {
-                // Slight perpendicular movement to create zigzag
-                this.enemy.graphics.x += -dirY * this.enemy.speed * 0.2;
-                this.enemy.graphics.y += dirX * this.enemy.speed * 0.2;
-            } else {
-                this.enemy.graphics.x += dirY * this.enemy.speed * 0.2;
-                this.enemy.graphics.y += -dirX * this.enemy.speed * 0.2;
-            }
-            
-            // Update outline position to follow enemy
-            if (this._outlineGfx) {
-                this._outlineGfx.x = this.enemy.graphics.x;
-                this._outlineGfx.y = this.enemy.graphics.y;
-            }
-        }
+        // This method is optional - we're modifying speed in base enemy
+        // implementation instead
     }
     
     /**
@@ -192,44 +208,62 @@ export class RageState {
         this.enemy.speed = this.originalStats.speed;
         this.enemy.damage = this.originalStats.damage;
         
-        // Restore original appearance
-        if (this.enemy.graphics) {
-            // Remove outline
-            this.removeRageOutline();
-            
-            // Stop scale tween
-            if (this._scaleTween) {
-                this._scaleTween.stop();
-                this._scaleTween = null;
-                
-                // Reset scale
-                this.enemy.graphics.setScale(1);
-            }
-        }
+        // Remove rage visual effects
+        this.removeRageOutline();
         
-        // Emit an event that this enemy has exited rage state
-        EventBus.emit('enemy-rage-ended', {
-            enemy: this.enemy,
-            groupId: this.enemy.groupId,
-            position: {
-                x: this.enemy.graphics ? this.enemy.graphics.x : 0,
-                y: this.enemy.graphics ? this.enemy.graphics.y : 0
+        // Restore normal sprite appearance
+        if (this.enemy.sprite) {
+            this.enemy.sprite.clearTint();
+            
+            // Stop the pulse tween if it exists
+            if (this.pulseTween) {
+                this.pulseTween.stop();
+                this.pulseTween = null;
+                // Reset scale to normal
+                this.enemy.sprite.setScale(1.5);
             }
-        });
+            
+            // Reset animation speed
+            if (this.enemy.sprite.anims && this.enemy.sprite.anims.currentAnim) {
+                // Get current animation key
+                const currentAnimKey = this.enemy.sprite.anims.currentAnim.key;
+                
+                // Restore animation with original speed
+                const frameRate = this.originalStats.animSpeed || 24; // Default to 24fps if not available
+                this.enemy.sprite.anims.stop();
+                this.enemy.sprite.play({
+                    key: currentAnimKey,
+                    frameRate: frameRate,
+                    repeat: -1
+                });
+            }
+        } else if (this.enemy.graphics) {
+            // Restore original color
+            this.enemy.graphics.setFillStyle(this.originalStats.color);
+        }
     }
     
     /**
-     * Check if the enemy should enter rage state
+     * Static method to determine if an enemy should enter rage state
      * @param {BaseEnemy} enemy - The enemy to check
-     * @returns {boolean} True if the enemy should enter rage state
-     * @static
+     * @returns {boolean} Whether the enemy should enter rage state
      */
     static shouldRage(enemy) {
-        if (!enemy.scene.chaosManager || !enemy.groupId) {
-            return false;
-        }
+        // Should rage if:
+        // 1. Enemy belongs to a faction/group
+        // 2. There's a ChaosManager that indicates the faction is under stress
+        // 3. The faction balance is heavily skewed against this faction
         
-        // Use the isEnraged method rather than isPanicking
-        return enemy.scene.chaosManager.isEnraged(enemy.groupId);
+        // If enemy is neutral or has no group, it can't rage
+        if (!enemy.groupId || enemy.isNeutral) return false;
+        
+        // If there's no chaos manager, can't determine faction balance
+        if (!enemy.scene.chaosManager) return false;
+        
+        // Get faction balance from chaos manager
+        const factionBalance = enemy.scene.chaosManager.getFactionBalance();
+        
+        // Check if this group is weakened according to the chaos manager
+        return enemy.scene.chaosManager.isGroupWeakened(enemy.groupId);
     }
 }

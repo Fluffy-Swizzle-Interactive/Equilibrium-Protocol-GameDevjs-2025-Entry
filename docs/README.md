@@ -2,7 +2,7 @@
 
 ## Overview
 
-Fluffy-Swizz Interactive is a top-down shooter game built with Phaser 3 and React. Players can choose between two weapon modes (minigun or shotgun) and must survive as long as possible against increasingly difficult waves of enemies.
+Fluffy-Swizz Interactive is a top-down shooter game built with Phaser 3 and React. Players use a unified weapon system and must survive as long as possible against increasingly difficult waves of enemies.
 
 ### Tech Stack
 
@@ -19,6 +19,7 @@ This documentation is organized into modular sections for easier navigation and 
 - [Architecture](Architecture.md) - System architecture and project structure
 - [Game Entities](GameEntities.md) - Player, enemies, and other game objects
 - [Game Mechanics](GameMechanics.md) - Core gameplay systems and interactions
+- [Scene Transitions](SceneTransitions.md) - Scene flow and transition screens
 
 ### User Interface
 
@@ -33,6 +34,7 @@ This documentation is organized into modular sections for easier navigation and 
 - [Mapping System](MappingSystem.md) - Map creation and management
 - [Enemy System](EnemySystem.md) - Enemy types, behavior, and spawning
 - [Chaos System](ChaosSystem.md) - Chaos meter and related mechanics
+- [Weapon System](WeaponSystem.md) - Unified weapon mechanics and upgrades
 
 ### Development
 

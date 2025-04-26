@@ -191,14 +191,29 @@ export class ChaosManager {
     }
     
     /**
-     * Trigger a dramatic faction surge in the weight manager
+     * Trigger a faction surge in the weight manager
      * @param {String} factionId - The faction to trigger a surge for
      */
     triggerFactionSurge(factionId) {
         if (!this.groupWeightManager) return;
         
+        // Get WaveManager reference to track any extra spawns
+        const waveManager = this.scene.waveManager;
+        
+        // Calculate potential surge enemies (1-3 extra enemies)
+        const surgeEnemiesCount = Math.floor(Math.random() * 3) + 1;
+        
         // Temporarily boost the enemy spawn rate for the target faction
         this.groupWeightManager.temporaryBoost(factionId, 3.0, 10000);
+        
+        // Register these potential enemy spawns with WaveManager
+        if (waveManager && typeof waveManager.registerExternalEnemySpawn === 'function') {
+            waveManager.registerExternalEnemySpawn(surgeEnemiesCount);
+            
+            if (this.isDev) {
+                console.debug(`[ChaosManager] Registered ${surgeEnemiesCount} surge enemies with WaveManager`);
+            }
+        }
         
         // Emit event for UI notifications
         if (this.scene.events) {
@@ -368,6 +383,32 @@ export class ChaosManager {
     }
     
     /**
+     * Check if a specific group is weakened by the current chaos level
+     * A group is weakened when the chaos value is biased against it
+     * @param {string} groupId - The group ID to check
+     * @returns {boolean} True if the group is weakened by chaos
+     */
+    isGroupWeakened(groupId) {
+        // Skip if invalid group
+        if (!groupId || groupId === GroupId.NEUTRAL) {
+            return false;
+        }
+        
+        // Get the normalized faction balance (-1 to 1)
+        const balance = this.getFactionBalance();
+        
+        // AI is weakened when balance is positive (CODER dominance)
+        // CODER is weakened when balance is negative (AI dominance)
+        if (groupId === GroupId.AI) {
+            return balance > 0.3; // AI is weakened when CODER dominance is above 30%
+        } else if (groupId === GroupId.CODER) {
+            return balance < -0.3; // CODER is weakened when AI dominance is above 30%
+        }
+        
+        return false;
+    }
+    
+    /**
      * Get the current chaos level
      * @returns {number} Current chaos value
      */
@@ -409,6 +450,20 @@ export class ChaosManager {
     getChaosPercentage() {
         const percentage = Math.round((this.chaosValue / this.maxValue) * 100);
         return (percentage > 0 ? '+' : '') + percentage + '%';
+    }
+    
+    /**
+     * Get the faction balance status
+     * Returns a value between -1 and 1 where:
+     * -1 = complete AI dominance
+     * 0 = balanced
+     * 1 = complete CODER dominance
+     * 
+     * @returns {number} Normalized faction balance (-1 to 1)
+     */
+    getFactionBalance() {
+        // Normalize chaos value from -100...100 to -1...1
+        return this.chaosValue / 100;
     }
     
     /**
@@ -649,6 +704,74 @@ export class ChaosManager {
     }
     
     /**
+     * Ensure all enemies have their proper faction tint applied
+     * This helps maintain visual faction identification after chaos events
+     * @private
+     */
+    ensureEnemyFactionTints() {
+        // Skip if we don't have a GroupManager reference
+        if (!this.scene || !this.scene.groupManager) return;
+        
+        // Get reference to all enemies by faction
+        const aiEnemies = this.scene.groupManager.getEntitiesInGroup(GroupId.AI) || [];
+        const coderEnemies = this.scene.groupManager.getEntitiesInGroup(GroupId.CODER) || [];
+        
+        // Process AI enemies
+        for (const enemy of aiEnemies) {
+            if (!enemy || !enemy.graphics) continue;
+            
+            // Get the proper faction tint, using stored value if available or default if not
+            const tintColor = enemy.factionTint || 0x3498db; // Blue tint for AI
+            
+            // Apply to main graphics object
+            if (enemy.graphics.setTint) {
+                enemy.graphics.setTint(tintColor);
+            }
+            
+            // Apply to nested sprite components
+            if (enemy.graphics.list && Array.isArray(enemy.graphics.list)) {
+                enemy.graphics.list.forEach(child => {
+                    if (child && child.setTint) {
+                        child.setTint(tintColor);
+                    }
+                });
+            }
+            
+            // Apply to sprite if it exists
+            if (enemy.sprite && enemy.sprite.setTint) {
+                enemy.sprite.setTint(tintColor);
+            }
+        }
+        
+        // Process CODER enemies
+        for (const enemy of coderEnemies) {
+            if (!enemy || !enemy.graphics) continue;
+            
+            // Get the proper faction tint, using stored value if available or default if not
+            const tintColor = enemy.factionTint || 0xe74c3c; // Red tint for CODER
+            
+            // Apply to main graphics object
+            if (enemy.graphics.setTint) {
+                enemy.graphics.setTint(tintColor);
+            }
+            
+            // Apply to nested sprite components
+            if (enemy.graphics.list && Array.isArray(enemy.graphics.list)) {
+                enemy.graphics.list.forEach(child => {
+                    if (child && child.setTint) {
+                        child.setTint(tintColor);
+                    }
+                });
+            }
+            
+            // Apply to sprite if it exists
+            if (enemy.sprite && enemy.sprite.setTint) {
+                enemy.sprite.setTint(tintColor);
+            }
+        }
+    }
+    
+    /**
      * Apply chaos oscillation for natural fluctuation
      * DISABLED: Chaos should only change based on player actions
      * @private
@@ -699,19 +822,18 @@ export class ChaosManager {
      * @private
      */
     emitChaosChanged(oldValue, newValue) {
-        // Add polarity information to event data
         EventBus.emit('chaos-changed', {
             oldValue,
             newValue,
-            normalized: this.getNormalizedChaos(),
-            polarity: this.getPolarity(),
-            absoluteValue: this.getAbsoluteChaos(),
-            percentage: this.getChaosPercentage(),
-            multipliers: {
-                [GroupId.AI]: this.multiplierCache[GroupId.AI],
-                [GroupId.CODER]: this.multiplierCache[GroupId.CODER]
-            }
+            direction: newValue > oldValue ? 1 : -1,
+            absolute: Math.abs(newValue)
         });
+        
+        // When chaos levels change significantly or return from extreme values,
+        // ensure all enemies have their proper faction tint applied
+        if (Math.abs(newValue - oldValue) >= 10 || this.extremeChaosTimeoutActive === false) {
+            this.ensureEnemyFactionTints();
+        }
     }
     
     /**

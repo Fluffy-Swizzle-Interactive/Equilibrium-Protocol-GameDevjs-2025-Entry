@@ -617,8 +617,12 @@ export class FactionBattleManager {
             });
         }
         
-        // Create pulsing outline effect
+        // Store both the original tint and the proper faction tint
         const originalTint = enemy.graphics.tint;
+        const factionTint = enemy.groupId === GroupId.AI ? 0x3498db : 0xe74c3c;
+        // Store the faction tint on the enemy for future reference
+        enemy.factionTint = factionTint;
+        
         const pulseColor = enemy.groupId === GroupId.AI ? 0x00ffff : 0xff6666;
         
         // Set up pulse tween
@@ -629,9 +633,23 @@ export class FactionBattleManager {
             yoyo: true,
             repeat: 8, // 8 pulses (roughly 7 seconds)
             onComplete: () => {
-                // Reset tint when done
+                // Reset tint to faction color (not original) when done
                 if (enemy && enemy.graphics) {
-                    enemy.graphics.tint = originalTint;
+                    enemy.graphics.tint = factionTint;
+                    
+                    // Also apply to any nested sprite components
+                    if (enemy.graphics.list && Array.isArray(enemy.graphics.list)) {
+                        enemy.graphics.list.forEach(child => {
+                            if (child && child.setTint) {
+                                child.setTint(factionTint);
+                            }
+                        });
+                    }
+                    
+                    // Apply to sprite if it exists
+                    if (enemy.sprite && enemy.sprite.setTint) {
+                        enemy.sprite.setTint(factionTint);
+                    }
                 }
             }
         });

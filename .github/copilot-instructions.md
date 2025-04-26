@@ -6,6 +6,8 @@ Maintain well-documented, modular, and production-ready code across the entire s
 🔄 File Update Rules
 When Copilot writes new classes, functions, game systems, or mechanics, it must:
 
+ONLY REFERENCE EXISTING CODE AS A REFERENCE, DOCUMENTATION IS NOT TO BE REFERENCED UNLESS WRITING TO DOCUMENTATION
+
 Append or update entries in /docs.
 
 Include relevant signatures, descriptions, and usage notes.

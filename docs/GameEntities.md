@@ -195,6 +195,7 @@ The GroupManager class handles tracking and organizing game entities by their fa
 ### Group Manager Methods
 
 - `register(enemy, groupId)`: Registers an enemy with a specific group and applies group modifiers
+- `registerEntity(entity, groupId)`: Alias for register method, provides compatibility with entity systems
 - `deregister(enemy, groupId)`: Removes an enemy from a group (typically when defeated)
 - `getGroupCount(groupId)`: Returns the count of active enemies in a specific group
 - `getAllGroupCounts()`: Returns counts for all groups

@@ -3,6 +3,7 @@ import { GameOver } from './scenes/GameOver';
 import { MainMenu } from './scenes/MainMenu';
 import { MainMenu_DEV } from './scenes/MainMenu_DEV';
 import { WaveGame } from './scenes/WaveGame.jsx';
+import { PreSpawn } from './scenes/PreSpawn';
 import Phaser from 'phaser';
 import { Preloader } from './scenes/Preloader';
 import ShopMenuScene from './scenes/ShopMenuScene';
@@ -39,6 +40,7 @@ const config = {
         Boot,
         Preloader,
         menuComponent,
+        PreSpawn,
         WaveGame,
         ShopMenuScene,
         GameOver

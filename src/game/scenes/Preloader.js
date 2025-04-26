@@ -39,6 +39,10 @@ export class Preloader extends Scene
 
         this.load.image('logo', 'assets/images/logo.png');
         this.load.image('background', 'assets/images/bg.png');
+        this.load.image('intro_card', 'assets/images/intro_card.png');
+
+        // Load bullet sprite
+        this.load.image('bullet', 'assets/sprites/BULLETS/bullet_7.png');
 
         // Load pickup images
         this.load.image('cash_pickup', 'assets/images/cash_pickup.png');
@@ -56,8 +60,13 @@ export class Preloader extends Scene
         });
 
         // Load player sprite atlas
-
         this.load.atlas('player', 'assets/sprites/TESTPLAYER1.png', 'assets/sprites/TESTPLAYER1.json');
+
+        // Load enemy sprite atlases
+        this.load.atlas('enemy1', 'assets/sprites/ENEMY1.png', 'assets/sprites/ENEMY1.json');
+        this.load.atlas('enemy2', 'assets/sprites/ENEMY2.png', 'assets/sprites/ENEMY2.json');
+        this.load.atlas('enemy3', 'assets/sprites/ENEMY3.png', 'assets/sprites/ENEMY3.json');
+        this.load.atlas('boss1', 'assets/sprites/BOSS1.png', 'assets/sprites/BOSS1.json');
 
         // Also load individual sprite frames as fallback
         // This ensures we can load the individual frames if the atlas doesn't work
@@ -85,11 +94,24 @@ export class Preloader extends Scene
         this.loadMapAssets();
 
         // Load sound effects
-        this.load.audio('shoot_minigun', 'assets/audio/laserShoot.wav');
-        this.load.audio('shoot_shotgun', 'assets/audio/laserShoot.wav');
+        this.load.audio('shoot_weapon', 'assets/audio/sfx/laserShoot.wav');
+        this.load.audio('level_up', 'assets/audio/sfx/levelUp.wav');
+        this.load.audio('cash_pickup', 'assets/audio/sfx/pickupCash.wav');
+        this.load.audio('player_hit', 'assets/audio/sfx/hitHurt.wav');
+        this.load.audio('player_death', 'assets/audio/sfx/explosion1.wav');
+        //TEMP REMOVE OR REPLACE
+        this.load.audio('button_click', 'assets/audio/sfx/laserShoot.wav');
 
-        // Load ambient background music
-        this.load.audio('ambient_music', 'assets/audio/ambient_loop.mp3');
+        // Load wave end sound effects (7 variations)
+        for (let i = 1; i <= 7; i++) {
+            this.load.audio(`waveEnd${i}`, `assets/audio/sfx/waveEnd/waveEnd${i}.mp3`);
+        }
+
+        // Load music
+        this.load.audio('ambient_music', 'assets/audio/ambient/ambient_loop.mp3');
+        this.load.audio('menu_music', 'assets/audio/music/mainMenu.mp3');
+        this.load.audio('shop_music', 'assets/audio/music/track1.mp3');
+        this.load.audio('action_music', 'assets/audio/music/actionTrack1.mp3');
     }
 
     /**

@@ -19,7 +19,6 @@ export class WeaponManager {
         this.SETTINGS = SETTINGS;
 
         // Initialize weapon properties
-        this.weaponType = options.weaponType || 'minigun';
         this.fireRate = 0;
         this.caliber = 0;
         this.bulletSpeed = 0;
@@ -28,7 +27,6 @@ export class WeaponManager {
         this.bulletHealth = 0;
         this.bulletPierce = 1; // Default pierce value
         this.bulletCount = 1;
-        this.spreadAngle = 0;
         this.bulletRange = options.bulletRange || 600;
 
         // Critical hit properties
@@ -51,36 +49,22 @@ export class WeaponManager {
         this.maxDrones = options.maxDrones || 0;
 
         // Set initial weapon properties
-        this.initWeaponProperties(this.weaponType);
+        this.initWeaponProperties();
 
         // Register with the scene
         scene.weaponManager = this;
     }
 
     /**
-     * Initialize weapon-specific properties based on weapon type
-     * @param {string} weaponType - The weapon type ('minigun' or 'shotgun')
+     * Initialize weapon properties
      */
-    initWeaponProperties(weaponType) {
-        this.weaponType = weaponType;
-
-        if (this.weaponType === 'minigun') {
-            this.fireRate = this.SETTINGS.MINIGUN_FIRE_RATE;
-            this.caliber = this.SETTINGS.MINIGUN_BULLET_CALIBER;
-            this.bulletSpeed = this.SETTINGS.MINIGUN_BULLET_SPEED;
-            this.bulletDamage = this.SETTINGS.MINIGUN_BULLET_DAMAGE;
-            this.bulletColor = 0xffff00; // Yellow
-            this.bulletHealth = this.SETTINGS.MINIGUN_BULLET_HEALTH;
-        } else if (this.weaponType === 'shotgun') {
-            this.fireRate = this.SETTINGS.SHOTGUN_FIRE_RATE;
-            this.caliber = this.SETTINGS.SHOTGUN_BULLET_CALIBER;
-            this.bulletSpeed = this.SETTINGS.SHOTGUN_BULLET_SPEED;
-            this.bulletDamage = this.SETTINGS.SHOTGUN_BULLET_DAMAGE;
-            this.bulletColor = 0xff6600; // Orange
-            this.spreadAngle = this.SETTINGS.SHOTGUN_SPREAD_ANGLE;
-            this.bulletCount = this.SETTINGS.SHOTGUN_BULLET_COUNT;
-            this.bulletHealth = this.SETTINGS.SHOTGUN_BULLET_HEALTH;
-        }
+    initWeaponProperties() {
+        this.fireRate = this.SETTINGS.WEAPON_FIRE_RATE;
+        this.caliber = this.SETTINGS.WEAPON_BULLET_CALIBER;
+        this.bulletSpeed = this.SETTINGS.WEAPON_BULLET_SPEED;
+        this.bulletDamage = this.SETTINGS.WEAPON_BULLET_DAMAGE;
+        this.bulletColor = 0x32D3F6; // Blue
+        this.bulletHealth = this.SETTINGS.WEAPON_BULLET_HEALTH;
     }
 
     /**
@@ -190,13 +174,8 @@ export class WeaponManager {
         const spawnX = playerPos.x + dirX * this.player.radius;
         const spawnY = playerPos.y + dirY * this.player.radius;
 
-        // Create bullets based on weapon type
-        let bullets;
-        if (this.weaponType === 'minigun') {
-            bullets = this.createMinigunBullet(spawnX, spawnY, dirX, dirY);
-        } else if (this.weaponType === 'shotgun') {
-            bullets = this.createShotgunBullets(spawnX, spawnY, dirX, dirY);
-        }
+        // Create bullet
+        const bullet = this.createBullet(spawnX, spawnY, dirX, dirY);
 
         // Play weapon sound
         this.playWeaponSound();
@@ -234,7 +213,7 @@ export class WeaponManager {
                 const dirX = dx / distance;
                 const dirY = dy / distance;
 
-                // Create bullets based on weapon type
+                // Create bullet from drone
                 this.createBulletFromDrone(this.drones[i], dirX, dirY);
             }
         }
@@ -253,18 +232,12 @@ export class WeaponManager {
         const spawnX = dronePos.x + dirX * drone.radius;
         const spawnY = dronePos.y + dirY * drone.radius;
 
-        // Create bullets based on weapon type
-        if (this.weaponType === 'minigun') {
-            this.createMinigunBullet(spawnX, spawnY, dirX, dirY, 0.7); // Drones do 70% damage
-        } else if (this.weaponType === 'shotgun') {
-            // For shotguns, drones fire fewer bullets
-            const droneBulletCount = Math.max(3, Math.floor(this.bulletCount / 2));
-            this.createShotgunBullets(spawnX, spawnY, dirX, dirY, 0.7, droneBulletCount);
-        }
+        // Create bullet from drone with reduced damage
+        this.createBullet(spawnX, spawnY, dirX, dirY, 0.7);
     }
 
     /**
-     * Create a minigun bullet
+     * Create a bullet
      * @param {number} spawnX - Spawn X position
      * @param {number} spawnY - Spawn Y position
      * @param {number} dirX - Direction X component
@@ -272,10 +245,10 @@ export class WeaponManager {
      * @param {number} damageMultiplier - Optional damage multiplier
      * @returns {Phaser.GameObjects.Arc} The bullet object
      */
-    createMinigunBullet(spawnX, spawnY, dirX, dirY, damageMultiplier = 1.0) {
+    createBullet(spawnX, spawnY, dirX, dirY, damageMultiplier = 1.0) {
         // Use bullet pool instead of direct creation
         if (this.scene.bulletPool) {
-            const bullet = this.scene.bulletPool.createMinigunBullet(
+            const bullet = this.scene.bulletPool.createBullet(
                 spawnX, spawnY, dirX, dirY,
                 this.bulletSpeed, this.bulletHealth,
                 this.bulletColor, this.caliber
@@ -312,70 +285,14 @@ export class WeaponManager {
     }
 
     /**
-     * Create multiple shotgun bullets with spread
-     * @param {number} spawnX - Spawn X position
-     * @param {number} spawnY - Spawn Y position
-     * @param {number} dirX - Base direction X component
-     * @param {number} dirY - Base direction Y component
-     * @param {number} damageMultiplier - Optional damage multiplier
-     * @param {number} overrideBulletCount - Optional override for bullet count
-     * @returns {Array} Array of created bullets
-     */
-    createShotgunBullets(spawnX, spawnY, dirX, dirY, damageMultiplier = 1.0, overrideBulletCount) {
-        const count = overrideBulletCount || this.bulletCount;
-
-        // Use bullet pool instead of direct creation
-        if (this.scene.bulletPool) {
-            const bullets = this.scene.bulletPool.createShotgunBullets(
-                spawnX, spawnY, dirX, dirY,
-                this.bulletSpeed, this.bulletHealth,
-                this.bulletColor, this.caliber,
-                count, this.spreadAngle
-            );
-
-            // Add additional properties to each bullet
-            bullets.forEach(bullet => {
-                if (bullet) {
-                    bullet.damage = this.bulletDamage * damageMultiplier;
-                    bullet.pierce = this.bulletPierce;
-                    bullet.range = this.bulletRange;
-                    bullet.penetratedEnemies = [];
-
-                    // Add critical hit chance
-                    bullet.canCrit = Math.random() < (this.criticalHitChance / 100);
-                    bullet.critMultiplier = this.criticalDamageMultiplier;
-
-                    // Add AOE properties if applicable
-                    if (this.bulletAoeRadius > 0) {
-                        bullet.aoeRadius = this.bulletAoeRadius;
-                        bullet.aoeDamage = this.bulletAoeDamage;
-                    }
-
-                    // Add homing properties if applicable
-                    if (this.bulletHoming) {
-                        bullet.homing = true;
-                        bullet.homingForce = this.homingForce;
-                    }
-                }
-            });
-
-            return bullets;
-        }
-
-        return [];
-    }
-
-    /**
      * Play the weapon sound with error handling
      * @private
      */
     playWeaponSound() {
-        // Don't try to play sounds if soundManager or soundKey aren't available
+        // Don't try to play sounds if soundManager isn't available
         if (!this.scene.soundManager) return;
 
-        const soundKey = this.weaponType === 'minigun'
-            ? 'shoot_minigun'
-            : 'shoot_shotgun';
+        const soundKey = 'shoot_weapon';
 
         try {
             // Add slight pitch variation for more realistic sound
@@ -386,7 +303,7 @@ export class WeaponManager {
                 this.scene.sound.unlock();
             }
 
-            this.scene.soundManager.playSoundEffect(soundKey, { detune });
+            this.scene.soundManager.playSoundEffect('shoot_weapon', { detune });
         } catch (error) {
             console.warn('Error playing weapon sound:', error);
         }
@@ -488,7 +405,7 @@ export class WeaponManager {
      */
     getStats() {
         return {
-            type: this.weaponType,
+            type: 'Standard',
             damage: this.bulletDamage,
             fireRate: this.fireRate,
             range: this.bulletRange,

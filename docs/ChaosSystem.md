@@ -2,16 +2,30 @@
 
 ## Overview
 
-The Chaos System tracks the balance of power between enemy factions, creating dynamic gameplay that responds to player actions. The system adjusts enemy spawn rates and stats based on which faction the player targets more frequently.
+The Chaos System is a central game mechanic that tracks player kill choices and adjusts enemy behavior, stats, and spawn rates dynamically. It creates a constantly shifting balance between the AI and Coder factions.
 
-## Core Concept
+## Core Concepts
 
-The chaos meter ranges from -100 (AI dominance) to +100 (Coder dominance), with 0 representing perfect balance between factions. Player actions shift the meter based on which faction is being targeted:
+### Chaos Meter
 
-- Killing AI enemies: Moves chaos toward +100 (Coder dominance)
-- Killing Coder enemies: Moves chaos toward -100 (AI dominance)
+- Ranges from -100 (AI dominance) to +100 (Coder dominance)
+- Each player kill shifts the meter toward the opposite faction
+- Chaos level determines enemy stats, spawn rates, and special events
+- Visual feedback shows current chaos level to the player
 
-**Important**: Chaos value changes ONLY when enemies are killed. There are no automatic or random fluctuations in chaos.
+### Faction Balance
+
+The balance between factions is determined by the chaos level:
+- Positive chaos: Coder dominance (blue UI indicators)
+- Negative chaos: AI dominance (red UI indicators)
+- Zero chaos: Perfect balance (neutral)
+
+### Kill Weighting
+
+- Killing AI enemies: +1 chaos (toward Coder dominance)
+- Killing Coder enemies: -1 chaos (toward AI dominance)
+- Enhanced momentum system increases impact of consecutive kills
+- Every 8 consecutive kills triggers a faction surge
 
 ## Impact on Gameplay
 
@@ -29,156 +43,52 @@ When chaos reaches extreme values (above 85 or below -85):
 - The spawn system responds dynamically to create varied enemy distributions throughout gameplay
 - Spawn weights are consistently predictable based on player actions, not random fluctuations
 
-## Balance Tuning
+### Enemy Stat Boosts
 
-The chaos system has been carefully tuned to create an engaging but manageable challenge:
+The dominated faction receives stat boosts based on the chaos level:
+- Health: Up to 20% increase at maximum chaos
+- Damage: Up to 30% increase at maximum chaos
+- Fire Rate: Up to 20% increase at maximum chaos
+- Dodge Frequency: Up to 20% increase at maximum chaos
 
-- **Kill Weight**: 1.4× base influence (moderate chaos buildup)
-- **Momentum System**: Consecutive kills of the same faction build momentum, but momentum decays at a balanced rate
-- **Momentum Factor**: 0.08 (reduced from 0.15 for less aggressive buildup)
-- **Momentum Decay**: 0.96 (increased from 0.98 for faster momentum dissipation)
-- **Maximum Momentum**: 3.5× (reduced from 5.0 for more manageable chaos shifts)
-- **Random Oscillations**: Disabled (removed for predictable, player-action-driven chaos)
-- **Max Chaos Cooldown**: 5 seconds of sustained maximum chaos before player influence can resume
+### Visual Identification
 
-## Implementation
+- AI enemies consistently maintain blue tinting
+- Coder enemies consistently maintain red tinting
+- Tinting persists across all game events, including chaos transitions and faction battles
+- The system automatically ensures proper enemy tinting when chaos levels change significantly
 
-### ChaosManager
+## Chaos Events
 
-The ChaosManager class tracks the overall chaos value and related game systems:
+### Major Events
 
-```javascript
-const chaosManager = new ChaosManager(scene, {
-    initialValue: 0,        // Starting at neutral
-    minValue: -100,         // Maximum AI dominance
-    maxValue: 100,          // Maximum Coder dominance
-    killWeight: 1.4,        // Base weight per kill (adjusted for balance)
-    panicThreshold: 85      // Threshold for faction rage (previously panic)
-});
-```
+- **Extreme Values**: When chaos reaches ±100, a major event occurs
+- **Threshold Crossings**: Additional events at ±40 and ±70 chaos levels
+- **Faction Surges**: Temporarily boosts spawn rates for a specific faction
 
-Key methods:
-- `registerKill(groupId)`: Records a kill and updates chaos
-- `isEnraged(groupId)`: Checks if a faction should be in rage state
-- `getMultipliers(groupId)`: Gets stat multipliers for a faction
-- `triggerFactionSurge(factionId)`: Creates temporary dramatic surge in enemy spawns
-- `startExtremeChaosTimeout()`: Initiates the cooldown period when maximum chaos is reached
+### Event Effects
 
-### GroupWeightManager
+- Screen shake (intensity varies by event type)
+- Particle bursts using faction colors
+- Temporary spawn rate adjustments
+- Enemy rage state activation
+- Stat multiplier changes
 
-Handles the dynamic spawn distribution between factions:
-
-```javascript
-const groupWeightManager = new GroupWeightManager(scene, {
-    // Initial weights are now randomized (30-70) if not explicitly provided
-    // This creates unique gameplay experiences in each session
-    volatility: 0.35,           // How quickly weights change (0-1)
-    enableFluctuations: false,  // Disabled random fluctuations for predictability
-    enableSurges: true          // Enables surges based on player kill streaks
-});
-```
-
-Key methods:
-- `pickRandomGroup()`: Returns a deterministically selected group based on current weights
-- `registerKill(groupId)`: Records a kill and adjusts weights accordingly
-- `temporaryBoost(groupId, multiplier, duration)`: Creates a temporary surge for gameplay events
-
-## Maximum Chaos Cooldown Feature
-
-When the chaos meter reaches either extreme (±100), a cooldown period activates:
-
-- **Duration**: 5 seconds of sustained maximum chaos
-- **Effect**: Player actions cannot influence the chaos meter during this period
-- **Purpose**: Creates a significant game moment where players must endure the full impact of faction dominance
-- **Visual Feedback**: A visual indicator shows that the chaos meter is locked
-- **Grace Period**: When the cooldown ends, chaos resets to 25% of its extreme value (±25)
-  - Allows players a period of relative calm to recover and rebalance
-  - Prevents immediate return to extreme chaos conditions
-  - Creates a gameplay rhythm with peaks of intensity followed by recovery periods
-- **Events**: 
-  - `CHAOS_LOCKED`: Emitted when the cooldown begins
-  - `CHAOS_UNLOCKED`: Emitted when the cooldown ends, chaos resets, and player influence can resume
-
-This feature intensifies the consequences of allowing a faction to reach full dominance, requiring players to adapt their strategy during periods of extreme faction advantage.
-
-## Randomized Initial Weights
-
-Each gameplay session now begins with randomized weight distribution between AI and Coder factions:
-
-- **Random Starting Range**: Each faction starts with a weight between 30-70 (previously fixed at 50 each)
-- **Session Variety**: Creates a unique starting condition for every gameplay session
-- **Strategic Adaptation**: Players must adapt to the initial enemy distribution they encounter
-- **Surprise Element**: Players won't know which faction has the initial advantage until they start playing
-
-## Predictability and Player Control
-
-The chaos system has been refined to ensure players have direct and predictable control over the game state:
-
-- **No Random Fluctuations**: Chaos only changes when the player kills enemies, not through random oscillations
-- **Predictable Spawn Selection**: The 5% random chance in group selection has been removed
-- **Clear Cause and Effect**: Every player action has a direct, predictable impact on game dynamics
-- **Player-Driven Gameplay**: All significant changes in faction balance are directly tied to player choices
-- **Randomized Initial Weights**: Adds variety and surprise to each session
-- **Intentional Cooldown**: The maximum chaos cooldown creates a strategic element where players must consider the consequences of pushing a faction to dominance
-
-## Visual Feedback
-
-The chaos system provides clear visual feedback to help players understand the current state:
-
-- Faction surge notifications when dramatic shifts occur
-- Particle effects using faction colors during major events
-- Screen shake effects when crossing thresholds
-- Enemies visibly entering rage state with clear visual indicators (red pulsing and size changes)
-- Visual indicator when chaos meter is locked during maximum chaos cooldown
-
-## Integrating with Other Systems
+## Integration with Other Systems
 
 The chaos system integrates with these other game systems:
 
 - **Enemy AI**: Determines when factions should enter rage mode and rush the player
 - **Enemy Stats**: Modifies health, damage, and other stats based on chaos level
 - **Spawn System**: Affects the distribution of enemy groups
-- **Visual Effects**: Triggers appropriate visual feedback
+- **Visual Effects**: Triggers appropriate visual feedback and ensures consistent faction identification
 - **UI Manager**: Displays chaos meter and indicates when it's locked during cooldown
+- **Faction Battles**: Determines when enemy factions can fight each other
 
-## Debugging
+## Technical Notes
 
-Enable debug mode to get detailed logging of the chaos system:
-
-```javascript
-// Enable in scene creation
-this.isDev = true;
-```
-
-This will log:
-- Chaos level changes
-- Spawn weight adjustments
-- Major events and thresholds
-- Faction surges
-- Chaos cooldown start and end events
-
-## Design Considerations
-
-### Player Strategy
-
-The chaos system encourages strategic target selection:
-- Players who focus on a single faction will face increased resistance from that faction
-- Alternating targets maintains more balanced gameplay
-- Paying attention to the chaos meter informs optimal strategy
-- Players can reliably predict game responses to their actions
-- When a faction enters rage mode, extra caution is needed as they become more dangerous
-- The maximum chaos cooldown forces players to deal with the consequences of their targeting choices for a sustained period
-
-### Game Balance
-
-The system has been tuned to achieve:
-- Moderate chaos progression that doesn't get out of hand too quickly
-- Clear cause-and-effect relationship between player actions and game response
-- Dynamic but manageable difficulty that rewards strategic play
-- Predictable behavior that allows players to make informed decisions
-- More challenging gameplay when enemies enter rage mode, adding tension
-- Strategic depth through the chaos cooldown mechanic, creating high-stakes moments
-
----
-
-*This documentation is maintained by Fluffy-Swizz Interactive development team.*
+- Momentum system creates dramatic swings in chaos when player focuses on one faction
+- Automatic tint restoration ensures visual consistency during faction transitions
+- Extreme chaos values trigger a temporary cooldown period before resetting
+- Deep integration with GroupManager for enemy tagging and identification
+- EventBus communication ensures responsive UI and gameplay updates

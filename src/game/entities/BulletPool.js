@@ -19,9 +19,16 @@ export class BulletPool {
         this.objectManager.createPool('bullet',
             // Create function - creates an empty bullet object
             () => {
-                const bullet = scene.add.circle(0, 0, 5, 0xffff00);
+                // Create a sprite instead of a circle
+                const bullet = scene.add.sprite(0, 0, 'bullet');
                 scene.bullets.add(bullet);  // Add to existing bullets group
                 bullet.setDepth(DEPTHS.BULLETS); // Set consistent depth using constants
+                
+                // Set origin to center for proper rotation
+                bullet.setOrigin(0.5, 0.5);
+                
+                // Store original scale for reference
+                bullet.originalScale = 1;
 
                 // Add trail emitter for homing bullets (will be enabled only when homing is active)
                 bullet.trailEmitter = null;
@@ -31,16 +38,31 @@ export class BulletPool {
             // Reset function - configures bullet properties
             (bullet, x, y, dirX, dirY, speed, health, color, size) => {
                 bullet.setPosition(x, y);
-                bullet.setFillStyle(color);
-                bullet.setRadius(size);
+                
+                // Set tint instead of fill style for sprites
+                bullet.setTint(color);
+                
+                // Set scale based on size (caliber)
+                const scale = size / 10; // Adjust based on your sprite size
+                bullet.setScale(scale);
+                bullet.originalScale = scale;
+                
+                // Store movement properties
                 bullet.dirX = dirX;
                 bullet.dirY = dirY;
                 bullet.speed = speed;
                 bullet.health = health;
                 bullet.lifetime = 0;
+                
+                // Rotate sprite to match direction of travel
+                bullet.rotation = Math.atan2(dirY, dirX);
 
                 // Ensure depth is set on reset in case it was changed
                 bullet.setDepth(DEPTHS.BULLETS);
+                
+                // Make the bullet visible
+                bullet.setVisible(true);
+                bullet.setActive(true);
 
                 // Clean up any existing trail emitter
                 if (bullet.trailEmitter) {
@@ -69,7 +91,7 @@ export class BulletPool {
     }
 
     /**
-     * Create a minigun bullet
+     * Create a bullet
      * @param {number} x - Spawn X position
      * @param {number} y - Spawn Y position
      * @param {number} dirX - Direction X component
@@ -78,53 +100,15 @@ export class BulletPool {
      * @param {number} health - Bullet health
      * @param {number} color - Bullet color
      * @param {number} size - Bullet radius
-     * @returns {Phaser.GameObjects.Arc} The bullet object
+     * @returns {Phaser.GameObjects.Sprite} The bullet object
      */
-    createMinigunBullet(x, y, dirX, dirY, speed, health, color, size) {
+    createBullet(x, y, dirX, dirY, speed, health, color, size) {
         return this.objectManager.get('bullet', x, y, dirX, dirY, speed, health, color, size);
     }
 
     /**
-     * Create multiple shotgun bullets with spread
-     * @param {number} x - Spawn X position
-     * @param {number} y - Spawn Y position
-     * @param {number} dirX - Base direction X component
-     * @param {number} dirY - Base direction Y component
-     * @param {number} speed - Bullet speed
-     * @param {number} health - Bullet health
-     * @param {number} color - Bullet color
-     * @param {number} size - Bullet radius
-     * @param {number} count - Number of bullets to create
-     * @param {number} spreadAngle - Spread angle in degrees
-     * @returns {Array} Array of created bullets
-     */
-    createShotgunBullets(x, y, dirX, dirY, speed, health, color, size, count, spreadAngle) {
-        const bullets = [];
-        const baseAngle = Math.atan2(dirY, dirX);
-
-        for (let i = 0; i < count; i++) {
-            // Calculate spread angle
-            const spreadRadians = (Math.random() * spreadAngle - spreadAngle/2) * (Math.PI / 180);
-            const angle = baseAngle + spreadRadians;
-
-            // Calculate new direction with spread
-            const newDirX = Math.cos(angle);
-            const newDirY = Math.sin(angle);
-
-            // Get bullet from pool
-            const bullet = this.objectManager.get('bullet', x, y, newDirX, newDirY, speed, health, color, size);
-
-            if (bullet) {
-                bullets.push(bullet);
-            }
-        }
-
-        return bullets;
-    }
-
-    /**
      * Release a bullet back to the pool
-     * @param {Phaser.GameObjects.Arc} bullet - The bullet to release
+     * @param {Phaser.GameObjects.Sprite} bullet - The bullet to release
      */
     releaseBullet(bullet) {
         try {
@@ -194,7 +178,7 @@ export class BulletPool {
 
     /**
      * Apply homing behavior to a bullet
-     * @param {Phaser.GameObjects.Arc} bullet - The bullet to apply homing to
+     * @param {Phaser.GameObjects.Sprite} bullet - The bullet to apply homing to
      * @private
      */
     applyHomingBehavior(bullet) {
@@ -229,6 +213,9 @@ export class BulletPool {
         if (newMagnitude > 0) {
             bullet.dirX /= newMagnitude;
             bullet.dirY /= newMagnitude;
+            
+            // Update bullet rotation to match new direction
+            bullet.rotation = Math.atan2(bullet.dirY, bullet.dirX);
         }
 
         // Create or update trail effect for homing bullets
@@ -243,7 +230,7 @@ export class BulletPool {
 
     /**
      * Create or update the visual trail effect for homing bullets
-     * @param {Phaser.GameObjects.Arc} bullet - The bullet to add trail to
+     * @param {Phaser.GameObjects.Sprite} bullet - The bullet to add trail to
      * @param {BaseEnemy} targetEnemy - The enemy being targeted
      * @private
      */
@@ -253,7 +240,7 @@ export class BulletPool {
             if (!bullet.trailEmitter && this.scene.add && this.scene.add.particles) {
                 try {
                     // Get bullet color for the trail
-                    const trailColor = bullet.fillColor || 0xffff00;
+                    const trailColor = bullet.tint || 0xFF3EBF;
 
                     // Check if particle texture exists
                     if (!this.scene.textures.exists('particle_texture')) {
@@ -325,7 +312,7 @@ export class BulletPool {
 
     /**
      * Find the closest enemy to a bullet
-     * @param {Phaser.GameObjects.Arc} bullet - The bullet to find the closest enemy for
+     * @param {Phaser.GameObjects.Sprite} bullet - The bullet to find the closest enemy for
      * @returns {BaseEnemy|null} The closest enemy or null if none found
      * @private
      */
@@ -366,5 +353,24 @@ export class BulletPool {
      */
     getStats() {
         return this.objectManager.getStats().bullet;
+    }
+
+    /**
+     * Get all active bullets
+     * @returns {Array} Array of active bullet objects
+     */
+    getActiveBullets() {
+        // If using object manager
+        if (this.objectManager && typeof this.objectManager.getActive === 'function') {
+            return this.objectManager.getActive('bullet');
+        }
+        
+        // Fallback to direct access if using a different pooling system
+        if (Array.isArray(this.bullets)) {
+            return this.bullets.filter(bullet => bullet && bullet.active);
+        }
+        
+        // Last resort - empty array
+        return [];
     }
 }

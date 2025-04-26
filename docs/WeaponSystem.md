@@ -1,7 +1,7 @@
 # Weapon System Documentation
 
 ## Overview
-The weapon system provides player weapons, firing mechanics, and drone companions. It's implemented through the WeaponManager class which handles different weapon types, projectiles, and associated drone units.
+The weapon system provides player weapons, firing mechanics, and drone companions. It's implemented through the WeaponManager class which handles a unified weapon system, projectiles, and associated drone units.
 
 ## Core Components
 
@@ -9,15 +9,14 @@ The weapon system provides player weapons, firing mechanics, and drone companion
 ```javascript
 class WeaponManager {
   constructor(scene, player, options = {})
-  initWeaponProperties(weaponType)
+  initWeaponProperties()
   addDrone()
   upgradeDrones()
   updateDrones()
   shoot(targetX, targetY)
   shootDrones(targetX, targetY)
   createBulletFromDrone(drone, dirX, dirY)
-  createMinigunBullet(spawnX, spawnY, dirX, dirY, damageMultiplier = 1.0)
-  createShotgunBullets(spawnX, spawnY, dirX, dirY, damageMultiplier = 1.0, overrideBulletCount)
+  createBullet(spawnX, spawnY, dirX, dirY, damageMultiplier = 1.0)
   playWeaponSound()
   applyUpgrade(upgrade)
   update()
@@ -27,7 +26,7 @@ class WeaponManager {
 ```
 
 The WeaponManager is responsible for:
-- Managing weapon configurations (minigun, shotgun)
+- Managing unified weapon configuration
 - Creating and firing projectiles
 - Managing drone companions
 - Handling upgrades to weapons and drones
@@ -49,14 +48,13 @@ PlayerDrone represents combat drones that:
 - Orbit around the player
 - Fire projectiles automatically
 - Can be upgraded through the shop system
-- Use the same weapon type as the player (minigun, shotgun)
+- Use the same weapon system as the player
 
 ### BulletPool
 ```javascript
 class BulletPool {
   constructor(scene, options = {})
-  createMinigunBullet(x, y, dirX, dirY, speed, health, color, size)
-  createShotgunBullets(x, y, dirX, dirY, speed, health, color, size, count, spreadAngle)
+  createBullet(x, y, dirX, dirY, speed, health, color, size)
   releaseBullet(bullet)
   updateBullets(updateFunc, cullFunc)
   getStats()
@@ -65,22 +63,18 @@ class BulletPool {
 
 BulletPool implements object pooling for bullets to optimize performance by:
 - Reusing bullet objects instead of creating new ones
-- Managing different bullet types (minigun, shotgun)
-- Handling bullet lifecycle (creation, updating, destruction)
+- Managing bullet lifecycle (creation, updating, destruction)
 
-## Weapon Types
+## Unified Weapon System
 
-### Minigun
-- Fast firing single bullets
-- Medium damage per shot
-- High rate of fire
-- Yellow bullet color
+The game uses a single unified weapon system with the following properties:
+- Standard fire rate derived from SETTINGS.WEAPON_FIRE_RATE constant
+- Bullet damage based on SETTINGS.WEAPON_BULLET_DAMAGE
+- Bullet speed from SETTINGS.WEAPON_BULLET_SPEED
+- Consistent bullet size (caliber) from SETTINGS.WEAPON_BULLET_CALIBER
+- Standard yellow bullet color (0xffff00)
 
-### Shotgun
-- Multiple bullets fired in a spread pattern
-- Lower damage per individual bullet
-- Lower rate of fire
-- Orange bullet color
+This unified approach simplifies code maintenance and game balance while still providing room for customization through upgrades.
 
 ## Drone System
 
@@ -88,7 +82,7 @@ Drones are combat companions that:
 1. Orbit the player in a circular pattern at evenly distributed positions
 2. Fire automatically at the same target as the player
 3. Only fire when the cursor exceeds their orbital radius (preventing short-range firing)
-4. Use the same weapon type as the player but with reduced damage (70%)
+4. Use the same weapon system as the player but with reduced damage (70%)
 5. Can be acquired through shop upgrades
 6. Automatically reposition themselves when new drones are added to maintain even spacing
 
@@ -125,7 +119,7 @@ Weapons can be upgraded through the shop with various enhancements:
 ```javascript
 // In scene creation:
 this.player = new Player(this, startX, startY);
-this.player.initWeaponSystem('minigun');
+this.player.initWeaponSystem();
 
 // In update loop:
 if (this.input.activePointer.isDown) {
