@@ -989,7 +989,7 @@ export class WaveGame extends Scene {
             const cellY = Math.floor(bullet.y / this.gridCellSize);
 
             // Check only enemies in relevant cells
-            for (let x = cellX - cellRange; x <= cellX + cellRange; x++) {
+            for (let x = cellX - 1; x <= cellX + 1; x++) {
                 for (let y = cellY - 1; y <= cellY + 1; y++) {
                     const cellKey = `${x},${y}`;
                     const enemiesInCell = this.spatialGrid[cellKey] || [];
@@ -1045,9 +1045,28 @@ export class WaveGame extends Scene {
                                 bullet.penetratedEnemies.push(enemyGraphics.parentEnemy.id);
                             }
 
-                            // Visual feedback - make bullet flash
+                            // Visual feedback - make bullet flash but preserve enemy faction tint
                             const originalColor = bullet.fillColor || 0xffffff;
                             bullet.fillColor = 0xffffff;
+
+                            // Create a flash effect on the enemy but keep faction tint
+                            if (enemyGraphics.parentEnemy && enemyGraphics.parentEnemy.factionTint) {
+                                // Store current tint
+                                const enemyTint = enemyGraphics.parentEnemy.factionTint;
+                                
+                                // Apply white flash (or lighter version of faction tint)
+                                const flashTint = 0xffffff; // Pure white flash
+                                if (enemyGraphics.setTint) {
+                                    enemyGraphics.setTint(flashTint);
+                                }
+                                
+                                // Reset to faction tint after a short delay
+                                this.time.delayedCall(50, () => {
+                                    if (enemyGraphics && enemyGraphics.active && enemyGraphics.setTint) {
+                                        enemyGraphics.setTint(enemyTint);
+                                    }
+                                });
+                            }
 
                             // Reset bullet color after a short delay if it still exists
                             this.time.delayedCall(50, () => {

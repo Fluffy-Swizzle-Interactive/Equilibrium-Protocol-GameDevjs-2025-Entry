@@ -184,7 +184,8 @@ export class GroupManager {
                 baseHealth: enemy.baseHealth,
                 speed: enemy.speed,
                 damage: enemy.damage,
-                color: enemy.color
+                color: enemy.color,
+                tint: enemy.tint || 0xFFFFFF // Store original tint if exists
             };
         }
         
@@ -202,12 +203,56 @@ export class GroupManager {
             enemy.damage = enemy._originalStats.damage * modifiers.damage;
         }
         
+        // Apply faction-specific visual indicators
         if (modifiers.color) {
             enemy.color = modifiers.color;
             
-            // Update visual representation if it exists
+            // Update visual representation if it exists with fill color
             if (enemy.graphics && enemy.graphics.setFillStyle) {
                 enemy.graphics.setFillStyle(modifiers.color);
+            }
+        }
+        
+        // Apply sprite tinting based on faction/group
+        if (enemy.sprite || enemy.graphics) {
+            // Determine tint color based on group
+            let tintColor;
+            switch (groupId) {
+                case GroupId.AI:
+                    tintColor = 0x3498db; // Blue tint for AI faction
+                    break;
+                case GroupId.CODER:
+                    tintColor = 0xe74c3c; // Red tint for CODER faction
+                    break;
+                case GroupId.NEUTRAL:
+                    tintColor = 0xf1c40f; // Yellow tint for NEUTRAL faction
+                    break;
+                default:
+                    tintColor = 0xFFFFFF; // White/no tint as fallback
+            }
+            
+            // Store the tint color on the enemy
+            enemy.factionTint = tintColor;
+            
+            // Apply tint to sprite if it exists
+            if (enemy.sprite && enemy.sprite.setTint) {
+                enemy.sprite.setTint(tintColor);
+            }
+            
+            // Apply to graphics object if it exists and has setTint method
+            if (enemy.graphics) {
+                if (enemy.graphics.setTint) {
+                    enemy.graphics.setTint(tintColor);
+                }
+                
+                // If the graphics object has child sprites, apply tint to them as well
+                if (enemy.graphics.list && Array.isArray(enemy.graphics.list)) {
+                    enemy.graphics.list.forEach(child => {
+                        if (child && child.setTint) {
+                            child.setTint(tintColor);
+                        }
+                    });
+                }
             }
         }
         
