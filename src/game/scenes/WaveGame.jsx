@@ -906,6 +906,12 @@ export class WaveGame extends Scene {
         // Set up spacebar for pause
         this.pauseKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
 
+        // Set up Q key for dash ability
+        this.dashKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.Q);
+
+        // Set up E key for shield ability
+        this.shieldKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
+
 
         // Set up volume control keys (9 for volume down, 0 for volume up)
         this.volumeDownKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.NINE);
@@ -951,6 +957,58 @@ export class WaveGame extends Scene {
                     }
                 });
                 console.log('[DEBUG] Hitbox visualization', this.showHitboxes ? 'enabled' : 'disabled');
+            });
+
+            // Add debug key "X" to reset cooldowns
+            this.input.keyboard.addKey('X').on('down', () => {
+                if (this.player) {
+                    // Reset dash cooldown
+                    if (this.player.dashCooldownEvent && !this.player.dashCooldownEvent.hasDispatched) {
+                        this.player.dashCooldownEvent.remove();
+                        this.player.dashCooldownEvent = null;
+                    }
+
+                    // Reset shield cooldown
+                    if (this.player.shieldCooldownEvent && !this.player.shieldCooldownEvent.hasDispatched) {
+                        this.player.shieldCooldownEvent.remove();
+                        this.player.shieldCooldownEvent = null;
+                    }
+
+                    console.log('[DEBUG] Cooldowns reset');
+
+                    // Show message to player
+                    this.showFloatingText(
+                        this.player.graphics.x,
+                        this.player.graphics.y - 40,
+                        'Cooldowns reset!',
+                        0x00ff00
+                    );
+                }
+            });
+
+            // Add debug key "Z" to give player dash and shield abilities
+            this.input.keyboard.addKey('Z').on('down', () => {
+                if (this.player) {
+                    // Give dash ability
+                    this.player.hasDash = true;
+                    this.player.dashPower = 1.5;
+                    this.player.dashCooldown = 10000; // 10 seconds
+
+                    // Give shield ability
+                    this.player.hasShield = true;
+                    this.player.shieldDuration = 3000; // 3 seconds
+                    this.player.shieldCooldown = 30000; // 30 seconds
+
+                    console.log('[DEBUG] Dash and Shield abilities added to player');
+
+                    // Show message to player
+                    this.showFloatingText(
+                        this.player.graphics.x,
+                        this.player.graphics.y - 40,
+                        'Dash (Q) and Shield (E) abilities unlocked!',
+                        0x00ff00
+                    );
+                }
             });
         }
 
@@ -1213,6 +1271,76 @@ export class WaveGame extends Scene {
             this.player.shoot();
         }
 
+        // Check for dash ability activation (Q key)
+        if (Phaser.Input.Keyboard.JustDown(this.dashKey)) {
+            if (this.player.hasDash) {
+                const dashActivated = this.player.activateDash();
+
+                // Show cooldown indicator if dash was activated
+                if (dashActivated) {
+                    // Show floating text for successful activation
+                    this.showFloatingText(
+                        this.player.graphics.x,
+                        this.player.graphics.y - 40, // Position above player's head
+                        'Dash Activated!',
+                        0x00ffff
+                    );
+
+                    // Show cooldown indicator
+                    const dashCooldown = Math.ceil(this.player.dashCooldown / 1000);
+                    this.showFloatingText(
+                        this.player.graphics.x,
+                        this.player.graphics.y - 20, // Position above player's head
+                        `Cooldown: ${dashCooldown}s`,
+                        0xffaa00
+                    );
+                }
+            } else {
+                // Show message that dash ability is not available
+                this.showFloatingText(
+                    this.player.graphics.x,
+                    this.player.graphics.y - 40, // Position above player's head
+                    'Dash ability not unlocked',
+                    0xffaa00
+                );
+            }
+        }
+
+        // Check for shield ability activation (E key)
+        if (Phaser.Input.Keyboard.JustDown(this.shieldKey)) {
+            if (this.player.hasShield) {
+                const shieldActivated = this.player.activateShield();
+
+                // Show cooldown indicator if shield was activated
+                if (shieldActivated) {
+                    // Show floating text for successful activation
+                    this.showFloatingText(
+                        this.player.graphics.x,
+                        this.player.graphics.y - 40, // Position above player's head
+                        'Shield Activated!',
+                        0x00aaff
+                    );
+
+                    // Show cooldown indicator
+                    const shieldCooldown = Math.ceil(this.player.shieldCooldown / 1000);
+                    this.showFloatingText(
+                        this.player.graphics.x,
+                        this.player.graphics.y - 20, // Position above player's head
+                        `Cooldown: ${shieldCooldown}s`,
+                        0xffaa00
+                    );
+                }
+            } else {
+                // Show message that shield ability is not available
+                this.showFloatingText(
+                    this.player.graphics.x,
+                    this.player.graphics.y - 40, // Position above player's head
+                    'Shield ability not unlocked',
+                    0xffaa00
+                );
+            }
+        }
+
         // Update cash animation position if cash manager exists
         if (this.cashManager) {
             this.cashManager.updateCashAnimationPosition();
@@ -1385,6 +1513,13 @@ export class WaveGame extends Scene {
         // Skip if player is invulnerable
         if (this.playerHealth.getInvulnerable()) return;
 
+        // Skip if player has active shield
+        if (this.player.isShieldActive) {
+            // If shield is active, repel enemies instead of taking damage
+            this.repelEnemiesFromShield();
+            return;
+        }
+
         // Use the enemy manager's active enemies list
         const activeEnemies = this.enemyManager ? this.enemyManager.enemies : [];
 
@@ -1438,6 +1573,195 @@ export class WaveGame extends Scene {
 
                 break; // Process only one collision per frame
             }
+        }
+    }
+
+    /**
+     * Repel enemies that are too close to the player when shield is active
+     */
+    repelEnemiesFromShield() {
+        if (!this.player || !this.player.isShieldActive) return;
+
+        // Use the enemy manager's active enemies list
+        const activeEnemies = this.enemyManager ? this.enemyManager.enemies : [];
+
+        // Get shield radius (larger than player radius)
+        const shieldRadius = this.player.radius * 2.5;
+
+        for (const enemy of activeEnemies) {
+            if (!enemy || !enemy.active || !enemy.graphics || !enemy.graphics.active) continue;
+
+            // Calculate distance between player and enemy
+            const dx = enemy.graphics.x - this.player.graphics.x;
+            const dy = enemy.graphics.y - this.player.graphics.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+
+            // Check if enemy is within shield radius
+            if (distance < (shieldRadius + enemy.size / 2)) {
+                // Calculate angle from player to enemy
+                const angle = Math.atan2(dy, dx);
+
+                // Calculate repulsion force (stronger when closer)
+                const repulsionForce = 5 * (1 - distance / (shieldRadius + enemy.size / 2));
+
+                // Apply repulsion force to enemy
+                const repulsionX = Math.cos(angle) * repulsionForce;
+                const repulsionY = Math.sin(angle) * repulsionForce;
+
+                // Update enemy position
+                if (enemy.graphics.body) {
+                    // Apply a temporary impulse to the physics body
+                    enemy.graphics.body.setVelocity(
+                        repulsionX * 150,
+                        repulsionY * 150
+                    );
+
+                    // Reset the velocity after a short delay to allow enemy AI to take over again
+                    this.time.delayedCall(300, () => {
+                        if (enemy && enemy.active && enemy.graphics && enemy.graphics.body) {
+                            // Reduce velocity to allow AI to regain control
+                            enemy.graphics.body.setVelocity(
+                                enemy.graphics.body.velocity.x * 0.5,
+                                enemy.graphics.body.velocity.y * 0.5
+                            );
+
+                            // If the enemy has a resetTarget method, call it to re-target the player
+                            if (typeof enemy.resetTarget === 'function') {
+                                enemy.resetTarget();
+                            }
+                        }
+                    });
+                } else {
+                    // Directly update position if no physics body
+                    enemy.graphics.x += repulsionX * 5;
+                    enemy.graphics.y += repulsionY * 5;
+
+                    // If the enemy has a resetTarget method, call it to re-target the player
+                    if (typeof enemy.resetTarget === 'function') {
+                        enemy.resetTarget();
+                    }
+                }
+
+                // Apply a small amount of damage to the enemy when repelled
+                if (typeof enemy.takeDamage === 'function') {
+                    enemy.takeDamage(1); // Just 1 damage to show the shield is affecting them
+                }
+
+                // Create a more dramatic effect for the shield repulsion
+                this.createShieldImpactEffect(enemy.graphics.x, enemy.graphics.y);
+
+                // Create a small visual effect at the point of repulsion
+                this.createShieldRepulsionEffect(
+                    this.player.graphics.x + Math.cos(angle) * shieldRadius,
+                    this.player.graphics.y + Math.sin(angle) * shieldRadius
+                );
+            }
+        }
+    }
+
+    /**
+     * Create a visual effect when the shield repels an enemy
+     * @param {number} x - X position of the effect
+     * @param {number} y - Y position of the effect
+     */
+    createShieldRepulsionEffect(x, y) {
+        // Only create effect occasionally to avoid too many particles
+        if (Math.random() < 0.3) {
+            // Create a small circle particle with semi-transparency
+            const particle = this.add.circle(
+                x,
+                y,
+                Phaser.Math.Between(1, 3),
+                0x00ffff,
+                0.4 // More transparent (was 0.7)
+            );
+
+            // Set depth to be above player
+            particle.setDepth(DEPTHS.PLAYER + 5);
+
+            // Animate the particle
+            this.tweens.add({
+                targets: particle,
+                alpha: 0,
+                scale: 2,
+                duration: 200,
+                ease: 'Power2',
+                onComplete: () => {
+                    particle.destroy();
+                }
+            });
+        }
+    }
+
+    /**
+     * Create a more dramatic impact effect when shield repels an enemy
+     * @param {number} x - X position of the effect
+     * @param {number} y - Y position of the effect
+     */
+    createShieldImpactEffect(x, y) {
+        // Create a flash circle with semi-transparency
+        const flash = this.add.circle(
+            x,
+            y,
+            15,
+            0x00ffff,
+            0.4 // More transparent (was 0.8)
+        );
+
+        // Set depth to be above player
+        flash.setDepth(DEPTHS.PLAYER + 10);
+
+        // Animate the flash
+        this.tweens.add({
+            targets: flash,
+            alpha: 0,
+            scale: 3,
+            duration: 300,
+            ease: 'Power2',
+            onComplete: () => {
+                flash.destroy();
+            }
+        });
+
+        // Create multiple particles in a burst pattern
+        for (let i = 0; i < 8; i++) {
+            const angle = (i / 8) * Math.PI * 2;
+            const distance = Phaser.Math.Between(5, 15);
+
+            const particle = this.add.circle(
+                x + Math.cos(angle) * distance,
+                y + Math.sin(angle) * distance,
+                Phaser.Math.Between(2, 4),
+                0x00ffff,
+                0.7
+            );
+
+            particle.setDepth(DEPTHS.PLAYER + 5);
+
+            this.tweens.add({
+                targets: particle,
+                x: x + Math.cos(angle) * Phaser.Math.Between(30, 50),
+                y: y + Math.sin(angle) * Phaser.Math.Between(30, 50),
+                alpha: 0,
+                scale: 0,
+                duration: Phaser.Math.Between(200, 400),
+                ease: 'Power2',
+                onComplete: () => {
+                    particle.destroy();
+                }
+            });
+        }
+
+        // Play shield impact sound
+        if (this.soundManager) {
+            const soundKey = this.soundManager.hasSound('shield_impact')
+                ? 'shield_impact'
+                : 'laserShoot'; // Fallback to an existing sound
+
+            this.soundManager.playSoundEffect(soundKey, {
+                detune: Phaser.Math.Between(200, 600),
+                volume: 0.3
+            });
         }
     }
 
@@ -1972,6 +2296,65 @@ export class WaveGame extends Scene {
         this.time.delayedCall(500, () => {
             particles.destroy();
         });
+    }
+
+    /**
+     * Show floating text at the specified position
+     * @param {number} x - X position
+     * @param {number} y - Y position
+     * @param {string} text - Text to display
+     * @param {number} color - Text color in hex format
+     */
+    showFloatingText(x, y, text, color = 0xffffff) {
+        // Make sure we have valid coordinates
+        if (isNaN(x) || isNaN(y)) {
+            console.warn('Invalid coordinates for floating text:', x, y);
+            return;
+        }
+
+        // Convert color to string if it's a number
+        const colorStr = typeof color === 'number'
+            ? `#${color.toString(16).padStart(6, '0')}`
+            : color;
+
+        // Create a text object - use world coordinates, not screen coordinates
+        const floatingText = this.add.text(
+            x,
+            y,
+            text,
+            {
+                fontFamily: 'Arial',
+                fontSize: 16,
+                color: colorStr,
+                stroke: '#000000',
+                strokeThickness: 3,
+                align: 'center'
+            }
+        ).setOrigin(0.5);
+
+        // Set depth to ensure it's visible above other elements
+        floatingText.setDepth(DEPTHS.UI + 50); // Higher depth to be above everything
+
+        // Do NOT set scroll factor - we want it to move with the player
+        // floatingText.setScrollFactor(0);
+
+        // Add a float-up and fade-out tween
+        this.tweens.add({
+            targets: floatingText,
+            y: y - 50, // Float up more
+            alpha: 0,
+            scale: 1.2, // Grow slightly
+            duration: 1500, // Longer duration
+            ease: 'Power2',
+            onComplete: () => {
+                floatingText.destroy();
+            }
+        });
+
+        // Log for debugging
+        if (this.isDev) {
+            console.debug(`Showing floating text: "${text}" at (${x}, ${y})`);
+        }
     }
 
     /**

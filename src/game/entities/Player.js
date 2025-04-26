@@ -1,4 +1,5 @@
 import { DEPTHS } from '../constants';
+import { PLAYER_UPGRADES } from '../constants/PlayerUpgrades';
 import { PlayerHealth } from './PlayerHealth';
 import { SETTINGS } from '../constants';
 import { EventBus } from '../EventBus';
@@ -36,6 +37,28 @@ export class Player {
 
         // Timing properties
         this.lastMovementTime = 0;
+        this.lastKnockbackTime = 0;
+
+        // Find dash and shield upgrades in constants
+        const dashUpgrade = PLAYER_UPGRADES.find(upgrade => upgrade.id === 'dash_1');
+        const shieldUpgrade = PLAYER_UPGRADES.find(upgrade => upgrade.id === 'shield_1');
+
+        // Dash ability properties
+        this.hasDash = false;
+        this.dashPower = dashUpgrade?.stats?.dashPower || 1.5;
+        this.dashCooldown = dashUpgrade?.stats?.dashCooldown || 10000; // 10 seconds
+        this.dashDuration = 200; // 0.2 seconds
+        this.dashCooldownTimer = 0;
+        this.isDashing = false;
+        this.dashDirection = { x: 0, y: 0 };
+
+        // Shield ability properties
+        this.hasShield = false;
+        this.shieldDuration = shieldUpgrade?.stats?.shieldDuration || 3000; // 3 seconds
+        this.shieldCooldown = shieldUpgrade?.stats?.shieldCooldown || 30000; // 30 seconds
+        this.shieldCooldownTimer = 0;
+        this.isShieldActive = false;
+        this.shieldContainer = null;
 
         // Initialize upgrade tracking
         this.upgrades = {
@@ -456,6 +479,18 @@ export class Player {
         this.updateMovement();
         this.updateAiming();
         this.updateAnimation();
+        this.updateDash();
+        this.updateShield();
+
+        // Debug cooldown timers every second (only in dev mode)
+        if (this.scene.isDev && this.scene.time.now % 1000 < 20) {
+            if (this.hasDash && this.dashCooldownTimer > 0) {
+                console.debug(`Dash cooldown: ${Math.ceil(this.dashCooldownTimer / 1000)}s`);
+            }
+            if (this.hasShield && this.shieldCooldownTimer > 0) {
+                console.debug(`Shield cooldown: ${Math.ceil(this.shieldCooldownTimer / 1000)}s`);
+            }
+        }
 
         // Update weapon manager if it exists
         if (this.weaponManager) {
@@ -467,6 +502,446 @@ export class Player {
         if (!this.scene.collectibleManager) {
             this.checkXPCollection();
             this.checkCashCollection();
+        }
+    }
+
+    /**
+     * Update shield cooldown and effects
+     */
+    updateShield() {
+        // Skip if player doesn't have shield ability
+        if (!this.hasShield) return;
+
+        // Update shield position if active
+        if (this.isShieldActive && this.shieldContainer) {
+            this.shieldContainer.setPosition(this.graphics.x, this.graphics.y);
+        }
+    }
+
+    /**
+     * Update dash cooldown and effects
+     */
+    updateDash() {
+        // Skip if player doesn't have dash ability
+        if (!this.hasDash) return;
+
+        // Update dash effects if currently dashing
+        if (this.isDashing) {
+            // Create dash trail effect
+            this.createDashTrailEffect();
+        }
+    }
+
+    /**
+     * Activate the dash ability
+     * @returns {boolean} Whether the dash was successfully activated
+     */
+    activateDash() {
+        // Skip if player doesn't have dash ability
+        if (!this.hasDash) return false;
+
+        // Check if dash is on cooldown using Phaser's timer event
+        if (this.dashCooldownEvent && !this.dashCooldownEvent.hasDispatched) {
+            // Show cooldown message with remaining time
+            if (this.scene.showFloatingText) {
+                // Calculate remaining time
+                const elapsed = this.dashCooldownEvent.getElapsed();
+                const total = this.dashCooldownEvent.delay;
+                const remaining = Math.ceil((total - elapsed) / 1000);
+
+                // Position text above player's head
+                const textX = this.graphics.x;
+                const textY = this.graphics.y - 40; // Offset above player
+
+                this.scene.showFloatingText(
+                    textX,
+                    textY,
+                    `Dash on cooldown: ${remaining}s`,
+                    0xff0000
+                );
+            }
+            return false;
+        }
+
+        // Get current movement direction
+        let dashX = this.velX;
+        let dashY = this.velY;
+
+        // If not moving, dash in the direction the player is facing
+        if (dashX === 0 && dashY === 0) {
+            switch (this.currentDirection) {
+                case this.directions.UP:
+                    dashY = -1;
+                    break;
+                case this.directions.DOWN:
+                    dashY = 1;
+                    break;
+                case this.directions.LEFT:
+                    dashX = -1;
+                    break;
+                case this.directions.RIGHT:
+                    dashX = 1;
+                    break;
+            }
+        }
+
+        // Normalize the direction
+        const length = Math.sqrt(dashX * dashX + dashY * dashY);
+        if (length > 0) {
+            dashX = dashX / length;
+            dashY = dashY / length;
+        }
+
+        // Store dash direction
+        this.dashDirection = { x: dashX, y: dashY };
+
+        // Calculate dash distance
+        const dashDistance = 150 * this.dashPower; // Base dash distance * dash power
+
+        // Calculate new position
+        const newX = this.graphics.x + (dashX * dashDistance);
+        const newY = this.graphics.y + (dashY * dashDistance);
+
+        // Set player as dashing
+        this.isDashing = true;
+
+        // Make player temporarily invulnerable during dash
+        if (this.healthSystem && typeof this.healthSystem.setInvulnerable === 'function') {
+            this.healthSystem.setInvulnerable();
+        }
+
+        // Create dash effect
+        this.createDashEffect();
+
+        // Play dash sound
+        this.playDashSound();
+
+        // Teleport player to new position
+        this.graphics.setPosition(newX, newY);
+
+        // End dash after a short duration
+        this.scene.time.delayedCall(this.dashDuration, () => {
+            this.isDashing = false;
+        });
+
+        // Get cooldown time from constants
+        const dashCooldownMs = Number(this.dashCooldown) || 10000; // Default to 10 seconds if not set
+
+        // Set cooldown using Phaser's timer event
+        this.dashCooldownEvent = this.scene.time.delayedCall(
+            dashCooldownMs,
+            () => {
+                // Show ready message when cooldown completes
+                if (this.scene.showFloatingText) {
+                    this.scene.showFloatingText(
+                        this.graphics.x,
+                        this.graphics.y - 40,
+                        'Dash Ready!',
+                        0x00ffff
+                    );
+                }
+            }
+        );
+
+        // Log cooldown for debugging
+        if (this.scene.isDev) {
+            console.debug(`Dash activated with cooldown: ${dashCooldownMs}ms`);
+        }
+
+        return true;
+    }
+
+    /**
+     * Create visual effect for dash
+     */
+    createDashEffect() {
+        // Create a flash effect
+        if (this.graphics) {
+            this.graphics.setTint(0x00ffff);
+
+            // Clear tint after dash duration
+            this.scene.time.delayedCall(this.dashDuration, () => {
+                if (this.graphics) {
+                    this.graphics.clearTint();
+                }
+            });
+        }
+
+        // Create a simple particle effect using graphics objects
+        for (let i = 0; i < 10; i++) {
+            // Create a small circle particle
+            const particle = this.scene.add.circle(
+                this.graphics.x,
+                this.graphics.y,
+                Phaser.Math.Between(3, 8),
+                0x00ffff,
+                0.7
+            );
+
+            // Set depth to be behind player
+            particle.setDepth(DEPTHS.PLAYER - 1);
+
+            // Random velocity
+            const angle = Phaser.Math.Between(0, 360) * (Math.PI / 180);
+            const speed = Phaser.Math.Between(50, 150);
+            const vx = Math.cos(angle) * speed;
+            const vy = Math.sin(angle) * speed;
+
+            // Animate the particle
+            this.scene.tweens.add({
+                targets: particle,
+                x: particle.x + vx,
+                y: particle.y + vy,
+                alpha: 0,
+                scale: 0,
+                duration: 300,
+                ease: 'Power2',
+                onComplete: () => {
+                    particle.destroy();
+                }
+            });
+        }
+    }
+
+    /**
+     * Create trail effect while dashing
+     */
+    createDashTrailEffect() {
+        // Skip if not dashing
+        if (!this.isDashing) return;
+
+        // Create afterimage effect
+        if (this.scene.time.now % 50 === 0) { // Every 50ms
+            // Create a simple circle at the player's position
+            const trail = this.scene.add.circle(
+                this.graphics.x,
+                this.graphics.y,
+                this.radius,
+                0x00ffff,
+                0.3
+            );
+
+            // Set depth to be behind player
+            trail.setDepth(DEPTHS.PLAYER - 1);
+
+            // Fade out and destroy
+            this.scene.tweens.add({
+                targets: trail,
+                alpha: 0,
+                scale: 0.5,
+                duration: 200,
+                onComplete: () => {
+                    trail.destroy();
+                }
+            });
+        }
+    }
+
+    /**
+     * Play sound effect for dash
+     */
+    playDashSound() {
+        if (this.scene.soundManager) {
+            // Use dash sound if available, otherwise use a fallback
+            const soundKey = this.scene.soundManager.hasSound('dash')
+                ? 'dash'
+                : 'laserShoot'; // Fallback to an existing sound
+
+            this.scene.soundManager.playSoundEffect(soundKey, {
+                detune: -300, // Lower pitch for dash
+                volume: 0.4
+            });
+        }
+    }
+
+    /**
+     * Activate the shield ability
+     * @returns {boolean} Whether the shield was successfully activated
+     */
+    activateShield() {
+        // Skip if player doesn't have shield ability
+        if (!this.hasShield) return false;
+
+        // Check if shield is on cooldown using Phaser's timer event
+        if (this.shieldCooldownEvent && !this.shieldCooldownEvent.hasDispatched) {
+            // Show cooldown message with remaining time
+            if (this.scene.showFloatingText) {
+                // Calculate remaining time
+                const elapsed = this.shieldCooldownEvent.getElapsed();
+                const total = this.shieldCooldownEvent.delay;
+                const remaining = Math.ceil((total - elapsed) / 1000);
+
+                // Position text above player's head
+                const textX = this.graphics.x;
+                const textY = this.graphics.y - 40; // Offset above player
+
+                this.scene.showFloatingText(
+                    textX,
+                    textY,
+                    `Shield on cooldown: ${remaining}s`,
+                    0xff0000
+                );
+            }
+            return false;
+        }
+
+        // Check if shield is already active
+        if (this.isShieldActive) return false;
+
+        // Set shield as active
+        this.isShieldActive = true;
+
+        // Make player invulnerable
+        if (this.healthSystem && typeof this.healthSystem.setInvulnerable === 'function') {
+            this.healthSystem.setInvulnerable();
+        }
+
+        // Create shield visual effect
+        this.createShieldEffect();
+
+        // Play shield activation sound
+        this.playShieldActivationSound();
+
+        // Set shield duration timer
+        this.scene.time.delayedCall(this.shieldDuration, () => {
+            this.deactivateShield();
+        });
+
+        // Get cooldown time from constants
+        const shieldCooldownMs = Number(this.shieldCooldown) || 30000; // Default to 30 seconds if not set
+
+        // Set cooldown using Phaser's timer event
+        this.shieldCooldownEvent = this.scene.time.delayedCall(
+            shieldCooldownMs,
+            () => {
+                // Show ready message when cooldown completes
+                if (this.scene.showFloatingText) {
+                    this.scene.showFloatingText(
+                        this.graphics.x,
+                        this.graphics.y - 40,
+                        'Shield Ready!',
+                        0x00ffff
+                    );
+                }
+            }
+        );
+
+        // Log cooldown for debugging
+        if (this.scene.isDev) {
+            console.debug(`Shield activated with cooldown: ${shieldCooldownMs}ms`);
+        }
+
+        return true;
+    }
+
+    /**
+     * Deactivate the shield ability
+     */
+    deactivateShield() {
+        // Skip if shield is not active
+        if (!this.isShieldActive) return;
+
+        // Set shield as inactive
+        this.isShieldActive = false;
+
+        // Play shield deactivation sound
+        this.playShieldDeactivationSound();
+
+        // Remove shield visual effect
+        if (this.shieldContainer) {
+            // Fade out and destroy
+            this.scene.tweens.add({
+                targets: this.shieldContainer,
+                alpha: 0,
+                duration: 300,
+                onComplete: () => {
+                    if (this.shieldContainer) {
+                        this.shieldContainer.destroy();
+                        this.shieldContainer = null;
+                    }
+                }
+            });
+        }
+    }
+
+    /**
+     * Create visual effect for shield
+     */
+    createShieldEffect() {
+        // Create a container for the shield
+        this.shieldContainer = this.scene.add.container(this.graphics.x, this.graphics.y);
+        this.shieldContainer.setDepth(DEPTHS.PLAYER - 1);
+
+        // Create a circle for the shield with semi-transparency
+        const shieldRadius = this.radius * 2;
+        const shieldCircle = this.scene.add.circle(0, 0, shieldRadius, 0x00aaff, 0.2); // More transparent (was 0.3)
+        shieldCircle.setStrokeStyle(3, 0x00ffff, 0.4); // More transparent (was 0.7)
+
+        // Create an inner circle for additional effect with semi-transparency
+        const innerCircle = this.scene.add.circle(0, 0, shieldRadius * 0.7, 0x00ffff, 0.08); // More transparent (was 0.1)
+
+        // Add to container
+        this.shieldContainer.add([shieldCircle, innerCircle]);
+
+        // Create a pulsing effect for the outer circle
+        this.scene.tweens.add({
+            targets: shieldCircle,
+            scale: 1.2,
+            duration: 1000,
+            yoyo: true,
+            repeat: -1
+        });
+
+        // Create a pulsing effect for the inner circle (out of phase with outer)
+        this.scene.tweens.add({
+            targets: innerCircle,
+            scale: 1.3,
+            duration: 1000,
+            yoyo: true,
+            repeat: -1,
+            delay: 500 // Start halfway through the outer circle's cycle
+        });
+
+        // Create a rotating effect for the whole container
+        this.scene.tweens.add({
+            targets: this.shieldContainer,
+            angle: 360,
+            duration: 3000,
+            repeat: -1
+        });
+    }
+
+    /**
+     * Play sound effect for shield activation
+     */
+    playShieldActivationSound() {
+        if (this.scene.soundManager) {
+            // Use shield sound if available, otherwise use a fallback
+            const soundKey = this.scene.soundManager.hasSound('shield_activate')
+                ? 'shield_activate'
+                : 'laserShoot'; // Fallback to an existing sound
+
+            this.scene.soundManager.playSoundEffect(soundKey, {
+                detune: 600, // Higher pitch for shield activation
+                volume: 0.5
+            });
+        }
+    }
+
+    /**
+     * Play sound effect for shield deactivation
+     */
+    playShieldDeactivationSound() {
+        if (this.scene.soundManager) {
+            // Use shield sound if available, otherwise use a fallback
+            const soundKey = this.scene.soundManager.hasSound('shield_deactivate')
+                ? 'shield_deactivate'
+                : 'laserShoot'; // Fallback to an existing sound
+
+            this.scene.soundManager.playSoundEffect(soundKey, {
+                detune: -600, // Lower pitch for shield deactivation
+                volume: 0.4
+            });
         }
     }
 
@@ -551,7 +1026,7 @@ export class Player {
         }
 
         // Check for cash pickups within collection radius
-        const collectedItems = this.scene.spritePool.checkCollision(
+        this.scene.spritePool.checkCollision(
             this.graphics.x,
             this.graphics.y,
             this.cashCollectionRadius,
@@ -836,6 +1311,12 @@ export class Player {
 
         if (this.cursorCircle) {
             this.cursorCircle.destroy();
+        }
+
+        // Clean up shield container if it exists
+        if (this.shieldContainer) {
+            this.shieldContainer.destroy();
+            this.shieldContainer = null;
         }
 
         // Clean up debug graphics if it exists
