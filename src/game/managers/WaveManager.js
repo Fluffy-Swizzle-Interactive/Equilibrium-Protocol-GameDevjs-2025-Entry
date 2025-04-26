@@ -16,10 +16,12 @@ export class WaveManager {
 
         // Wave configuration
         this.currentWave = options.currentWave || 0;
-        this.maxWaves = options.maxWaves || 40;
+        this.maxWaves = options.maxWaves || 20;
         this.baseEnemyCount = options.baseEnemyCount || 20;
         this.enemyCountGrowth = options.enemyCountGrowth || 1.2;
-        this.bossWaveInterval = options.bossWaveInterval || 10;
+        this.bossWaveInterval = options.bossWaveInterval || 5;
+        // Add a maximum cap on enemies per wave to prevent excessive numbers
+        this.maxEnemiesPerWave = options.maxEnemiesPerWave || 300;
 
         // Wave state
         this.isPaused = false;
@@ -129,8 +131,17 @@ export class WaveManager {
             this.hasBoss = false;
         }
 
+        // Clamp enemy count to maximum allowed
+        enemyCount = Math.min(enemyCount, this.maxEnemiesPerWave);
+
         // Set the number of enemies to spawn this wave
         this.enemiesToSpawn = enemyCount;
+        
+        // Log information about the wave in dev mode
+        if (this.scene.isDev) {
+            console.debug(`[WaveManager] Wave ${this.currentWave} calculated enemy count: ${enemyCount} (capped at ${this.maxEnemiesPerWave})`);
+            console.debug(`[WaveManager] Raw count before cap: ${Math.round(this.baseEnemyCount * Math.pow(this.enemyCountGrowth, this.currentWave - 1))}`);
+        }
     }
 
     /**
@@ -276,10 +287,13 @@ export class WaveManager {
                 this.activeEnemies++;
                 this.activeBosses++; // Increment boss counter
 
-                // Play boss spawn sound if available
-                if (this.scene.soundManager) {
-                    this.scene.soundManager.playSoundEffect('shoot_shotgun', { volume: 1.0 });
-                }
+                // Emit boss-spawned event for other systems to react to
+                EventBus.emit('boss-spawned', {
+                    bossType: bossType,
+                    x: x,
+                    y: y,
+                    boss: boss
+                });
 
                 // Create boss spawn effect
                 this.createBossSpawnEffect(x, y);
@@ -329,18 +343,49 @@ export class WaveManager {
      * @returns {string} Enemy type identifier
      */
     getEnemyTypeForWave() {
+        // Capture chosen enemy type for debugging
+        let chosenType;
+        
         if (this.currentWave < 5) {
             // Early waves only have basic enemies
-            return 'enemy1';
-        } else if (this.currentWave < 15) {
+            chosenType = 'enemy1';
+        } else if (this.currentWave < 10) {
             // Mid waves introduce enemy2 with increasing probability
-            const enemy2Chance = (this.currentWave - 5) / 20;
-            return Math.random() < enemy2Chance ? 'enemy2' : 'enemy1';
+            const enemy2Chance = (this.currentWave - 5) / 10;
+            chosenType = Math.random() < enemy2Chance ? 'enemy2' : 'enemy1';
+        } else if (this.currentWave < 15) {
+            // Waves 10-14 introduce enemy3 with small probability
+            const roll = Math.random();
+            if (roll < 0.1) {
+                chosenType = 'enemy3'; // 10% chance for enemy3
+            } else if (roll < 0.4) {
+                chosenType = 'enemy2'; // 30% chance for enemy2
+            } else {
+                chosenType = 'enemy1'; // 60% chance for enemy1
+            }
         } else {
-            // Later waves have more enemy2 than enemy1
-            const enemy2Chance = Math.min(0.7, (this.currentWave - 15) / 30);
-            return Math.random() < enemy2Chance ? 'enemy2' : 'enemy1';
+            // Later waves have all three enemy types with higher chance of advanced enemies
+            const roll = Math.random();
+            if (roll < 0.25) {
+                chosenType = 'enemy3'; // 25% chance for enemy3
+            } else if (roll < 0.65) {
+                chosenType = 'enemy2'; // 40% chance for enemy2
+            } else {
+                chosenType = 'enemy1'; // 35% chance for enemy1
+            }
         }
+        
+        // Debug log enemy selection when on wave 10 or higher
+        if (this.currentWave >= 10 && this.scene.isDev) {
+            // Check if enemy3 is registered in the enemy manager
+            const isEnemy3Registered = this.scene.enemyManager && 
+                this.scene.enemyManager.enemyRegistry && 
+                this.scene.enemyManager.enemyRegistry.getConstructor('enemy3');
+                
+            console.debug(`[WaveManager] Wave ${this.currentWave} selected enemy: ${chosenType}. Enemy3 registered: ${isEnemy3Registered ? 'YES' : 'NO'}`);
+        }
+        
+        return chosenType;
     }
 
     /**
@@ -429,7 +474,7 @@ export class WaveManager {
         if (this.scene.isDev) {
             console.debug(`[WaveManager] Enemy killed: ${enemyType}, isBoss: ${isBoss}, active enemies remaining: ${this.activeEnemies - 1}, active bosses: ${isBoss ? this.activeBosses - 1 : this.activeBosses}`);
         }
-        
+
         // Ensure counts never go below zero to prevent the bug
         if (this.activeEnemies > 0) {
             this.activeEnemies--;
@@ -511,7 +556,7 @@ export class WaveManager {
                 console.debug('Wave completed event emitted on EventBus', eventData);
             }
         }
-        
+
         // Call registered end of round callbacks
         if (this._endOfRoundCallbacks && this._endOfRoundCallbacks.length > 0) {
             for (const callback of this._endOfRoundCallbacks) {
@@ -556,7 +601,7 @@ export class WaveManager {
     update() {
         // Skip updates if game is paused
         if (this.scene.isPaused) return;
- 
+
         // If wave is active, periodically verify enemy counts match reality
         if (this.isWaveActive && this.scene.enemyManager) {
             // Every 2 seconds, verify enemy count matches reality
@@ -567,7 +612,7 @@ export class WaveManager {
             }
         }
     }
-    
+
     /**
      * Verify that tracked enemy count matches actual enemies in the scene
      * This helps prevent waves getting stuck due to tracking errors
@@ -575,42 +620,42 @@ export class WaveManager {
      */
     verifyEnemyCount() {
         if (!this.scene.enemyManager || !this.isWaveActive) return;
-        
+
         // First, clean up any inactive enemies that might still be counted
         const cleanedUpCount = this.cleanupInactiveEnemies();
-        
+
         // Get the actual count from enemy manager
         const actualEnemyCount = this.scene.enemyManager.getEnemyCount();
         const actualBossCount = this.scene.enemyManager.getEnemyCount('boss1');
-        
+
         // Log any discrepancies in dev mode
         if (this.scene.isDev && (actualEnemyCount !== this.activeEnemies || actualBossCount !== this.activeBosses)) {
             console.debug(`[WaveManager] Enemy count mismatch! Tracked: ${this.activeEnemies} (bosses: ${this.activeBosses}), Actual: ${actualEnemyCount} (bosses: ${actualBossCount})`);
         }
-        
+
         // Check for negative values (error condition) and fix them
         if (this.activeEnemies < 0) {
             console.warn('[WaveManager] Negative activeEnemies count detected, resetting to actual count');
             this.activeEnemies = 0;
         }
-        
+
         if (this.activeBosses < 0) {
             console.warn('[WaveManager] Negative activeBosses count detected, resetting to actual count');
             this.activeBosses = 0;
         }
-        
+
         // If there's a mismatch, always update our tracking to match reality
         if (actualEnemyCount !== this.activeEnemies || actualBossCount !== this.activeBosses) {
             // Update our tracking to match reality
             this.activeEnemies = actualEnemyCount;
             this.activeBosses = actualBossCount;
         }
-        
+
         // MODIFIED: Check if the target number of enemies has been surpassed (not requiring exact count)
         // This makes wave completion more reliable with multiple spawning systems
         const enemySpawnThresholdMet = this.enemiesSpawned >= this.enemiesToSpawn;
         const isBossWave = this.currentWave % this.bossWaveInterval === 0;
-        
+
         // Enhanced debugging to track why waves aren't completing
         if (this.scene.isDev) {
             console.debug(`[WaveManager] Wave completion check:
@@ -670,13 +715,13 @@ export class WaveManager {
             } else if (isBossWave && this.activeBosses > 0) {
                 reason = `Boss still active: ${this.activeBosses}`;
             }
-            
+
             if (reason) {
                 console.debug(`[WaveManager] Wave not completing because: ${reason}`);
             }
         }
     }
-    
+
     /**
      * Force cleanup of any inactive enemies to prevent counting issues
      * Call this before wave completion checks
@@ -684,13 +729,13 @@ export class WaveManager {
      */
     cleanupInactiveEnemies() {
         if (!this.scene.enemyManager) return;
-        
+
         let inactiveCount = 0;
-        
+
         // Loop through enemy manager's enemies
         for (let i = this.scene.enemyManager.enemies.length - 1; i >= 0; i--) {
             const enemy = this.scene.enemyManager.enemies[i];
-            
+
             // Check if this enemy is inactive or missing graphics
             if (!enemy || !enemy.active || !enemy.graphics || !enemy.graphics.active) {
                 // Release back to pool to ensure it's properly removed from tracking
@@ -698,12 +743,12 @@ export class WaveManager {
                 inactiveCount++;
             }
         }
-        
+
         // Log cleanup results if any enemies were cleaned up
         if (inactiveCount > 0 && this.scene.isDev) {
             console.debug(`[WaveManager] Cleaned up ${inactiveCount} inactive enemies`);
         }
-        
+
         return inactiveCount;
 
     }
@@ -733,32 +778,34 @@ export class WaveManager {
     }
 
     /**
-     * Reset the wave manager state
+     * Reset the wave manager
+     * Called when starting a new game or restarting
      */
     reset() {
-        this.currentWave = 0;
-        this.isPaused = false;
         this.isWaveActive = false;
-        this.activeEnemies = 0; // Reset to 0
-        this.activeBosses = 0;  // Reset to 0
-        this.enemiesSpawned = 0;
+        this.waveCompleted = false;
+        this.isPaused = false;
+        this.isWaitingForNextWave = false;
+        
+        this.currentWave = 0;
+        
         this.enemiesToSpawn = 0;
+        this.enemiesSpawned = 0;
+        this.activeEnemies = 0;
+        this.activeBosses = 0;
+        
         this.hasBoss = false;
-        this.lastBossWave = 0;
 
+        // Don't reset boss counter to maintain progressive difficulty
+        // this.lastBossWave = 0;
+        
         if (this.spawnTimer) {
             this.spawnTimer.destroy();
             this.spawnTimer = null;
         }
-
-        // Reset GroupManager counts if it exists
-        if (this.scene.groupManager) {
-            this.scene.groupManager.reset();
-        }
-
-        // Update UI with initial wave information
-        if (this.uiManager) {
-            this.uiManager.updateWaveUI(this.currentWave, this.maxWaves);
+        
+        if (this.scene.isDev) {
+            console.debug('[WaveManager] Reset completed');
         }
     }
 
@@ -779,26 +826,26 @@ export class WaveManager {
             lastBossWave: this.lastBossWave
         };
     }
-    
+
     /**
      * Register enemies that are spawned by external systems
      * This method allows systems like FactionBattleManager to notify WaveManager
      * about enemies they spawn outside normal wave spawning
-     * 
+     *
      * @param {number} count - Number of enemies spawned externally
      */
     registerExternalEnemySpawn(count) {
         if (typeof count !== 'number' || count <= 0) return;
-        
+
         // Track these as part of our spawn counts
         this.enemiesSpawned += count;
         this.activeEnemies += count;
-        
+
         if (this.scene.isDev) {
             console.debug(`[WaveManager] Registered ${count} external enemy spawns. New totals: Spawned=${this.enemiesSpawned}, Active=${this.activeEnemies}`);
         }
     }
-    
+
     /**
      * Register a callback function to be called at the end of each round
      * Used by systems like ShopManager to integrate with wave completion
@@ -808,27 +855,27 @@ export class WaveManager {
         if (!this._endOfRoundCallbacks) {
             this._endOfRoundCallbacks = [];
         }
-        
+
         if (!this._endOfRoundCallbacks.includes(callback)) {
             this._endOfRoundCallbacks.push(callback);
-            
+
             if (this.scene.isDev) {
                 console.debug('[WaveManager] End of round callback registered');
             }
         }
     }
-    
+
     /**
      * Unregister a previously registered end of round callback
      * @param {Function} callback - The callback to unregister
      */
     unregisterEndOfRoundCallback(callback) {
         if (!this._endOfRoundCallbacks) return;
-        
+
         const index = this._endOfRoundCallbacks.indexOf(callback);
         if (index !== -1) {
             this._endOfRoundCallbacks.splice(index, 1);
-            
+
             if (this.scene.isDev) {
                 console.debug('[WaveManager] End of round callback unregistered');
             }

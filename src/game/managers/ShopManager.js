@@ -23,6 +23,7 @@ export default class ShopManager {
     this.rng = rng;
     this.upgradeManager = new UpgradeManager(player, weapon, rng);
     this.isShopOpen = false;
+    this.isProcessingShopOpen = false; // Add debounce flag
 
     // Register with scene for easier access
     scene.shopManager = this;
@@ -76,7 +77,19 @@ export default class ShopManager {
 
         // Add new listener for opening shop (only to the background element)
         nextWaveBg.on('pointerdown', () => {
+          // Add debounce protection
+          if (this.isProcessingShopOpen) return;
+          
+          // Set processing flag
+          this.isProcessingShopOpen = true;
+          
+          // Open shop
           this.openShop();
+          
+          // Reset flag after a delay to prevent double-clicks
+          this.scene.time.delayedCall(500, () => {
+            this.isProcessingShopOpen = false;
+          });
         });
 
         // Make the text non-interactive or ensure it doesn't have its own handler
@@ -98,6 +111,11 @@ export default class ShopManager {
     if (this.isShopOpen) return;
 
     this.isShopOpen = true;
+    
+    // Immediately hide the "Open Shop" button to prevent double-clicks
+    if (this.scene.uiManager) {
+      this.scene.uiManager.hideNextWaveButton();
+    }
 
     // Sync player credits with cashManager before opening shop
     if (this.scene.cashManager) {
@@ -130,6 +148,13 @@ export default class ShopManager {
    * Handle rerolling shop upgrades
    */
   handleReroll() {
+    // Check if player has reached the reroll limit
+    if (this.upgradeManager.rerollCount >= this.upgradeManager.maxRerollsPerRound) {
+      // Reached reroll limit
+      EventBus.emit('shop-reroll-failed', { reason: 'reroll-limit-reached' });
+      return false;
+    }
+
     // Check if player can afford reroll
     const rerollCost = this.upgradeManager.getRerollCost();
 
@@ -156,14 +181,16 @@ export default class ShopManager {
     // Emit event with new upgrades for the ShopMenuScene to update
     EventBus.emit('shop-rerolled', {
       newUpgrades: upgrades,
-      newRerollCost: this.upgradeManager.getRerollCost()
+      newRerollCost: this.upgradeManager.getRerollCost(),
+      rerollsRemaining: this.upgradeManager.maxRerollsPerRound - this.upgradeManager.rerollCount
     });
 
-    // Play reroll sound
+    // Play shop upgrade sound for reroll (same as upgrade buttons)
     if (this.scene.soundManager) {
-      this.scene.soundManager.playSoundEffect('shoot_minigun', {
-        detune: -600,
-        volume: 0.5
+      this.scene.soundManager.playSoundEffect('shop_upgrade', {
+        volume: 0.06, // Same as other shop upgrades
+        detune: -100,
+        rate: 1.1
       });
     }
 
@@ -204,7 +231,7 @@ export default class ShopManager {
     // Play purchase sound
     if (this.scene.soundManager) {
       this.scene.soundManager.playSoundEffect('levelUp', {
-        volume: 0.5
+        volume: 0.05 // Reduced to 10% of original value (0.5 -> 0.05)
       });
     }
 
@@ -244,7 +271,7 @@ export default class ShopManager {
     // Play purchase sound
     if (this.scene.soundManager) {
       this.scene.soundManager.playSoundEffect('levelUp', {
-        volume: 0.5
+        volume: 0.05 // Reduced to 10% of original value (0.5 -> 0.05)
       });
     }
 

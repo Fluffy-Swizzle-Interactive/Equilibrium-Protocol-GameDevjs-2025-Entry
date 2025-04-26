@@ -30,7 +30,7 @@ export class CollectibleManager {
                 fallbackSoundKey: 'shoot_minigun',
                 soundConfig: {
                     detune: 1200,
-                    volume: 0.3
+                    volume: 0.03 // Reduced to 10% of original value (0.3 -> 0.03)
                 },
                 particleColor: 0x44FF44 // Green
             },
@@ -42,7 +42,7 @@ export class CollectibleManager {
                 fallbackSoundKey: 'laserShoot',
                 soundConfig: {
                     detune: Math.random() * 100 - 50, // Random detune between -50 and +50 for variety
-                    volume: 0.5
+                    volume: 0.05 // Reduced to 10% of original value (0.5 -> 0.05)
                 },
                 particleColor: 0xFFD700 // Gold
             },
@@ -54,7 +54,7 @@ export class CollectibleManager {
                 fallbackSoundKey: 'laserShoot',
                 soundConfig: {
                     detune: 900,
-                    volume: 0.4
+                    volume: 0.04 // Reduced to 10% of original value (0.4 -> 0.04)
                 },
                 particleColor: 0xFF0000 // Red - used for particle effects
             }
@@ -283,7 +283,7 @@ export class CollectibleManager {
 
             this.scene.soundManager.playSoundEffect(soundKey, {
                 detune: 900,
-                volume: 0.4
+                volume: 0.04 // Reduced to 10% of original value (0.4 -> 0.04)
             });
         }
 

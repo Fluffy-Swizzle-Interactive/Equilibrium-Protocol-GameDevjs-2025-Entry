@@ -25,7 +25,7 @@ export class WeaponManager {
         this.bulletDamage = 0;
         this.bulletColor = 0;
         this.bulletHealth = 0;
-        this.bulletPierce = 1; // Default pierce value
+        this.bulletPierce = 0; // Default pierce value (0 means bullets destroy after one hit)
         this.bulletCount = 1;
         this.bulletRange = options.bulletRange || 600;
 
@@ -303,7 +303,11 @@ export class WeaponManager {
                 this.scene.sound.unlock();
             }
 
-            this.scene.soundManager.playSoundEffect('shoot_weapon', { detune });
+            // Explicitly set the volume to ensure consistency
+            this.scene.soundManager.playSoundEffect('shoot_weapon', {
+                detune,
+                volume: 0.05 // Explicitly set volume to prevent it from increasing
+            });
         } catch (error) {
             console.warn('Error playing weapon sound:', error);
         }
@@ -337,6 +341,10 @@ export class WeaponManager {
 
                 case 'bulletRange':
                     this.bulletRange *= value;
+                    // Update player's aiming distance when bullet range changes
+                    if (this.player && typeof this.player.maxMouseDistance !== 'undefined') {
+                        this.player.maxMouseDistance = this.bulletRange * 0.5; // 50% of bullet range
+                    }
                     break;
 
                 case 'bulletSpeed':
@@ -386,7 +394,10 @@ export class WeaponManager {
                 speed: this.bulletSpeed,
                 pierce: this.bulletPierce,
                 criticalChance: this.criticalHitChance,
-                criticalDamage: this.criticalDamageMultiplier
+                criticalDamage: this.criticalDamageMultiplier,
+                aoeRadius: this.bulletAoeRadius,
+                aoeDamage: this.bulletAoeDamage,
+                homing: this.bulletHoming
             }
         });
     }
@@ -413,6 +424,9 @@ export class WeaponManager {
             pierce: this.bulletPierce,
             criticalChance: this.criticalHitChance,
             criticalDamage: this.criticalDamageMultiplier,
+            aoeRadius: this.bulletAoeRadius,
+            aoeDamage: this.bulletAoeDamage,
+            homing: this.bulletHoming,
             droneCount: this.drones.length,
             maxDrones: this.maxDrones
         };

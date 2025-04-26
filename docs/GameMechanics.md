@@ -1,185 +1,37 @@
 # Game Mechanics
 
-## Overview
-
-This document outlines the core gameplay mechanics of Fluffy-Swizz Interactive, including player controls, combat systems, progression, and game modes.
+This document outlines the core game mechanics implemented in the Fluffy-Swizz Interactive game.
 
 ## Player Controls
 
 ### Movement
+- **WASD** - Move the player character in four directions
+- **Mouse** - Aim weapon
+- **Left Click** - Fire weapon
+- **Space** - Pause/unpause the game
 
-The player moves using WASD keys:
-- `W` - Move up
-- `A` - Move left
-- `S` - Move down
-- `D` - Move right
-
-Movement is omnidirectional and allows for diagonal movement by pressing multiple keys simultaneously.
-
-### Aiming
-
-Aiming is controlled with the mouse. The player character automatically rotates to face the mouse cursor position.
-
-### Firing
-
-- **Primary Fire**: Left mouse button
-- **Weapon Switch**: Number keys (1-2) or mouse wheel
-  - `1` - Minigun
-  - `2` - Shotgun
-
-## Weapon Systems
-
-The game features two distinct weapon systems:
-
-### Minigun
-
-A rapid-fire weapon with moderate damage per shot.
-
-**Properties:**
-- High fire rate (10 shots per second)
-- Low spread (±5 degrees)
-- Moderate damage (10 per bullet)
-- Long range (800 pixels)
-- Low energy consumption
-
-**Implementation:**
-```javascript
-// Example: Minigun firing implementation
-fireMinigun() {
-    if (this.time.now > this.nextFire) {
-        // Calculate fire rate based on player level and upgrades
-        const fireDelay = 1000 / (this.baseFireRate + (this.level * 0.5));
-        
-        // Create bullet from pool
-        const bullet = this.bulletPool.createBullet(
-            this.x, 
-            this.y, 
-            {
-                angle: this.angle + (Math.random() * 10 - 5),
-                speed: 800,
-                damage: 10 + (this.level * 2),
-                lifespan: 1000,
-                texture: 'bullet_minigun'
-            }
-        );
-        
-        // Play sound effect
-        this.scene.sound.play('minigun_fire');
-        
-        // Set next fire time
-        this.nextFire = this.time.now + fireDelay;
-    }
-}
-```
-
-### Shotgun
-
-A burst weapon that fires multiple projectiles in a spread pattern.
-
-**Properties:**
-- Low fire rate (1 shot per second)
-- High spread (±20 degrees)
-- High damage (8 pellets × 15 damage per pellet)
-- Short range (400 pixels)
-- High energy consumption
-
-**Implementation:**
-```javascript
-// Example: Shotgun firing implementation
-fireShotgun() {
-    if (this.time.now > this.nextFire) {
-        // Calculate fire rate based on player level and upgrades
-        const fireDelay = 1000 / (this.baseFireRate * 0.1 + (this.level * 0.05));
-        
-        // Fire multiple pellets in a spread
-        const pelletCount = 8;
-        for (let i = 0; i < pelletCount; i++) {
-            // Calculate spread angle
-            const spreadAngle = this.angle + (Math.random() * 40 - 20);
-            
-            // Create bullet from pool
-            const bullet = this.bulletPool.createBullet(
-                this.x, 
-                this.y, 
-                {
-                    angle: spreadAngle,
-                    speed: 600,
-                    damage: 15 + (this.level * 1.5),
-                    lifespan: 500,
-                    texture: 'bullet_shotgun'
-                }
-            );
-        }
-        
-        // Play sound effect
-        this.scene.sound.play('shotgun_fire');
-        
-        // Set next fire time
-        this.nextFire = this.time.now + fireDelay;
-    }
-}
-```
+### Advanced Movement
+- Diagonal movement is handled with normalized vector math to ensure consistent movement speed
+- Player speed can be upgraded through the shop system
 
 ## Combat System
 
+### Weapon Mechanics
+- Auto-fire when mouse button is held
+- Configurable fire rate (shots per second)
+- Configurable damage per shot
+- Upgradeable through the shop system
+
 ### Damage Calculation
+- Base damage per bullet
+- Critical hit chance (configurable percentage)
+- Critical hit multiplier (default: 2x)
+- Enemy resistances can reduce damage taken
 
-Damage is calculated based on:
-- Base weapon damage
-- Player level multiplier
-- Critical hit chance (random 10% chance for 2x damage)
-- Enemy resistance (some enemies take reduced damage)
-
-```javascript
-// Example: Damage calculation
-calculateDamage(baseDamage, targetEnemy) {
-    // Apply level multiplier
-    let damage = baseDamage * (1 + (this.level * 0.1));
-    
-    // Check for critical hit
-    const isCritical = Math.random() < 0.1;
-    if (isCritical) {
-        damage *= 2;
-        this.createCriticalHitEffect(targetEnemy.x, targetEnemy.y);
-    }
-    
-    // Apply enemy resistance
-    if (targetEnemy.data.get('resistance')) {
-        damage *= (1 - targetEnemy.data.get('resistance'));
-    }
-    
-    return Math.floor(damage);
-}
-```
-
-### Hit Detection
-
-The game uses Phaser's Arcade Physics for hit detection:
-
-```javascript
-// Example: Bullet-enemy collision detection
-this.physics.add.overlap(
-    this.bulletPool.getGroup(),
-    this.enemyGroup,
-    (bullet, enemy) => {
-        // Calculate damage
-        const damage = this.calculateDamage(bullet.damage, enemy);
-        
-        // Apply damage to enemy
-        enemy.takeDamage(damage);
-        
-        // Create hit effect
-        this.spritePool.createHitEffect(bullet.x, bullet.y);
-        
-        // Release bullet back to pool if not piercing
-        if (!bullet.piercing) {
-            this.bulletPool.releaseBullet(bullet);
-        }
-    },
-    null,
-    this
-);
-```
+### Health System
+- Player has health points (HP)
+- Damage reduces HP
+- Health can be regenerated through pickups or regeneration upgrades
 
 ## Game Modes
 
@@ -209,80 +61,174 @@ this.physics.add.overlap(
 - Waves 16-19: Difficult enemy combinations
 - Wave 20: Final boss wave
 
+**Boss Waves:**
+- Every 5th wave (5, 10, 15, 20)
+- Bosses have increased health, damage, and special abilities
+- Boss waves provide greater rewards
+
 ## Progression Systems
 
 ### XP System
-
-Players earn XP by defeating enemies:
-- Basic enemy: 10 XP
-- Fast enemy: 15 XP
-- Tank enemy: 25 XP
-- Boss enemy: 100 XP
-
-XP required for each level follows this formula:
-```
-XP_Required = 100 * (level ^ 1.5)
-```
-
-### Level-Up Benefits
-
-Each level provides:
-- +5% damage
-- +3% movement speed
-- +10 max health
-- Faster reload/fire rate
+- Killing enemies grants XP
+- XP fills a progress bar
+- When the bar is filled, player levels up
+- Each level grants improved stats or ability points
 
 ### Cash System
+- Killing enemies has a chance to drop cash
+- Cash can be used to purchase upgrades in the shop
+- Upgrades improve various player attributes
 
-Players earn cash by defeating enemies:
-- Basic enemy: 5 cash
-- Fast enemy: 8 cash
-- Tank enemy: 15 cash
-- Boss enemy: 50 cash
+### Shop System
+- Available between waves
+- Offers a selection of upgrades
+- Categories: Weapons, Defense, Utility
+- Upgrade costs increase with power level
 
-Cash can be spent on:
-- Temporary power-ups
-- Permanent upgrades
-- Extra lives
+## Enemy Systems
 
-## Difficulty Balancing
+### Enemy Types
 
-The game's difficulty is balanced through several mechanisms:
+#### Basic Enemies
+- Basic melee attackers
+- Fast movement, low health
+- Deals damage on contact
 
-### Dynamic Difficulty Adjustment
+#### Ranged Enemies
+- Attacks from a distance
+- Lower movement speed
+- Fires projectiles at player
 
-- Enemy spawn rate adjusts based on player performance
-- Health pickups appear more frequently when player health is low
-- Power-up frequency increases during difficult sections
+#### Elite Enemies
+- Enhanced versions of basic types
+- More health and damage
+- Special abilities
 
-### Spawn Control
+#### Boss Enemies
+- Unique, powerful enemies
+- Very high health
+- Multiple attack patterns
+- Special abilities
 
-Enemies spawn in waves with controlled composition:
+### Enemy Behavior
+- AI-driven movement
+- Path finding to avoid obstacles
+- Target acquisition and tracking
+- Group coordination in later waves
+- Dynamic difficulty adjustment
 
-```javascript
-// Example: Spawn wave implementation
-spawnWave(waveNumber) {
-    const baseEnemyCount = 5 + (waveNumber * 2);
-    const tankChance = Math.min(0.1 + (waveNumber * 0.01), 0.3);
-    const fastChance = Math.min(0.2 + (waveNumber * 0.02), 0.4);
-    
-    // Determine enemy counts
-    const tankCount = Math.floor(baseEnemyCount * tankChance);
-    const fastCount = Math.floor(baseEnemyCount * fastChance);
-    const basicCount = baseEnemyCount - tankCount - fastCount;
-    
-    // Spawn enemies
-    this.spawnEnemies('basic', basicCount);
-    this.spawnEnemies('fast', fastCount);
-    this.spawnEnemies('tank', tankCount);
-    
-    // Spawn boss every 5 waves
-    if (waveNumber % 5 === 0) {
-        this.spawnBoss();
-    }
-}
-```
+## Collectible System
+
+### XP Orbs
+- Dropped by enemies when killed
+- Automatically attracted to player within a certain radius
+- Increases XP bar progress
+
+### Cash Pickups
+- Randomly dropped by enemies
+- Must be collected manually
+- Increases player's cash reserves
+
+### Health Pickups
+- Rare drops from enemies
+- Restores a percentage of player health
+- Automatically attracted to player when health is low
+
+## Special Mechanics
+
+### Chaos System
+- Chaos level increases as the game progresses
+- Higher chaos leads to more enemy spawns and faction conflicts
+- Visual indicators show current chaos level
+- Affects enemy behavior and spawn patterns
+
+### Faction Battles
+- Different enemy factions can fight each other
+- Triggered randomly or at high chaos levels
+- Player can exploit faction conflicts to their advantage
+- Factions have strengths and weaknesses against each other
+
+## Map System
+
+### Map Generation
+- Predefined tilemapped levels
+- Various environment types
+- Obstacles and barriers affect movement
+- Strategic choke points
+
+### Environmental Objects
+- Destructible objects
+- Hazards that damage enemies or player
+- Cover that blocks projectiles
+- Interactive elements
+
+## Audio System
+
+### Dynamic Music
+- Different music for different game states:
+  - Menu music
+  - Ambient exploration
+  - Combat music
+  - Boss fight themes
+  - Victory/defeat themes
+- Smooth transitions between tracks
+
+### Sound Effects
+- Weapon sounds
+- Enemy sounds
+- Environmental sounds
+- UI feedback sounds
+- Positional audio for immersion
+
+## UI System
+
+### Heads-Up Display (HUD)
+- Health bar
+- XP bar
+- Cash counter
+- Wave/time indicator
+- Minimap (when applicable)
+
+### Menus
+- Main menu
+- Pause menu
+- Shop interface
+- Game over screen
+- Victory screen
+
+## Technical Systems
+
+### Object Pooling
+- Reuses game objects for better performance
+- Applied to bullets, enemies, effects
+- Dynamically grows pools when needed
+
+### Collision Optimization
+- Spatial grid system for faster collision checks
+- Only checks collisions for nearby objects
+- Custom hitboxes for precise detection
+
+### Performance Monitoring
+- FPS counter
+- Debug information display
+- Performance optimization options
 
 ---
 
-*This documentation is maintained by the Fluffy-Swizz Interactive development team.*
+## Appendix
+
+### Damage Formula
+```
+finalDamage = (baseDamage * critMultiplier) - enemyResistance
+```
+
+### XP Formula
+```
+xpRequired = baseXP * (currentLevel * levelScaling)
+```
+
+### Enemy Scaling
+```
+enemyHealth = baseHealth * (1 + (waveNumber * 0.1))
+enemyDamage = baseDamage * (1 + (waveNumber * 0.05))
+```

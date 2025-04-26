@@ -45,7 +45,7 @@ export class EnemyRegistry {
             scoreValue: 10
         }, {
             initialSize: 20,
-            maxSize: 100,
+            maxSize: 250,
             growSize: 5
         });
         
@@ -63,7 +63,7 @@ export class EnemyRegistry {
             dashCooldownTime: 5000
         }, {
             initialSize: 10,
-            maxSize: 50,
+            maxSize: 150,
             growSize: 3
         });
         

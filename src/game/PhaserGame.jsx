@@ -25,8 +25,32 @@ export const PhaserGame = forwardRef(function PhaserGame(props, ref) {
     // Listen for scene updates
     useEffect(() => {
         setupEventListeners();
-        return removeEventListeners;
+        
+        // Disable right-click context menu within the game container
+        const gameContainer = document.getElementById(containerId);
+        if (gameContainer) {
+            gameContainer.addEventListener('contextmenu', preventContextMenu);
+        }
+        
+        return () => {
+            removeEventListeners();
+            
+            // Clean up right-click event listener
+            const gameContainer = document.getElementById(containerId);
+            if (gameContainer) {
+                gameContainer.removeEventListener('contextmenu', preventContextMenu);
+            }
+        };
     }, [ref]);
+
+    /**
+     * Prevent the context menu from appearing on right-click within the game
+     * @param {Event} event - The context menu event
+     */
+    const preventContextMenu = (event) => {
+        event.preventDefault();
+        return false;
+    };
 
     /**
      * Initialize the Phaser game instance

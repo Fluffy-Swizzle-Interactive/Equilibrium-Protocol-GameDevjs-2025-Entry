@@ -96,9 +96,9 @@ export const WEAPON_UPGRADES = [
         category: UPGRADE_CATEGORIES.RANGE,
         rarity: RARITY.COMMON,
         price: 80,
-        effects: '+10% Range',
+        effects: '+20% Range',
         stats: {
-            bulletRange: 1.1 // 10% range boost
+            bulletRange: 1.2 // 20% range boost
         },
         visualProperties: {
             borderColor: 0x33aa33,
@@ -106,18 +106,63 @@ export const WEAPON_UPGRADES = [
         }
     },
     {
+        id: 'range_2',
+        name: '🏹🏹 Superior Range',
+        category: UPGRADE_CATEGORIES.RANGE,
+        rarity: RARITY.EPIC,
+        price: 200,
+        effects: '+40% Range',
+        stats: {
+            bulletRange: 1.4 // 40% range boost
+        },
+        visualProperties: {
+            borderColor: 0x55cc55,
+            fillColor: 0x003300
+        }
+    },
+    {
         id: 'pierce_1',
         name: '📌 Piercing Shot',
         category: UPGRADE_CATEGORIES.PIERCE,
         rarity: RARITY.RARE,
-        price: 150,
-        effects: '+1 Enemy Pierce',
+        price: 180, // Increased price to reflect higher value
+        effects: '+1 to pierce count',
         stats: {
-            bulletPierce: 1 // +1 to pierce count
+            bulletPierce: 1 // +1 to pierce count (allows hitting 2 enemies total)
         },
         visualProperties: {
             borderColor: 0xaa44aa,
             fillColor: 0x220022
+        }
+    },
+    {
+        id: 'pierce_2',
+        name: '📌 Advanced Piercing',
+        category: UPGRADE_CATEGORIES.PIERCE,
+        rarity: RARITY.EPIC,
+        price: 300,
+        effects: '+2 to pierce count',
+        stats: {
+            bulletPierce: 2 // +2 to pierce count (allows hitting 3 enemies total)
+        },
+        visualProperties: {
+            borderColor: 0xcc66cc,
+            fillColor: 0x330033
+        }
+    },
+    {
+        id: 'pierce_3',
+        name: '📌 Master Piercing',
+        category: UPGRADE_CATEGORIES.PIERCE,
+        rarity: RARITY.LEGENDARY,
+        price: 450,
+        effects: '+5 to pierce count',
+        stats: {
+            bulletPierce: 4 // +4 to pierce count (allows hitting 5 enemies total)
+        },
+        visualProperties: {
+            borderColor: 0xffaa00,
+            fillColor: 0x553300
         }
     },
     {
@@ -154,11 +199,11 @@ export const WEAPON_UPGRADES = [
         id: 'area_1',
         name: '🔥 Explosive Rounds',
         category: UPGRADE_CATEGORIES.AREA,
-        rarity: RARITY.EPIC,
-        price: 200,
-        effects: 'Self Explanatory 💣',
+        rarity: RARITY.LEGENDARY,
+        price: 650,
+        effects: '+80 AoE -50% damage',
         stats: {
-            aoeRadius: 30, // Small explosion radius
+            aoeRadius: 80, // Small explosion radius
             aoeDamage: 0.5 // 50% of bullet damage
         },
         visualProperties: {
@@ -201,7 +246,7 @@ export const WEAPON_UPGRADES = [
         id: 'critical_damage_1',
         name: '💥 Critical Power',
         category: UPGRADE_CATEGORIES.CRITICAL,
-        rarity: RARITY.LEGENDARY,
+        rarity: RARITY.EPIC,
         price: 250,
         effects: '+50% Critical Damage',
         stats: {
@@ -263,7 +308,43 @@ export const WEAPON_UPGRADES = [
             borderColor: 0x22ffff,
             fillColor: 0x114455
         }
-    }
+    },
+    {
+        id: 'drone_4',
+        name: '🤖 Combat Drone IV',
+        category: UPGRADE_CATEGORIES.DRONE,
+        rarity: RARITY.LEGENDARY,
+        price: 1000,
+        effects: 'Adds a 4th Combat Drone',
+        stats: {
+            drone: true,
+            droneCount: 1
+        },
+        isDroneUpgrade: true,
+        minWave: 15, // Only available after wave 15
+        visualProperties: {
+            borderColor: 0x00ffaa,
+            fillColor: 0x115544
+        }
+    },
+    {
+        id: 'drone_5',
+        name: '🤖 Combat Drone V',
+        category: UPGRADE_CATEGORIES.DRONE,
+        rarity: RARITY.LEGENDARY,
+        price: 1500,
+        effects: 'Adds a 5th Combat Drone',
+        stats: {
+            drone: true,
+            droneCount: 1
+        },
+        isDroneUpgrade: true,
+        minWave: 15, // Only available after wave 15
+        visualProperties: {
+            borderColor: 0x00ffcc,
+            fillColor: 0x116655
+        }
+    },
 ];
 
 /**
@@ -276,6 +357,12 @@ export function scaleUpgradeByLevel(upgrade, playerLevel) {
     // If no level provided or level is less than 10, return original upgrade
     if (!playerLevel || playerLevel < 10) {
         return upgrade;
+    }
+
+    // Check if this is an EPIC or LEGENDARY upgrade - if so, don't scale it
+    if (upgrade.rarity && (upgrade.rarity.name === 'Epic' || upgrade.rarity.name === 'Legendary')) {
+        // Return a copy to avoid modifying the original
+        return JSON.parse(JSON.stringify(upgrade));
     }
 
     // Calculate level tier (increases every 10 levels)
@@ -360,9 +447,10 @@ export function scaleUpgradeByLevel(upgrade, playerLevel) {
  * @param {number} count - Number of upgrades to get
  * @param {Object} rng - Random number generator object with pick method
  * @param {number} playerLevel - Current player level for scaling upgrades
+ * @param {number} currentWave - Current wave number (optional)
  * @returns {Array} - Array of random weapon upgrades
  */
-export function getRandomWeaponUpgrades(count = 3, rng, playerLevel = 1) {
+export function getRandomWeaponUpgrades(count = 3, rng, playerLevel = 1, currentWave = 1) {
     if (!rng || (typeof rng.pick !== 'function' && typeof rng.range !== 'function')) {
         // Fallback if no RNG is provided
         return WEAPON_UPGRADES.slice(0, count);
@@ -377,7 +465,12 @@ export function getRandomWeaponUpgrades(count = 3, rng, playerLevel = 1) {
     }
 
     // Create a copy to avoid modifying the original array
-    const availableUpgrades = [...WEAPON_UPGRADES];
+    // Filter out upgrades that have a minWave requirement that hasn't been met
+    const availableUpgrades = WEAPON_UPGRADES.filter(upgrade => {
+        // Include the upgrade if it doesn't have a minWave property or if the current wave is >= minWave
+        return !upgrade.minWave || currentWave >= upgrade.minWave;
+    });
+
     const selectedUpgrades = [];
 
     // Create a weighted pool based on rarity
@@ -433,8 +526,11 @@ export function getRandomWeaponUpgrades(count = 3, rng, playerLevel = 1) {
         if (upgradeCopy.isDroneUpgrade) {
             // Keep original rarity for drone upgrades
             randomRarity = upgradeCopy.rarity;
+        } else if (upgradeCopy.rarity.name === 'Epic' || upgradeCopy.rarity.name === 'Legendary') {
+            // Keep original rarity for EPIC and LEGENDARY upgrades
+            randomRarity = upgradeCopy.rarity;
         } else {
-            // Randomly assign a new rarity using weights for non-drone upgrades
+            // Only randomly assign a new rarity for COMMON and RARE upgrades
             const rarityValues = Object.values(RARITY);
 
             // Create a weighted pool for rarities
@@ -454,59 +550,72 @@ export function getRandomWeaponUpgrades(count = 3, rng, playerLevel = 1) {
             upgradeCopy.rarity = randomRarity;
         }
 
-        // Adjust price based on new rarity
-        const rarityPriceMultiplier = randomRarity.multiplier;
-        upgradeCopy.price = Math.round(upgradeCopy.price * rarityPriceMultiplier);
+        // Check if this was originally an EPIC or LEGENDARY upgrade
+        const wasEpicOrLegendary = selected.rarity.name === 'Epic' || selected.rarity.name === 'Legendary';
 
-        // Adjust stats based on new rarity if they are numeric
-        if (upgradeCopy.stats) {
-            Object.entries(upgradeCopy.stats).forEach(([stat, value]) => {
-                if (typeof value === 'number' && !isNaN(value)) {
-                    // Special handling for fireRate
-                    if (stat === 'fireRate') {
-                        // For fireRate < 1, we want to make it even smaller (better) with higher rarities
-                        if (value < 1) {
-                            // Calculate how much below 1 the value is
-                            const reduction = 1 - value;
-                            // Scale the reduction by the rarity multiplier
-                            const scaledReduction = reduction * rarityPriceMultiplier;
-                            // Apply the scaled reduction, ensuring it doesn't go below 0.5
-                            upgradeCopy.stats[stat] = Math.max(0.5, 1 - scaledReduction);
-                        } else {
-                            // For fireRate > 1, we want to make it even larger with higher rarities
-                            // since it will be inverted when applied
+        // Only adjust price and stats if it wasn't originally EPIC or LEGENDARY
+        if (!wasEpicOrLegendary) {
+            // Adjust price based on new rarity
+            const rarityPriceMultiplier = randomRarity.multiplier;
+            upgradeCopy.price = Math.round(upgradeCopy.price * rarityPriceMultiplier);
+
+            // Adjust stats based on new rarity if they are numeric
+            if (upgradeCopy.stats) {
+                Object.entries(upgradeCopy.stats).forEach(([stat, value]) => {
+                    if (typeof value === 'number' && !isNaN(value)) {
+                        // Special handling for fireRate
+                        if (stat === 'fireRate') {
+                            // For fireRate < 1, we want to make it even smaller (better) with higher rarities
+                            if (value < 1) {
+                                // Calculate how much below 1 the value is
+                                const reduction = 1 - value;
+                                // Scale the reduction by the rarity multiplier
+                                const scaledReduction = reduction * rarityPriceMultiplier;
+                                // Apply the scaled reduction, ensuring it doesn't go below 0.5
+                                upgradeCopy.stats[stat] = Math.max(0.5, 1 - scaledReduction);
+                            } else {
+                                // For fireRate > 1, we want to make it even larger with higher rarities
+                                // since it will be inverted when applied
+                                const bonus = value - 1;
+                                const scaledBonus = bonus * rarityPriceMultiplier;
+                                upgradeCopy.stats[stat] = 1 + scaledBonus;
+                            }
+                        }
+                        // For multiplicative stats (values > 1), scale the bonus portion
+                        else if (value > 1) {
+                            // Extract the bonus portion (e.g., 1.1 has a 0.1 bonus)
                             const bonus = value - 1;
+                            // Scale the bonus by the rarity multiplier
                             const scaledBonus = bonus * rarityPriceMultiplier;
+                            // Apply the scaled bonus
                             upgradeCopy.stats[stat] = 1 + scaledBonus;
                         }
+                        // For additive stats, simply multiply by the rarity multiplier
+                        else {
+                            upgradeCopy.stats[stat] = value * rarityPriceMultiplier;
+                        }
                     }
-                    // For multiplicative stats (values > 1), scale the bonus portion
-                    else if (value > 1) {
-                        // Extract the bonus portion (e.g., 1.1 has a 0.1 bonus)
-                        const bonus = value - 1;
-                        // Scale the bonus by the rarity multiplier
-                        const scaledBonus = bonus * rarityPriceMultiplier;
-                        // Apply the scaled bonus
-                        upgradeCopy.stats[stat] = 1 + scaledBonus;
-                    }
-                    // For additive stats, simply multiply by the rarity multiplier
-                    else {
-                        upgradeCopy.stats[stat] = value * rarityPriceMultiplier;
-                    }
-                }
-            });
+                });
+            }
         }
 
-        // Update the effects description to reflect the new rarity
+        // Update the effects description to reflect the rarity
         if (upgradeCopy.effects) {
-            // Extract the base effect without any previous rarity or level indicators
-            let baseEffect = upgradeCopy.effects;
-            if (baseEffect.includes('(')) {
-                baseEffect = baseEffect.substring(0, baseEffect.indexOf('(')).trim();
-            }
+            // For EPIC and LEGENDARY upgrades, keep the original effects description
+            if (wasEpicOrLegendary) {
+                // Keep the original effects description
+                upgradeCopy.effects = selected.effects;
+            } else {
+                // For COMMON and RARE upgrades that got randomized, update the description
+                // Extract the base effect without any previous rarity or level indicators
+                let baseEffect = upgradeCopy.effects;
+                if (baseEffect.includes('(')) {
+                    baseEffect = baseEffect.substring(0, baseEffect.indexOf('(')).trim();
+                }
 
-            // Add rarity indicator
-            upgradeCopy.effects = `${baseEffect} (${randomRarity.name})`;
+                // Add rarity indicator
+                upgradeCopy.effects = `${baseEffect} (${randomRarity.name})`;
+            }
         }
 
         // Scale the upgrade based on player level

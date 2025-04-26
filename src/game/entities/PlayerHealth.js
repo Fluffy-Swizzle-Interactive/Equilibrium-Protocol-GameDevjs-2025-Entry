@@ -125,7 +125,7 @@ export class PlayerHealth {
      * Handle player death
      */
     onDeath() {
-        // Emit player-death event for other systems to react to
+        // Emit player-death event
         EventBus.emit('player-death', {
             x: this.scene.player?.graphics.x,
             y: this.scene.player?.graphics.y
@@ -134,9 +134,13 @@ export class PlayerHealth {
         // Show death animation
         this.showDeathAnimation();
 
-        // Tell scene player died
+        // Tell scene player died with a longer delay to allow animation to complete
         if (this.scene.playerDeath) {
-            this.scene.time.delayedCall(1000, () => {
+            this.scene.time.delayedCall(1500, () => {
+                // Ensure player sprite is fully cleaned up before scene transition
+                if (this.scene.player && this.scene.player.destroy) {
+                    this.scene.player.destroy();
+                }
                 this.scene.playerDeath();
             });
         }
