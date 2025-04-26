@@ -21,7 +21,7 @@ export class WaveManager {
         this.enemyCountGrowth = options.enemyCountGrowth || 1.2;
         this.bossWaveInterval = options.bossWaveInterval || 5;
         // Add a maximum cap on enemies per wave to prevent excessive numbers
-        this.maxEnemiesPerWave = options.maxEnemiesPerWave || 500;
+        this.maxEnemiesPerWave = options.maxEnemiesPerWave || 300;
 
         // Wave state
         this.isPaused = false;

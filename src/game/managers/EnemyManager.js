@@ -53,7 +53,7 @@ export class EnemyManager {
         // Default pool options
         const defaultOptions = {
             initialSize: 20,
-            maxSize: 500, // Increased from 250 to 500 to handle higher enemy counts
+            maxSize: 300, 
             growSize: 5
         };
         
