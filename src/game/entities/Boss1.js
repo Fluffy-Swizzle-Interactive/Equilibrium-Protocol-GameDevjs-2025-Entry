@@ -32,7 +32,7 @@ export class Boss1 extends BaseEnemy {
         this.color = 0xff0000; // Red color
         this.health = 100000;
         this.baseHealth = 100000;
-        this.damage = 5;
+        this.damage = 40;
         this.scoreValue = 500;
         
         // Attack patterns
@@ -422,6 +422,11 @@ export class Boss1 extends BaseEnemy {
     moveTowardsPlayer(playerPos) {
         // Skip if targeting is disabled (neutralized enemy)
         if (this.isNeutral) return;
+        
+        // Skip if playing death animation
+        if (this.currentAnimationKey && this.currentAnimationKey.includes('death')) {
+            return;
+        }
         
         // Get reference to visual representation
         const visual = this.sprite || this.graphics;

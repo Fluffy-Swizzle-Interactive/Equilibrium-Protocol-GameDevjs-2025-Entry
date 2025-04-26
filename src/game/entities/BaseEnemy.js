@@ -19,9 +19,14 @@ export class BaseEnemy {
         this.active = true;
         this.type = 'base';
         this.hasHealthBar = false;
+        
         // Initialize group properties
         this.groupId = null;
         this._originalStats = null;
+        
+        // Initialize animation state tracking
+        this.currentAnimationKey = null;
+        
         // Initialize enemy properties
         this.initProperties();
 
@@ -49,6 +54,9 @@ export class BaseEnemy {
         // Reset group and original stats
         this.groupId = null;
         this._originalStats = null;
+        
+        // Reset animation state
+        this.currentAnimationKey = null;
 
         // Apply options if needed
         this.applyOptions(options);
@@ -65,9 +73,7 @@ export class BaseEnemy {
             this.sprite.setVisible(true);
             
             // Play idle animation if available
-            if (this.sprite.anims && this.type !== 'base') {
-                this.sprite.play(`${this.type}_idle`);
-            }
+            this.playAnimation('idle');
         }
 
         // Create or update health bar if needed
@@ -116,7 +122,7 @@ export class BaseEnemy {
             this.sprite.setScale(1.5); // Adjust scale as needed for your game
             
             // Play idle animation if available
-            this.sprite.play(`${this.type}_idle`);
+            this.playAnimation('idle');
             
             // Set consistent depth to ensure proper layering
             this.sprite.setDepth(DEPTHS.ENEMIES);
@@ -125,6 +131,7 @@ export class BaseEnemy {
             this.sprite.parentEnemy = this;
             
             // Store reference to sprite as graphics for compatibility with existing code
+            // This creates the standardized reference that other code can rely on
             this.graphics = this.sprite;
             
             // Add to physics system if needed
@@ -134,6 +141,9 @@ export class BaseEnemy {
             this.graphics = this.scene.add.rectangle(x, y, this.size, this.size, this.color);
             this.graphics.setDepth(DEPTHS.ENEMIES);
             this.graphics.parentEnemy = this;
+            
+            // Also store as sprite for standardized reference (even though it's a rectangle)
+            this.sprite = this.graphics;
             
             // Add to physics system
             this.scene.physics.add.existing(this.graphics);
@@ -193,8 +203,6 @@ export class BaseEnemy {
             // Change visual appearance - tint sprite or graphic to gray
             if (this.sprite) {
                 this.sprite.setTint(0xaaaaaa);
-            } else if (this.graphics) {
-                this.graphics.setFillStyle(0x999999);
             }
         }
 
@@ -221,17 +229,16 @@ export class BaseEnemy {
     createHealthBar() {
         if (!this.hasHealthBar) return;
 
-        // Get the reference to the visual representation (sprite or graphics)
-        const visual = this.sprite || this.graphics;
-        if (!visual) return;
+        // Use sprite as the standard visual reference
+        if (!this.sprite) return;
 
         const barWidth = this.size * 2;
         const barHeight = 5;
-        const barY = visual.y - this.size - 10;
+        const barY = this.sprite.y - this.size - 10;
 
         // Background bar (black)
         this.healthBarBg = this.scene.add.rectangle(
-            visual.x,
+            this.sprite.x,
             barY,
             barWidth,
             barHeight,
@@ -240,7 +247,7 @@ export class BaseEnemy {
 
         // Health bar (red)
         this.healthBar = this.scene.add.rectangle(
-            visual.x - barWidth/2,
+            this.sprite.x - barWidth/2,
             barY,
             barWidth,
             barHeight,
@@ -254,20 +261,62 @@ export class BaseEnemy {
     updateHealthBar() {
         if (!this.hasHealthBar || !this.healthBar || !this.healthBarBg) return;
 
-        // Get the reference to the visual representation (sprite or graphics)
-        const visual = this.sprite || this.graphics;
-        if (!visual) return;
+        // Use sprite as the standard visual reference
+        if (!this.sprite) return;
 
         // Update health bar position
-        this.healthBarBg.x = visual.x;
-        this.healthBarBg.y = visual.y - this.size - 10;
+        this.healthBarBg.x = this.sprite.x;
+        this.healthBarBg.y = this.sprite.y - this.size - 10;
 
         // Update health bar width based on remaining health percentage
         const healthPercent = Math.max(0, this.health / this.baseHealth);
         const barWidth = this.size * 2;
         this.healthBar.width = barWidth * healthPercent;
-        this.healthBar.x = visual.x - barWidth/2;
-        this.healthBar.y = visual.y - this.size - 10;
+        this.healthBar.x = this.sprite.x - barWidth/2;
+        this.healthBar.y = this.sprite.y - this.size - 10;
+    }
+
+    /**
+     * Play an animation on this enemy
+     * @param {string} animType - The animation type (idle, run, death, etc.)
+     * @param {boolean} ignoreIfPlaying - If true, won't restart the animation if it's already playing
+     * @returns {boolean} Whether the animation was successfully started
+     */
+    playAnimation(animType, ignoreIfPlaying = false) {
+        // Skip if enemy is not active or sprite doesn't exist
+        if (!this.active || !this.sprite || !this.sprite.anims) return false;
+        
+        // Skip for the base enemy type (which has no animations)
+        if (this.type === 'base') return false;
+        
+        // Construct animation key
+        const key = `${this.type}_${animType}`;
+        
+        // Don't restart if already playing this animation
+        if (ignoreIfPlaying && 
+            this.sprite.anims.currentAnim && 
+            this.sprite.anims.currentAnim.key === key) {
+            return true;
+        }
+        
+        // Try to play using AnimationManager if available
+        if (this.scene.animationManager) {
+            const success = this.scene.animationManager.playAnimation(this.sprite, key, ignoreIfPlaying);
+            if (success) {
+                this.currentAnimationKey = key;
+                return true;
+            }
+        }
+        
+        // Fallback to direct play - but first check if animation exists
+        if (!this.scene.anims.exists(key)) {
+            return false;
+        }
+        
+        // Play the animation directly
+        this.sprite.play(key, ignoreIfPlaying);
+        this.currentAnimationKey = key;
+        return true;
     }
 
     /**
@@ -275,8 +324,16 @@ export class BaseEnemy {
      */
     update() {
         // Skip if not active
-        const visual = this.sprite || this.graphics;
-        if (!this.active || !visual || !visual.active) {
+        if (!this.active || !this.sprite || !this.sprite.active) {
+            return;
+        }
+
+        // Skip movement and behavior updates if dying (when playing death animation)
+        if (this.currentAnimationKey && this.currentAnimationKey.includes('death')) {
+            // Only update health bar if needed
+            if (this.hasHealthBar) {
+                this.updateHealthBar();
+            }
             return;
         }
 
@@ -337,8 +394,8 @@ export class BaseEnemy {
             enemy: this,
             groupId: this.groupId,
             position: {
-                x: this.sprite ? this.sprite.x : (this.graphics ? this.graphics.x : 0),
-                y: this.sprite ? this.sprite.y : (this.graphics ? this.graphics.y : 0)
+                x: this.sprite ? this.sprite.x : 0,
+                y: this.sprite ? this.sprite.y : 0
             }
         });
     }
@@ -353,7 +410,7 @@ export class BaseEnemy {
             this.rageState = null;
             
             // Remove rage tint
-            if (this.sprite) {
+            if (this.sprite && !this.isNeutral) {
                 this.sprite.clearTint();
             }
         }
@@ -375,13 +432,17 @@ export class BaseEnemy {
         // Skip if targeting is disabled (neutralized enemy)
         if (this.isNeutral) return;
         
-        // Get reference to visual representation
-        const visual = this.sprite || this.graphics;
-        if (!visual) return;
+        // Skip if sprite doesn't exist
+        if (!this.sprite) return;
+        
+        // Skip if playing death animation
+        if (this.currentAnimationKey && this.currentAnimationKey.includes('death')) {
+            return;
+        }
 
         // Calculate direction to player
-        const dx = playerPos.x - visual.x;
-        const dy = playerPos.y - visual.y;
+        const dx = playerPos.x - this.sprite.x;
+        const dy = playerPos.y - this.sprite.y;
         
         // Calculate distance
         const distance = Math.sqrt(dx * dx + dy * dy);
@@ -392,19 +453,19 @@ export class BaseEnemy {
             const dirY = dy / distance;
             
             // Move toward player
-            visual.x += dirX * this.speed;
-            visual.y += dirY * this.speed;
+            this.sprite.x += dirX * this.speed;
+            this.sprite.y += dirY * this.speed;
             
-            // If using sprite animations, update animation based on direction
-            if (this.sprite && this.type !== 'base' && !this.sprite.anims.isPlaying) {
-                // Play run animation
-                this.sprite.play(`${this.type}_run`, true);
-                
-                // Flip sprite based on horizontal direction
-                if (dirX !== 0) {
-                    this.sprite.setFlipX(dirX < 0);
-                }
+            // Update animation based on direction - use run animation when moving
+            this.playAnimation('run', true);
+            
+            // Flip sprite based on horizontal direction
+            if (dirX !== 0 && this.sprite.anims) {
+                this.sprite.setFlipX(dirX < 0);
             }
+        } else {
+            // If not moving, play idle animation
+            this.playAnimation('idle', true);
         }
     }
 
@@ -416,13 +477,12 @@ export class BaseEnemy {
         // Skip if enemy is neutralized
         if (this.isNeutral) return;
         
-        // Get reference to visual
-        const visual = this.sprite || this.graphics;
-        if (!visual) return;
+        // Skip if sprite doesn't exist
+        if (!this.sprite) return;
 
         // Simple circular collision check
-        const dx = playerPos.x - visual.x;
-        const dy = playerPos.y - visual.y;
+        const dx = playerPos.x - this.sprite.x;
+        const dy = playerPos.y - this.sprite.y;
         const distance = Math.sqrt(dx * dx + dy * dy);
         
         // Collision occurs when distance is less than sum of radii
@@ -442,25 +502,14 @@ export class BaseEnemy {
         // Apply damage
         this.health -= damage;
         
-        // Flash the sprite/graphics to indicate damage
-        const visual = this.sprite || this.graphics;
-        if (visual) {
-            if (this.sprite) {
-                this.sprite.setTint(0xffffff);
-                this.scene.time.delayedCall(100, () => {
-                    if (this.active && this.sprite && !this.isEnraged()) {
-                        this.sprite.clearTint();
-                    }
-                });
-            } else {
-                const originalColor = this.color;
-                this.graphics.setFillStyle(0xffffff);
-                this.scene.time.delayedCall(100, () => {
-                    if (this.active && this.graphics) {
-                        this.graphics.setFillStyle(originalColor);
-                    }
-                });
-            }
+        // Flash the sprite to indicate damage
+        if (this.sprite) {
+            this.sprite.setTint(0xffffff);
+            this.scene.time.delayedCall(100, () => {
+                if (this.active && this.sprite && !this.isEnraged() && !this.isNeutral) {
+                    this.sprite.clearTint();
+                }
+            });
         }
         
         // Check if enemy is dead
@@ -476,38 +525,60 @@ export class BaseEnemy {
         // Skip if already inactive
         if (!this.active) return;
         
+        // Store the current position before marking as inactive
+        // This ensures the death position is preserved even after cleanup
+        const lastPosition = this.sprite ? { 
+            x: this.sprite.x, 
+            y: this.sprite.y 
+        } : null;
+        
         // Mark as inactive immediately to prevent further damage
         this.active = false;
         
         // Play death animation if available
-        if (this.sprite && this.type !== 'base') {
-            this.sprite.play(`${this.type}_death`);
-            
-            // Wait for death animation to complete before removing
-            this.sprite.on('animationcomplete', (anim) => {
-                if (anim.key === `${this.type}_death`) {
+        if (this.playAnimation('death')) {
+            // Listen for animation completion to clean up
+            const onDeathAnimComplete = (animation, frame, sprite) => {
+                if (sprite === this.sprite && animation.key === `${this.type}_death`) {
+                    // Remove the event listener to prevent memory leaks
+                    if (this.sprite && this.sprite.off) {
+                        this.sprite.off('animationcomplete', onDeathAnimComplete);
+                    }
                     this.completeCleanup();
                 }
-            });
+            };
+            
+            // Add event listener for animation completion
+            if (this.sprite && this.sprite.on) {
+                this.sprite.on('animationcomplete', onDeathAnimComplete);
+            }
             
             // Also set a timer as fallback if animation doesn't complete
-            this.scene.time.delayedCall(1000, () => {
+            // Use the animation duration if available, otherwise use a fixed delay
+            let deathAnimDuration = 1000; // Default fallback
+            
+            if (this.sprite && 
+                this.sprite.anims && 
+                this.sprite.anims.currentAnim) {
+                // Calculate the actual duration of the death animation
+                const framerate = this.sprite.anims.currentAnim.frameRate || 12;
+                const frameCount = this.sprite.anims.currentAnim.frames.length;
+                deathAnimDuration = Math.ceil((1000 * frameCount) / framerate) + 100; // Add a small buffer
+            }
+            
+            this.scene.time.delayedCall(deathAnimDuration, () => {
                 this.completeCleanup();
             });
         } else {
-            // No sprite or animation, clean up immediately
+            // No sprite or animation available, clean up immediately
             this.completeCleanup();
         }
         
-        // Notify the scene about the enemy death
-        const visual = this.sprite || this.graphics;
-        const position = visual ? { x: visual.x, y: visual.y } : null;
-        
-        // Pass the enemy instance directly to avoid duplicate lookups
+        // Notify the scene about the enemy death - use stored position instead of potentially destroyed sprite
         this.scene.onEnemyKilled(
             this.isBossEnemy(), 
-            position ? position.x : 0,
-            position ? position.y : 0,
+            lastPosition ? lastPosition.x : 0,
+            lastPosition ? lastPosition.y : 0,
             this.type,
             this
         );
@@ -517,6 +588,9 @@ export class BaseEnemy {
      * Complete cleanup after death animation
      */
     completeCleanup() {
+        // Skip if already destroyed
+        if (!this.active && (!this.sprite && !this.graphics)) return;
+        
         // Mark as inactive
         this.active = false;
         
@@ -526,21 +600,17 @@ export class BaseEnemy {
             this.sprite = null;
         }
         
-        if (this.graphics) {
+        // If graphics is different from sprite (which shouldn't happen with our standardization),
+        // also clean it up
+        if (this.graphics && this.graphics !== this.sprite) {
             this.graphics.destroy();
+            this.graphics = null;
+        } else {
             this.graphics = null;
         }
         
         // Clean up health bar if it exists
-        if (this.healthBar) {
-            this.healthBar.destroy();
-            this.healthBar = null;
-        }
-        
-        if (this.healthBarBg) {
-            this.healthBarBg.destroy();
-            this.healthBarBg = null;
-        }
+        this.cleanupHealthBar();
     }
 
     /**
@@ -596,8 +666,11 @@ export class BaseEnemy {
             this.sprite = null;
         }
         
-        if (this.graphics) {
+        // If graphics is different from sprite, also clean it up
+        if (this.graphics && this.graphics !== this.sprite) {
             this.graphics.destroy();
+            this.graphics = null;
+        } else {
             this.graphics = null;
         }
         
@@ -606,6 +679,8 @@ export class BaseEnemy {
         
         // Nullify references
         this._originalStats = null;
+        this.currentAnimationKey = null;
+        this.rageState = null;
         
         // Emit destroyed event
         EventBus.emit('enemy-destroyed', { enemy: this });

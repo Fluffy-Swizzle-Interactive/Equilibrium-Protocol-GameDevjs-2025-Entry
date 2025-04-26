@@ -58,6 +58,11 @@ export class Enemy3 extends BaseEnemy {
         // Skip if targeting is disabled (neutralized enemy)
         if (this.isNeutral) return;
         
+        // Skip if playing death animation
+        if (this.currentAnimationKey && this.currentAnimationKey.includes('death')) {
+            return;
+        }
+        
         // Get reference to visual
         const visual = this.sprite || this.graphics;
         if (!visual) return;

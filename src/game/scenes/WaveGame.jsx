@@ -20,6 +20,7 @@ import { CollectibleManager } from '../managers/CollectibleManager';
 import { FactionBattleManager } from '../managers/FactionBattleManager';
 import ShopManager from '../managers/ShopManager';
 import { HealthRegenerationSystem } from '../systems/HealthRegenerationSystem';
+import { AnimationManager } from '../managers/AnimationManager';
 import { DEPTHS, CHAOS } from '../constants';
 
 /**
@@ -393,227 +394,55 @@ export class WaveGame extends Scene {
      * Create animations for all enemy types
      */
     createEnemyAnimations() {
-        // Enemy1 animations (fast green enemy)
-        this.anims.create({
-            key: 'enemy1_idle',
-            frames: this.anims.generateFrameNames('enemy1', {
-                prefix: 'enemy1_idle_',
-                suffix: '.png',
-                start: 0,
-                end: 3
-            }),
-            frameRate: 8,
-            repeat: -1
-        });
-
-        this.anims.create({
-            key: 'enemy1_run',
-            frames: this.anims.generateFrameNames('enemy1', {
-                prefix: 'enemy1_run_',
-                suffix: '.png',
-                start: 0,
-                end: 3
-            }),
-            frameRate: 10,
-            repeat: -1
-        });
-
-        this.anims.create({
-            key: 'enemy1_death',
-            frames: this.anims.generateFrameNames('enemy1', {
-                prefix: 'enemy1_death_',
-                suffix: '.png',
-                start: 0,
-                end: 7
-            }),
-            frameRate: 12,
-            repeat: 0
-        });
-
-        this.anims.create({
-            key: 'enemy1_shoot',
-            frames: this.anims.generateFrameNames('enemy1', {
-                prefix: 'enemy1_shoot_',
-                suffix: '.png',
-                start: 0,
-                end: 3
-            }),
-            frameRate: 12,
-            repeat: 0
-        });
-
-        // Enemy2 animations (slower blue enemy)
-        this.anims.create({
-            key: 'enemy2_idle',
-            frames: this.anims.generateFrameNames('enemy2', {
-                prefix: 'enemy2_idle_',
-                suffix: '.png',
-                start: 0,
-                end: 7
-            }),
-            frameRate: 8,
-            repeat: -1
-        });
-
-        this.anims.create({
-            key: 'enemy2_run',
-            frames: this.anims.generateFrameNames('enemy2', {
-                prefix: 'enemy2_run_',
-                suffix: '.png',
-                start: 0,
-                end: 3
-            }),
-            frameRate: 8,
-            repeat: -1
-        });
-
-        this.anims.create({
-            key: 'enemy2_death',
-            frames: this.anims.generateFrameNames('enemy2', {
-                prefix: 'enemy2_death_',
-                suffix: '.png',
-                start: 0,
-                end: 7
-            }),
-            frameRate: 12,
-            repeat: 0
-        });
-
-        this.anims.create({
-            key: 'enemy2_activate',
-            frames: this.anims.generateFrameNames('enemy2', {
-                prefix: 'enemy2_activate_',
-                suffix: '.png',
-                start: 0,
-                end: 4
-            }),
-            frameRate: 10,
-            repeat: 0
-        });
-
-        this.anims.create({
-            key: 'enemy2_shoot',
-            frames: this.anims.generateFrameNames('enemy2', {
-                prefix: 'enemy2_shoot_',
-                suffix: '.png',
-                start: 0,
-                end: 3
-            }),
-            frameRate: 12,
-            repeat: 0
-        });
-
-        // Enemy3 animations (ranged orange enemy)
-        this.anims.create({
-            key: 'enemy3_idle',
-            frames: this.anims.generateFrameNames('enemy3', {
-                prefix: 'enemy3_idle_',
-                suffix: '.png',
-                start: 0,
-                end: 2
-            }),
-            frameRate: 6,
-            repeat: -1
-        });
-
-        this.anims.create({
-            key: 'enemy3_run',
-            frames: this.anims.generateFrameNames('enemy3', {
-                prefix: 'enemy3_run_',
-                suffix: '.png',
-                start: 0,
-                end: 3
-            }),
-            frameRate: 10,
-            repeat: -1
-        });
-
-        this.anims.create({
-            key: 'enemy3_death',
-            frames: this.anims.generateFrameNames('enemy3', {
-                prefix: 'enemy3_death_',
-                suffix: '.png',
-                start: 0,
-                end: 7
-            }),
-            frameRate: 12,
-            repeat: 0
-        });
-
-        this.anims.create({
-            key: 'enemy3_shoot',
-            frames: this.anims.generateFrameNames('enemy3', {
-                prefix: 'enemy3_shoot_',
-                suffix: '.png',
-                start: 0,
-                end: 3
-            }),
-            frameRate: 10,
-            repeat: 0
-        });
-
-        // Boss1 animations - If BOSS1.json exists in your project
-        if (this.textures.exists('boss1')) {
-            this.anims.create({
-                key: 'boss1_idle',
-                frames: this.anims.generateFrameNames('boss1', {
-                    prefix: 'boss1_idle_',
-                    suffix: '.png',
-                    start: 0,
-                    end: 3
-                }),
-                frameRate: 6,
-                repeat: -1
-            });
-
-            this.anims.create({
-                key: 'boss1_attack',
-                frames: this.anims.generateFrameNames('boss1', {
-                    prefix: 'boss1_attack_',
-                    suffix: '.png',
-                    start: 0,
-                    end: 5
-                }),
-                frameRate: 10,
-                repeat: 0
-            });
-            
-            this.anims.create({
-                key: 'boss1_run',
-                frames: this.anims.generateFrameNames('boss1', {
-                    prefix: 'boss1_run_',
-                    suffix: '.png',
-                    start: 0,
-                    end: 5
-                }),
-                frameRate: 12,
-                repeat: -1
-            });
-            
-            this.anims.create({
-                key: 'boss1_shoot',
-                frames: this.anims.generateFrameNames('boss1', {
-                    prefix: 'boss1_shoot_',
-                    suffix: '.png',
-                    start: 0,
-                    end: 4
-                }),
-                frameRate: 14,
-                repeat: 0
-            });
-
-            this.anims.create({
-                key: 'boss1_death',
-                frames: this.anims.generateFrameNames('boss1', {
-                    prefix: 'boss1_death_',
-                    suffix: '.png',
-                    start: 0,
-                    end: 7
-                }),
-                frameRate: 8,
-                repeat: 0
-            });
+        // Initialize the animation manager if not already done
+        if (!this.animationManager) {
+            this.animationManager = new AnimationManager(this);
         }
+
+        // Enemy1 animations (fast green enemy)
+        this.animationManager.createEnemyAnimations('enemy1', {
+            idle: { start: 0, end: 3, frameRate: 8, repeat: -1 },
+            run: { start: 0, end: 3, frameRate: 10, repeat: -1 },
+            death: { start: 0, end: 7, frameRate: 12, repeat: 0 },
+            shoot: { start: 0, end: 3, frameRate: 12, repeat: 0 }
+        });
+        
+        // Enemy2 animations (slower blue enemy)
+        this.animationManager.createEnemyAnimations('enemy2', {
+            idle: { start: 0, end: 7, frameRate: 8, repeat: -1 },
+            run: { start: 0, end: 3, frameRate: 8, repeat: -1 },
+            death: { start: 0, end: 7, frameRate: 12, repeat: 0 },
+            shoot: { start: 0, end: 3, frameRate: 12, repeat: 0 }
+        });
+        
+        // Add special activate animation for enemy2
+        this.animationManager.createAnimation(
+            'enemy2_activate',
+            'enemy2',
+            'enemy2_activate_',
+            '.png',
+            0,
+            4,
+            { frameRate: 10, repeat: 0 }
+        );
+        
+        // Enemy3 animations (ranged orange enemy)
+        this.animationManager.createEnemyAnimations('enemy3', {
+            idle: { start: 0, end: 2, frameRate: 6, repeat: -1 },
+            run: { start: 0, end: 3, frameRate: 10, repeat: -1 },
+            death: { start: 0, end: 7, frameRate: 12, repeat: 0 },
+            shoot: { start: 0, end: 3, frameRate: 10, repeat: 0 }
+        });
+        
+        // Boss1 animations - Always try to create regardless of texture check
+        // AnimationManager will handle the case where textures don't exist
+        this.animationManager.createEnemyAnimations('boss1', {
+            idle: { start: 0, end: 3, frameRate: 6, repeat: -1 },
+            run: { start: 0, end: 5, frameRate: 12, repeat: -1 },
+            death: { start: 0, end: 7, frameRate: 8, repeat: 0 },
+            shoot: { start: 0, end: 4, frameRate: 14, repeat: 0 },
+            attack: { start: 0, end: 5, frameRate: 10, repeat: 0 }
+        });
     }
 
     /**
@@ -1147,8 +976,8 @@ export class WaveGame extends Scene {
                         // Get bullet properties - either from the bullet itself or from the player's weapon
                         const bulletSize = bullet.radius || this.player.caliber || 5;
                         const bulletDamage = bullet.damage ||
-                            (this.player.weaponManager ?
-                                this.player.weaponManager.getDamage() :
+                            (this.player.weaponManager ? 
+                                this.player.weaponManager.getDamage() : 
                                 this.player.bulletDamage || 10);
 
                         // Check if bullet hits enemy
@@ -1501,18 +1330,18 @@ export class WaveGame extends Scene {
 
                 // Create a particle emitter
                 const particles = this.add.particles(x + offsetX, y + offsetY, 'particle_texture', {
-                    speed: { min: 100, max: 300 },
+                    speed: { min: 20, max: 50 },
                     scale: { start: 0.4, end: 0 },
                     alpha: { start: 1, end: 0 },
-                    lifespan: 600,
+                    lifespan: 150,
                     blendMode: 'ADD',
-                    quantity: 30,
+                    quantity: 10,
                     angle: { min: 0, max: 360 }
                 });
 
                 // Auto-destroy the emitter after it's done
                 particles.setDepth(200);
-                this.time.delayedCall(1000, () => {
+                this.time.delayedCall(300, () => {
                     particles.destroy();
                 });
             });

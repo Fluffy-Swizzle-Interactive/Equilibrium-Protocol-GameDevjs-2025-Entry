@@ -57,6 +57,11 @@ export class Enemy2 extends BaseEnemy {
         // Skip if targeting is disabled (neutralized enemy)
         if (this.isNeutral) return;
         
+        // Skip if playing death animation
+        if (this.currentAnimationKey && this.currentAnimationKey.includes('death')) {
+            return;
+        }
+        
         // Get reference to visual representation
         const visual = this.sprite || this.graphics;
         if (!visual) return;
@@ -96,6 +101,7 @@ export class Enemy2 extends BaseEnemy {
                 if (this.sprite) {
                     // Play run animation at faster rate during dash
                     this.sprite.play('enemy2_run', true);
+                    
                     // Use frameRate instead of setTimeScale to control animation speed
                     if (this.sprite.anims && this.sprite.anims.currentAnim) {
                         this.sprite.anims.currentAnim.frameRate = 20; // Increase frame rate for faster animation
