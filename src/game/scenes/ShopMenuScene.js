@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { EventBus } from '../EventBus';
 import { RARITY } from '../constants/WeaponUpgrades';
+import { ButtonSoundHelper } from '../utils/ButtonSoundHelper';
 
 /**
  * ShopMenuScene class
@@ -48,6 +49,9 @@ export default class ShopMenuScene extends Phaser.Scene {
 
         // Set up events for shop interactions
         this.setupEventListeners();
+
+        // Setup button sound listener
+        this.cleanupButtonSounds = ButtonSoundHelper.setupButtonSounds(this);
     }
 
     /**
@@ -399,6 +403,13 @@ export default class ShopMenuScene extends Phaser.Scene {
 
             // Add click event
             card.on('pointerdown', () => {
+                // Emit shop upgrade sound for weapon upgrades
+                EventBus.emit('shop-upgrade-click', {
+                    volume: 0.6,
+                    detune: -100,
+                    rate: 1.1
+                });
+
                 // Find the card record in our tracking array
                 const cardRecord = this.upgradeElements.weaponCards.find(c => c.upgrade.id === upgrade.id);
 
@@ -587,6 +598,13 @@ export default class ShopMenuScene extends Phaser.Scene {
 
             // Add click event with visual feedback
             btnBg.on('pointerdown', () => {
+                // Emit shop upgrade sound for player upgrades
+                EventBus.emit('shop-upgrade-click', {
+                    volume: 0.6,
+                    detune: -100,
+                    rate: 1.1
+                });
+
                 // Find the button record in our tracking array
                 const buttonRecord = this.upgradeElements.playerButtons.find(b => b.upgrade.id === upgrade.id);
 
@@ -807,6 +825,13 @@ export default class ShopMenuScene extends Phaser.Scene {
         });
 
         rerollBg.on('pointerdown', () => {
+            // Emit button click event for sound
+            EventBus.emit('button-click', {
+                volume: 0.6,
+                detune: -200, // Pitch down slightly
+                rate: 1.2 // Speed up slightly
+            });
+
             this.tweens.add({
                 targets: rerollBg,
                 scaleX: 0.95,
@@ -848,6 +873,13 @@ export default class ShopMenuScene extends Phaser.Scene {
         });
 
         nextWaveBg.on('pointerdown', () => {
+            // Emit button click event for sound
+            EventBus.emit('button-click', {
+                volume: 0.6,
+                detune: -200, // Pitch down slightly
+                rate: 1.2 // Speed up slightly
+            });
+
             this.tweens.add({
                 targets: nextWaveBg,
                 scaleX: 0.95,
@@ -1288,6 +1320,11 @@ export default class ShopMenuScene extends Phaser.Scene {
         EventBus.off('shop-purchase-failed', this.handlePurchaseFailed);
         EventBus.off('shop-reroll-failed', this.handleRerollFailed);
         EventBus.off('skill-points-updated', this.updateStatPanels);
+
+        // Clean up button sound event listeners
+        if (this.cleanupButtonSounds) {
+            this.cleanupButtonSounds();
+        }
 
         // Clear references
         this.upgradeElements = {

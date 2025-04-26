@@ -3,6 +3,7 @@ import { Scene } from 'phaser';
 import { SoundManager } from '../managers/SoundManager';
 import { DEPTHS } from '../constants';
 import { VolumeSlider } from '../ui/VolumeSlider';
+import { ButtonSoundHelper } from '../utils/ButtonSoundHelper';
 
 /**
  * MainMenu scene
@@ -27,7 +28,19 @@ export class MainMenu extends Scene
             fontFamily: 'Arial Black', fontSize: 38, color: '#39C66B',
             stroke: '#000000', strokeThickness: 8,
             align: 'center'
-        }).setDepth(100).setOrigin(0.5).setInteractive().on('pointerdown', () => this.startGame('wave'), this);
+        }).setDepth(100).setOrigin(0.5).setInteractive();
+
+        // Add click handler with sound
+        waveButton.on('pointerdown', () => {
+            // Emit button click event for sound
+            EventBus.emit('button-click', {
+                volume: 0.6,
+                detune: -200, // Pitch down slightly
+                rate: 1.2 // Speed up slightly
+            });
+            // Start the game
+            this.startGame('wave');
+        }, this);
 
         // Add a glow effect to the wave mode button to attract attention
         this.tweens.add({
@@ -46,6 +59,9 @@ export class MainMenu extends Scene
 
         // Setup input for volume control
         this.setupInput();
+
+        // Setup button sound listener
+        this.cleanupButtonSounds = ButtonSoundHelper.setupButtonSounds(this);
 
         EventBus.emit('current-scene-ready', this);
     }
@@ -300,5 +316,18 @@ export class MainMenu extends Scene
                 }
             });
         }
+    }
+
+    /**
+     * Clean up resources when the scene is shut down
+     */
+    shutdown() {
+        // Clean up button sound event listeners
+        if (this.cleanupButtonSounds) {
+            this.cleanupButtonSounds();
+        }
+
+        // Call parent shutdown method
+        super.shutdown();
     }
 }

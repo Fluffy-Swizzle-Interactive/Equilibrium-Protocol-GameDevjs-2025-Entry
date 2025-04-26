@@ -157,6 +157,25 @@ export class WaveGame extends Scene {
             rate: 1.0
         });
 
+        // Initialize shop upgrade sound effect
+        this.soundManager.initSoundEffect('shop_upgrade', {
+            volume: 0.6,
+            rate: 1.1,
+            detune: -100
+        });
+
+        // Initialize boss alert sound effect
+        this.soundManager.initSoundEffect('boss_alert', {
+            volume: 0.8,
+            rate: 1.0
+        });
+
+        // Initialize boss defeat sound effect
+        this.soundManager.initSoundEffect('boss_defeat', {
+            volume: 0.8,
+            rate: 1.0
+        });
+
         // Initialize wave end sound effects (7 variations)
         for (let i = 1; i <= 7; i++) {
             this.soundManager.initSoundEffect(`waveEnd${i}`, {
@@ -312,6 +331,47 @@ export class WaveGame extends Scene {
                     volume: 0.7,
                     detune: Math.random() * 50 - 25 // Slight random detune for variety
                 });
+            }
+        });
+
+        // Listen for shop-upgrade-click events on the EventBus to play upgrade sound
+        EventBus.on('shop-upgrade-click', (data) => {
+            if (this.soundManager) {
+                this.soundManager.playSoundEffect('shop_upgrade', {
+                    volume: data?.volume || 0.6,
+                    detune: (data?.detune || -100) + (Math.random() * 50 - 25), // Add slight random variation
+                    rate: data?.rate || 1.1
+                });
+            }
+        });
+
+        // Listen for boss-spawned events on the EventBus to play boss alert sound
+        EventBus.on('boss-spawned', (data) => {
+            if (this.soundManager) {
+                this.soundManager.playSoundEffect('boss_alert', {
+                    volume: 0.8,
+                    // No detune or rate variation to keep the alert sound consistent
+                });
+
+                // Show boss warning message if UI manager is available
+                if (this.uiManager && this.uiManager.showBossWarning) {
+                    this.uiManager.showBossWarning(data?.bossType || 'boss1');
+                }
+            }
+        });
+
+        // Listen for boss-defeated events on the EventBus to play boss defeat sound
+        EventBus.on('boss-defeated', (data) => {
+            if (this.soundManager) {
+                this.soundManager.playSoundEffect('boss_defeat', {
+                    volume: 0.8,
+                    // No detune or rate variation to keep the defeat sound consistent
+                });
+
+                // Show boss defeated message if UI manager is available
+                if (this.uiManager && this.uiManager.showBossDefeatedMessage) {
+                    this.uiManager.showBossDefeatedMessage(data?.bossType || 'boss1');
+                }
             }
         });
 
@@ -502,10 +562,10 @@ export class WaveGame extends Scene {
             idle: { start: 0, end: 3, frameRate: 8, repeat: -1 },
             run: { start: 0, end: 3, frameRate: 10, repeat: -1 },
             // Fix death animation - explicitly define frame sequence since frames aren't sequential in JSON
-            death: { 
+            death: {
                 frames: [
-                    'enemy1_death_0.png', 
-                    'enemy1_death_1.png', 
+                    'enemy1_death_0.png',
+                    'enemy1_death_1.png',
                     'enemy1_death_2.png',
                     'enemy1_death_3.png',
                     'enemy1_death_4.png',
@@ -513,12 +573,12 @@ export class WaveGame extends Scene {
                     'enemy1_death_6.png',
                     'enemy1_death_7.png'
                 ],
-                frameRate: 10, 
-                repeat: 0 
+                frameRate: 10,
+                repeat: 0
             },
             shoot: { start: 0, end: 3, frameRate: 12, repeat: 0 }
         });
-        
+
         // Enemy2 animations (slower blue enemy)
         this.animationManager.createEnemyAnimations('enemy2', {
             idle: { start: 0, end: 7, frameRate: 8, repeat: -1 },
@@ -526,7 +586,7 @@ export class WaveGame extends Scene {
             death: { start: 0, end: 7, frameRate: 12, repeat: 0 },
             shoot: { start: 0, end: 3, frameRate: 12, repeat: 0 }
         });
-        
+
         // Add special activate animation for enemy2
         this.animationManager.createAnimation(
             'enemy2_activate',
@@ -537,7 +597,7 @@ export class WaveGame extends Scene {
             4,
             { frameRate: 10, repeat: 0 }
         );
-        
+
         // Enemy3 animations (ranged orange enemy)
         this.animationManager.createEnemyAnimations('enemy3', {
             idle: { start: 0, end: 2, frameRate: 6, repeat: -1 },
@@ -545,7 +605,7 @@ export class WaveGame extends Scene {
             death: { start: 0, end: 7, frameRate: 12, repeat: 0 },
             shoot: { start: 0, end: 3, frameRate: 10, repeat: 0 }
         });
-        
+
         // Boss1 animations - Always try to create regardless of texture check
         // AnimationManager will handle the case where textures don't exist
         this.animationManager.createEnemyAnimations('boss1', {
@@ -845,7 +905,7 @@ export class WaveGame extends Scene {
         this.volumeDownKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.NINE);
         this.volumeUpKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ZERO);
 
-        
+
         // DEV ONLY: Add debug key "V" to force verification of enemy counts
         if (this.isDev) {
             this.input.keyboard.addKey('V').on('down', () => {
@@ -854,7 +914,7 @@ export class WaveGame extends Scene {
                     this.waveManager.verifyEnemyCount();
                 }
             });
-            
+
             // Add debug key "F" to force wave completion
             this.input.keyboard.addKey('F').on('down', () => {
                 if (this.waveManager && this.waveManager.isWaveActive) {
@@ -862,15 +922,15 @@ export class WaveGame extends Scene {
                     this.waveManager.completeWave();
                 }
             });
-            
+
             // Add debug key "C" to debug and print all current enemies
             this.input.keyboard.addKey('C').on('down', () => {
                 if (this.enemyManager) {
                     console.log('[DEBUG] Current enemies:', this.enemyManager.enemies.length);
                     this.enemyManager.enemies.forEach((enemy, i) => {
-                        console.log(`Enemy ${i}:`, enemy.type, enemy.groupId, 
-                                    'active:', enemy.active, 
-                                    'position:', enemy.graphics ? 
+                        console.log(`Enemy ${i}:`, enemy.type, enemy.groupId,
+                                    'active:', enemy.active,
+                                    'position:', enemy.graphics ?
                                         {x: enemy.graphics.x, y: enemy.graphics.y} : 'no graphics');
                     });
                 }
@@ -1116,7 +1176,7 @@ export class WaveGame extends Scene {
 
         // Check for collisions
         this.checkCollisions();
-        
+
         // Draw hitboxes if debug option is enabled (DEV MODE ONLY)
         if (this.isDev && this.showHitboxes) {
             this.drawHitboxes();
@@ -1218,8 +1278,8 @@ export class WaveGame extends Scene {
                         // Get bullet properties - either from the bullet itself or from the player's weapon
                         const bulletSize = bullet.radius || this.player.caliber || 5;
                         const bulletDamage = bullet.damage ||
-                            (this.player.weaponManager ? 
-                                this.player.weaponManager.getDamage() : 
+                            (this.player.weaponManager ?
+                                this.player.weaponManager.getDamage() :
                                 this.player.bulletDamage || 10);
 
                         // Check if bullet hits enemy
@@ -1262,13 +1322,13 @@ export class WaveGame extends Scene {
                             if (enemyGraphics.parentEnemy && enemyGraphics.parentEnemy.factionTint) {
                                 // Store current tint
                                 const enemyTint = enemyGraphics.parentEnemy.factionTint;
-                                
+
                                 // Apply white flash (or lighter version of faction tint)
                                 const flashTint = 0xffffff; // Pure white flash
                                 if (enemyGraphics.setTint) {
                                     enemyGraphics.setTint(flashTint);
                                 }
-                                
+
                                 // Reset to faction tint after a short delay
                                 this.time.delayedCall(50, () => {
                                     if (enemyGraphics && enemyGraphics.active && enemyGraphics.setTint) {
@@ -1437,17 +1497,17 @@ export class WaveGame extends Scene {
             }
             return;
         }
-        
+
         // Mark this enemy as counted
         if (enemy) {
             enemy.killCounted = true;
         }
-        
+
         // Debug logging to track kill events
         if (this.isDev) {
             console.debug(`[WaveGame] Enemy killed: ${enemyType}, isBoss: ${isBoss}, at position: ${x},${y}`);
         }
-        
+
         // Increment total kill count
         this.killCount++;
 
@@ -1496,6 +1556,14 @@ export class WaveGame extends Scene {
             if (x !== undefined && y !== undefined) {
                 this.createBossDeathEffect(x, y);
             }
+
+            // Emit boss-defeated event for other systems to react to
+            EventBus.emit('boss-defeated', {
+                bossType: enemyType,
+                x: x,
+                y: y,
+                enemy: enemy
+            });
         } else {
             // If a regular enemy was killed, increment the regular kill counter
             this.regularKillCount++;
@@ -1519,7 +1587,7 @@ export class WaveGame extends Scene {
         // IMPORTANT: Notify the WaveManager about the killed enemy
         if (this.waveManager) {
             this.waveManager.onEnemyKilled(isBoss, enemyType);
-            
+
             // Manually verify enemy count after each kill to ensure wave progression
             // This adds resiliency to the wave completion system
             this.waveManager.verifyEnemyCount();
@@ -1679,6 +1747,9 @@ export class WaveGame extends Scene {
         EventBus.off('player-damaged');
         EventBus.off('player-death');
         EventBus.off('wave-start');
+        EventBus.off('shop-upgrade-click');
+        EventBus.off('boss-spawned');
+        EventBus.off('boss-defeated');
 
         // Call parent shutdown method
         super.shutdown();
@@ -1701,53 +1772,53 @@ export class WaveGame extends Scene {
         // Set styles for different hitbox types
         const enemyStyle = { lineWidth: 1, lineColor: 0xff0000, lineAlpha: 0.8 }; // Red for enemies
         const bulletStyle = { lineWidth: 1, lineColor: 0x00ff00, lineAlpha: 0.8 }; // Green for bullets
-        
+
         // Draw enemy hitboxes
         if (this.enemyManager && this.enemyManager.enemies) {
             this.enemyManager.enemies.forEach(enemy => {
                 if (enemy && enemy.active && enemy.graphics && enemy.graphics.active) {
                     // Set enemy hitbox style
                     this.hitboxGraphics.lineStyle(enemyStyle.lineWidth, enemyStyle.lineColor, enemyStyle.lineAlpha);
-                    
+
                     // Draw circle for enemy hitbox
                     this.hitboxGraphics.strokeCircle(
-                        enemy.graphics.x, 
-                        enemy.graphics.y, 
+                        enemy.graphics.x,
+                        enemy.graphics.y,
                         enemy.size / 2
                     );
-                    
+
                     // Draw a small cross at the center for better visibility
                     const crossSize = 3;
                     this.hitboxGraphics.lineBetween(
-                        enemy.graphics.x - crossSize, 
-                        enemy.graphics.y, 
-                        enemy.graphics.x + crossSize, 
+                        enemy.graphics.x - crossSize,
+                        enemy.graphics.y,
+                        enemy.graphics.x + crossSize,
                         enemy.graphics.y
                     );
                     this.hitboxGraphics.lineBetween(
-                        enemy.graphics.x, 
-                        enemy.graphics.y - crossSize, 
-                        enemy.graphics.x, 
+                        enemy.graphics.x,
+                        enemy.graphics.y - crossSize,
+                        enemy.graphics.x,
                         enemy.graphics.y + crossSize
                     );
                 }
             });
         }
-        
+
         // Draw bullet hitboxes
         if (this.bullets) {
             this.bullets.getChildren().forEach(bullet => {
                 if (bullet && bullet.active) {
                     // Set bullet hitbox style
                     this.hitboxGraphics.lineStyle(bulletStyle.lineWidth, bulletStyle.lineColor, bulletStyle.lineAlpha);
-                    
+
                     // Get bullet size - either from the bullet itself or from the player's weapon
                     const bulletSize = bullet.radius || this.player.caliber || 5;
-                    
+
                     // Draw circle for bullet hitbox
                     this.hitboxGraphics.strokeCircle(
-                        bullet.x, 
-                        bullet.y, 
+                        bullet.x,
+                        bullet.y,
                         bulletSize
                     );
                 }
