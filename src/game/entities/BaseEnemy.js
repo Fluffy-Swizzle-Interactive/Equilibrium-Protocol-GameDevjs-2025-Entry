@@ -755,8 +755,8 @@ export class BaseEnemy {
 
         // Spawn cash pickup based on enemy value
         if (this.scene.cashManager) {
-            // Always drop cash for bosses, 48% chance for regular enemies
-            const shouldDropCash = isBoss ||  0.48;
+            // Always drop cash for bosses, 64% chance for regular enemies
+            const shouldDropCash = isBoss ||  Math.random(0,1) <= 0.64;
 
             if (shouldDropCash) {
                 // Calculate cash value based on enemy type
@@ -779,7 +779,7 @@ export class BaseEnemy {
             }
 
             // 5% chance to spawn a health pickup (independent of cash drop)
-            if (Math.random() < 0.05 && this.scene.spritePool) {
+            if (Math.random(0,1) < 0.05 && this.scene.spritePool) {
                 // Create health pickup
                 this.scene.spritePool.createHealthPickup(
                     position.x,
