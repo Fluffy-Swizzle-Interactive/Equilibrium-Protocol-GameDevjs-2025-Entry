@@ -188,20 +188,19 @@ export class PreSpawn extends Scene
         // Play button click sound
         if (this.soundManager) {
             this.soundManager.playSoundEffect('button_click');
-
-            // Fade out the menu music over 1 second
-            this.soundManager.stopMusic(1000);
         }
 
         // Transition effect
         this.cameras.main.fadeOut(500, 0, 0, 0);
 
+        // Force stop all audio before transitioning to ensure menu music stops
+        this.sound.stopAll();
+
         this.cameras.main.once('camerafadeoutcomplete', () => {
             // Start the wave-based game with the stored wave number and debug setting
             this.scene.start('WaveGame', {
                 startWave: this.startWave || 0,
-                debug: this.debugMode,
-                musicFadedOut: true // Flag to indicate we've already faded out the music
+                debug: this.debugMode
             });
         });
     }
