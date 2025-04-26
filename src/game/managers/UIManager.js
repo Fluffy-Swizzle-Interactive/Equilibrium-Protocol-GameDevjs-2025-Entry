@@ -583,10 +583,10 @@ export class UIManager {
                 speed: { min: 100, max: 300 },
                 scale: { start: 0.5, end: 0 },
                 alpha: { start: 1, end: 0 },
-                lifespan: 800,
+                lifespan: 400,
                 blendMode: 'ADD',
                 tint: particleColor,
-                quantity: 50,
+                quantity: 20,
                 angle: { min: 0, max: 360 }
             });
 
@@ -748,7 +748,7 @@ export class UIManager {
             speed: { min: 100, max: 200 },
             scale: { start: 0.5, end: 0 },
             alpha: { start: 1, end: 0 },
-            lifespan: 600,
+            lifespan: 300,
             blendMode: 'ADD',
             quantity: 10,
             tint: 0x00ff99,

@@ -25,7 +25,7 @@ import { DEPTHS, CHAOS } from '../constants';
 
 /**
  * WaveGame scene
- * Implements a 40-wave survival mode with boss waves every 10th wave
+ * Implements a 20-wave survival mode with boss waves every 5th wave
  */
 export class WaveGame extends Scene {
     constructor() {
@@ -330,10 +330,10 @@ export class WaveGame extends Scene {
         if (this.startWave !== undefined && this.startWave > 0) {
             // For non-zero starting waves, configure the wave manager to start at that wave
             this.waveManager = new WaveManager(this, {
-                maxWaves: 40,
+                maxWaves: 20,
                 baseEnemyCount: 50,
-                enemyCountGrowth: 1.2,
-                bossWaveInterval: 10
+                enemyCountGrowth: 1.4,
+                bossWaveInterval: 5
             });
 
             // Override the currentWave in the manager after creation
@@ -349,10 +349,10 @@ export class WaveGame extends Scene {
         } else {
             // Default case - start from wave 0
             this.waveManager = new WaveManager(this, {
-                maxWaves: 40,
+                maxWaves: 20,
                 baseEnemyCount: 50,
-                enemyCountGrowth: 1.2,
-                bossWaveInterval: 10
+                enemyCountGrowth: 1.4,
+                bossWaveInterval: 5
             });
 
             // Initialize the wave manager with UI reference
@@ -694,6 +694,7 @@ export class WaveGame extends Scene {
 
         // Register available maps
         this.mapManager.registerMaps([
+
             {
                 key: 'level1',
                 tilemapKey: 'map',
@@ -1679,6 +1680,16 @@ export class WaveGame extends Scene {
         EventBus.off('player-damaged');
         EventBus.off('player-death');
         EventBus.off('wave-start');
+
+        // Ensure player is destroyed
+        if (this.player && this.player.destroy) {
+            this.player.destroy();
+        }
+
+        // Ensure all particle emitters are destroyed
+        if (this.particles) {
+            this.particles.destroy();
+        }
 
         // Call parent shutdown method
         super.shutdown();

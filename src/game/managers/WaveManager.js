@@ -16,10 +16,10 @@ export class WaveManager {
 
         // Wave configuration
         this.currentWave = options.currentWave || 0;
-        this.maxWaves = options.maxWaves || 40;
+        this.maxWaves = options.maxWaves || 20;
         this.baseEnemyCount = options.baseEnemyCount || 20;
         this.enemyCountGrowth = options.enemyCountGrowth || 1.2;
-        this.bossWaveInterval = options.bossWaveInterval || 10;
+        this.bossWaveInterval = options.bossWaveInterval || 5;
 
         // Wave state
         this.isPaused = false;
