@@ -92,6 +92,11 @@ export class Preloader extends Scene
         //TEMP REMOVE OR REPLACE
         this.load.audio('button_click', 'assets/audio/sfx/laserShoot.wav');
 
+        // Load wave end sound effects (7 variations)
+        for (let i = 1; i <= 7; i++) {
+            this.load.audio(`waveEnd${i}`, `assets/audio/sfx/waveEnd/waveEnd${i}.mp3`);
+        }
+
         // Load music
         this.load.audio('ambient_music', 'assets/audio/ambient/ambient_loop.mp3');
         this.load.audio('menu_music', 'assets/audio/music/mainMenu.mp3');

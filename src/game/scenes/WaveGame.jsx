@@ -123,6 +123,14 @@ export class WaveGame extends Scene {
             rate: 1.0
         });
 
+        // Initialize wave end sound effects (7 variations)
+        for (let i = 1; i <= 7; i++) {
+            this.soundManager.initSoundEffect(`waveEnd${i}`, {
+                volume: 0.7,
+                rate: 1.0
+            });
+        }
+
         // Start playing ambient music with fade in
         this.soundManager.playMusic('ambient_music', {
             fadeIn: 2000  // 2 second fade in
@@ -219,6 +227,13 @@ export class WaveGame extends Scene {
         EventBus.on('level-up', (data) => {
             if (this.uiManager) {
                 this.uiManager.showLevelUpAnimation(data.level);
+            }
+        });
+
+        // Listen for wave-completed events on the EventBus to play sound
+        EventBus.on('wave-completed', () => {
+            if (this.soundManager) {
+                this.soundManager.playRandomWaveEndSound();
             }
         });
     }
@@ -692,6 +707,11 @@ export class WaveGame extends Scene {
         // Log wave completion
         if (this.isDev) {
             console.debug(`Wave ${data.wave} completed. Last wave: ${data.isLastWave}`);
+        }
+
+        // Play a random wave end sound
+        if (this.soundManager) {
+            this.soundManager.playRandomWaveEndSound();
         }
     }
 
@@ -1389,5 +1409,18 @@ export class WaveGame extends Scene {
         this.time.delayedCall(500, () => {
             particles.destroy();
         });
+    }
+
+    /**
+     * Clean up resources when the scene is shut down
+     */
+    shutdown() {
+        // Clean up event listeners to prevent memory leaks
+        EventBus.off('xp-updated');
+        EventBus.off('level-up');
+        EventBus.off('wave-completed');
+
+        // Call parent shutdown method
+        super.shutdown();
     }
 }
