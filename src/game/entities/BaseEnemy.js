@@ -118,25 +118,25 @@ export class BaseEnemy {
             this.baseHealth = this.baseHealth * options.healthMultiplier;
             this.health = this.baseHealth;
         }
-        
+
         if (options.damageMultiplier && options.damageMultiplier > 1) {
             this.damage = this.damage * options.damageMultiplier;
         }
-        
+
         if (options.speedMultiplier && options.speedMultiplier > 0) {
             this.speed = this.speed * options.speedMultiplier;
         }
-        
+
         if (options.scoreMultiplier && options.scoreMultiplier > 1) {
             this.scoreValue = this.scoreValue * options.scoreMultiplier;
         }
-        
+
         // Store boss counter if this is a boss encounter
         if (options.isBossEncounter) {
             this.isBossEncounter = true;
             this.bossCounter = options.bossCounter || 1;
         }
-        
+
         // Base implementation does nothing more - override in subclasses for specific options
     }
 
@@ -655,17 +655,17 @@ export class BaseEnemy {
                 // Set a much longer timeout to ensure animation completes
                 this.scene.time.delayedCall(3000, () => {
                     console.log(`Timeout cleanup for ${this.type}`);
-                
-                try {
-                    // Force play the death animation with error handling
-                    this.sprite.play(deathAnimKey);
-                    this.currentAnimationKey = deathAnimKey;
-                } catch (error) {
-                    console.warn(`Failed to play ${deathAnimKey} animation: ${error.message}`);
-                    // Fall back to immediate cleanup if animation fails
 
-                    this.completeCleanup();
-                }
+                    try {
+                        // Force play the death animation with error handling
+                        this.sprite.play(deathAnimKey);
+                        this.currentAnimationKey = deathAnimKey;
+                    } catch (error) {
+                        console.warn(`Failed to play ${deathAnimKey} animation: ${error.message}`);
+                        // Fall back to immediate cleanup if animation fails
+                        this.completeCleanup();
+                    }
+                });
             } else {
                 console.log(`${deathAnimKey} animation does not exist!`);
                 this.completeCleanup();
