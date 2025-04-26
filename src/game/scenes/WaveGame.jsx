@@ -55,6 +55,9 @@ export class WaveGame extends Scene {
         // Remove weapon type selection since we're using a single weapon
         this.startWave = data.startWave || 0;
 
+        // Store whether music has been faded out in the previous scene
+        this.musicFadedOut = data.musicFadedOut || false;
+
         // Reset game state for new game
         this.resetGameState();
     }
@@ -74,6 +77,8 @@ export class WaveGame extends Scene {
     }
 
     create() {
+        // No need to force stop audio anymore since we're using proper fade out
+
         this.setupMap();
         this.setupSoundManager(); // Initialize sound manager first
         this.setupObjectManager(); // Initialize object pooling system
@@ -105,6 +110,9 @@ export class WaveGame extends Scene {
             loop: true
         });
 
+        // We no longer need to initialize menu music here
+        // as we're stopping it in the PreSpawn scene
+
         // Initialize sound effects
         this.soundManager.initSoundEffect('shoot_weapon', {
             volume: 0.5,
@@ -121,7 +129,8 @@ export class WaveGame extends Scene {
             console.debug('Audio system is locked. Attempting to unlock...');
             this.sound.once('unlocked', () => {
                 console.debug('Audio system unlocked successfully');
-                // Start playing ambient music with fade in once audio is unlocked
+
+                // Start playing ambient music with fade in
                 this.soundManager.playMusic('ambient_music', {
                     fadeIn: 2000  // 2 second fade in
                 });

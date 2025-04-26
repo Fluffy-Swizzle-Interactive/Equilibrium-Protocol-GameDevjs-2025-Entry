@@ -92,8 +92,9 @@ export class Preloader extends Scene
         //TEMP REMOVE OR REPLACE
         this.load.audio('button_click', 'assets/audio/sfx/laserShoot.wav');
 
-        // Load ambient background music
+        // Load music
         this.load.audio('ambient_music', 'assets/audio/ambient/ambient_loop.mp3');
+        this.load.audio('menu_music', 'assets/audio/music/mainMenu.mp3');
     }
 
     /**

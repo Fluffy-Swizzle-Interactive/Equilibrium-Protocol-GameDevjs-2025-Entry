@@ -2,9 +2,12 @@
 
 This directory contains all background music tracks used in the game.
 
+## Contents
+
+- `mainMenu.mp3` - Main menu theme music
+
 ## Planned Tracks
 
-- `menu_music.mp3` - Main menu theme
 - `gameplay_music.mp3` - Standard gameplay
 - `boss_music.mp3` - Boss encounters
 - `victory_music.mp3` - Victory screen

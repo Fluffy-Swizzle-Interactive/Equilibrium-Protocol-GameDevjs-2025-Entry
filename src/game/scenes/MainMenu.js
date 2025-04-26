@@ -37,22 +37,22 @@ export class MainMenu extends Scene
             duration: 1000
         });
 
-        // Setup sound manager and start ambient music
+        // Setup sound manager and start menu music
         this.setupSoundManager();
 
         EventBus.emit('current-scene-ready', this);
     }
 
     /**
-     * Set up the sound manager and start ambient music
+     * Set up the sound manager and start menu music
      */
     setupSoundManager() {
         // Create sound manager
         this.soundManager = new SoundManager(this);
 
-        // Initialize ambient music
-        this.soundManager.initBackgroundMusic('ambient_music', {
-            volume: 0.3,  // Slightly lower volume for menu
+        // Initialize menu music
+        this.soundManager.initBackgroundMusic('menu_music', {
+            volume: 0.4,  // Set appropriate volume for menu music
             loop: true
         });
 
@@ -62,9 +62,9 @@ export class MainMenu extends Scene
             rate: 1.0
         });
 
-        // Start playing ambient music with fade in
-        this.soundManager.playMusic('ambient_music', {
-            fadeIn: 3000  // 3 second fade in for menu (longer for atmosphere)
+        // Start playing menu music with fade in
+        this.soundManager.playMusic('menu_music', {
+            fadeIn: 2000  // 2 second fade in for menu music
         });
     }
 
@@ -75,6 +75,9 @@ export class MainMenu extends Scene
     startGame(mode) {
         // Transition effect
         this.cameras.main.fadeOut(500, 0, 0, 0);
+
+        // Note: We don't stop the music here anymore
+        // The crossfade will be handled in the WaveGame scene
 
         this.cameras.main.once('camerafadeoutcomplete', () => {
             if (this.logoTween) {
