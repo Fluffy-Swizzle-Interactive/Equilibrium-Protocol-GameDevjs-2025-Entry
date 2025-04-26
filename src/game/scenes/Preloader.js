@@ -102,8 +102,11 @@ export class Preloader extends Scene
         this.load.audio('cash_pickup', 'assets/audio/sfx/pickupCash.wav');
         this.load.audio('player_hit', 'assets/audio/sfx/hitHurt.wav');
         this.load.audio('player_death', 'assets/audio/sfx/explosion1.wav');
-        //TEMP REMOVE OR REPLACE
-        this.load.audio('button_click', 'assets/audio/sfx/laserShoot.wav');
+        this.load.audio('button_click', 'assets/audio/sfx/btnClick.mp3');
+        this.load.audio('shop_upgrade', 'assets/audio/sfx/shopUpgrade.wav');
+        this.load.audio('boss_alert', 'assets/audio/sfx/bossAlert.mp3');
+        this.load.audio('boss_defeat', 'assets/audio/sfx/bossDefeat.mp3');
+        this.load.audio('explosion', 'assets/audio/sfx/explosion1.wav');
 
         // Load wave end sound effects (7 variations)
         for (let i = 1; i <= 7; i++) {
@@ -142,7 +145,9 @@ export class Preloader extends Scene
         // Load the Level1-REDUX tilemap
         this.load.image('tileset_x1', 'assets/maps/tileset x1.png');
         this.load.image('props_and_items_x1', 'assets/maps/props and items x1.png');
-        this.load.tilemapTiledJSON('level1redux', 'assets/maps/Level1-REDUX.json');
+        this.load.tilemapTiledJSON('level1redux', 'assets/maps/Level1-REDUX.json', {
+            customCollisionObjects: true  // Make sure this is true
+        });
         this.load.plugin('AnimatedTiles', 'https://cdn.rawgit.com/PhaserEditor2D/AnimatedTiles/master/dist/AnimatedTiles.js', true);
 
         // Keep the Dark Cave Net tilemap for backward compatibility

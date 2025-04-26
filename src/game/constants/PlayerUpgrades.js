@@ -137,8 +137,8 @@ export const PLAYER_UPGRADES = [
         id: 'regen_1',
         name: '💉 Regeneration',
         category: UPGRADE_CATEGORIES.HEALTH,
-        rarity: RARITY.EPIC,
-        skillPointCost: 1,
+        rarity: RARITY.LEGENDARY,
+        skillPointCost: 3,
         description: 'Slowly regenerate 1 health point every 2 seconds.',
         stats: {
             healthRegen: 0.5 // 0.5 health per second
@@ -194,6 +194,12 @@ export function scalePlayerUpgradeByLevel(upgrade, playerLevel) {
     // If no level provided or level is less than 10, return original upgrade
     if (!playerLevel || playerLevel < 10) {
         return upgrade;
+    }
+
+    // Check if this is an EPIC or LEGENDARY upgrade - if so, don't scale it
+    if (upgrade.rarity && (upgrade.rarity.name === 'Epic' || upgrade.rarity.name === 'Legendary')) {
+        // Return a copy to avoid modifying the original
+        return JSON.parse(JSON.stringify(upgrade));
     }
 
     // Calculate level tier (increases every 10 levels)
@@ -334,6 +340,34 @@ export function getRandomPlayerUpgrades(count = 3, rng, playerLevel = 1, playerS
         }
     }
 
+    // Filter out any LEGENDARY rarity upgrades that have been purchased
+    // This is handled by the permanentlyPurchasedUpgrades set in UpgradeManager
+    // But we'll also filter them out here based on rarity
+    if (playerStats && playerStats.purchasedLegendaryUpgrades) {
+        // Filter out all LEGENDARY rarity upgrades and special abilities (dash, shield, regen)
+        availableUpgrades = availableUpgrades.filter(upgrade => {
+            // Check if this is a LEGENDARY upgrade that's been purchased
+            const isLegendaryPurchased = upgrade.rarity &&
+                upgrade.rarity.name === 'Legendary' &&
+                playerStats.purchasedLegendaryUpgrades.has(upgrade.id);
+
+            // Check if this is the Emergency Dash upgrade and it's been purchased
+            const isDashPurchased = upgrade.id === 'dash_1' &&
+                playerStats.purchasedLegendaryUpgrades.has('dash_1');
+
+            // Check if this is the Shield upgrade and it's been purchased
+            const isShieldPurchased = upgrade.id === 'shield_1' &&
+                playerStats.purchasedLegendaryUpgrades.has('shield_1');
+
+            // Check if this is the Regeneration upgrade and it's been purchased
+            const isRegenPurchased = upgrade.id === 'regen_1' &&
+                playerStats.purchasedLegendaryUpgrades.has('regen_1');
+
+            // Filter out if any of the above conditions are true
+            return !(isLegendaryPurchased || isDashPurchased || isShieldPurchased || isRegenPurchased);
+        });
+    }
+
     // Create a weighted pool based on rarity
     const weightedPool = [];
 
@@ -380,39 +414,57 @@ export function getRandomPlayerUpgrades(count = 3, rng, playerLevel = 1, playerS
         // Create a deep copy of the selected upgrade
         const upgradeCopy = JSON.parse(JSON.stringify(selected));
 
-        // Randomly assign a new rarity using weights
-        const rarityValues = Object.values(RARITY);
+        // Determine if we should randomize the rarity
+        let randomRarity;
 
-        // Create a weighted pool for rarities
-        const rarityPool = [];
-        rarityValues.forEach(rarity => {
-            // Add each rarity to the pool based on its weight
-            for (let i = 0; i < rarity.weight; i++) {
-                rarityPool.push(rarity);
-            }
-        });
+        if (upgradeCopy.rarity.name === 'Epic' || upgradeCopy.rarity.name === 'Legendary') {
+            // Keep original rarity for EPIC and LEGENDARY upgrades
+            randomRarity = upgradeCopy.rarity;
+        } else {
+            // Only randomly assign a new rarity for COMMON and RARE upgrades
+            const rarityValues = Object.values(RARITY);
 
-        // Select a random rarity from the weighted pool
-        const randomRarityIndex = Math.floor(rng.range(0, rarityPool.length - 1));
-        const randomRarity = rarityPool[randomRarityIndex];
+            // Create a weighted pool for rarities
+            const rarityPool = [];
+            rarityValues.forEach(rarity => {
+                // Add each rarity to the pool based on its weight
+                for (let i = 0; i < rarity.weight; i++) {
+                    rarityPool.push(rarity);
+                }
+            });
 
-        // Apply the new rarity
+            // Select a random rarity from the weighted pool
+            const randomRarityIndex = Math.floor(rng.range(0, rarityPool.length - 1));
+            randomRarity = rarityPool[randomRarityIndex];
+        }
+
+        // Apply the rarity
         upgradeCopy.rarity = randomRarity;
 
         // Skill point cost doesn't change with rarity
 
         // Player upgrade stats don't scale with rarity - they only use the base values
 
-        // Update the description to reflect the new rarity (visual only)
-        if (upgradeCopy.description) {
-            // Extract the base description without any previous rarity or level indicators
-            let baseDescription = upgradeCopy.description;
-            if (baseDescription.includes('(')) {
-                baseDescription = baseDescription.substring(0, baseDescription.indexOf('(')).trim();
-            }
+        // Check if this was originally an EPIC or LEGENDARY upgrade
+        const wasEpicOrLegendary = selected.rarity.name === 'Epic' || selected.rarity.name === 'Legendary';
 
-            // Add rarity indicator (visual only - stats don't change with rarity)
-            upgradeCopy.description = `${baseDescription} (${randomRarity.name})`;
+        // Update the description to reflect the rarity (visual only)
+        if (upgradeCopy.description) {
+            // For EPIC and LEGENDARY upgrades, keep the original description
+            if (wasEpicOrLegendary) {
+                // Keep the original description
+                upgradeCopy.description = selected.description;
+            } else {
+                // For COMMON and RARE upgrades that got randomized, update the description
+                // Extract the base description without any previous rarity or level indicators
+                let baseDescription = upgradeCopy.description;
+                if (baseDescription.includes('(')) {
+                    baseDescription = baseDescription.substring(0, baseDescription.indexOf('(')).trim();
+                }
+
+                // Add rarity indicator (visual only - stats don't change with rarity)
+                upgradeCopy.description = `${baseDescription} (${randomRarity.name})`;
+            }
         }
 
         // Scale the upgrade based on player level

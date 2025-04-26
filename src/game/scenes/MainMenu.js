@@ -3,6 +3,7 @@ import { Scene } from 'phaser';
 import { SoundManager } from '../managers/SoundManager';
 import { DEPTHS } from '../constants';
 import { VolumeSlider } from '../ui/VolumeSlider';
+import { ButtonSoundHelper } from '../utils/ButtonSoundHelper';
 
 /**
  * MainMenu scene
@@ -27,7 +28,19 @@ export class MainMenu extends Scene
             fontFamily: 'Arial Black', fontSize: 38, color: '#39C66B',
             stroke: '#000000', strokeThickness: 8,
             align: 'center'
-        }).setDepth(100).setOrigin(0.5).setInteractive().on('pointerdown', () => this.startGame('wave'), this);
+        }).setDepth(100).setOrigin(0.5).setInteractive();
+
+        // Add click handler with sound
+        waveButton.on('pointerdown', () => {
+            // Emit button click event for sound
+            EventBus.emit('button-click', {
+                volume: 0.06, // Reduced to 10% of original value (0.6 -> 0.06)
+                detune: -200, // Pitch down slightly
+                rate: 1.2 // Speed up slightly
+            });
+            // Start the game
+            this.startGame('wave');
+        }, this);
 
         // Add a glow effect to the wave mode button to attract attention
         this.tweens.add({
@@ -46,6 +59,9 @@ export class MainMenu extends Scene
 
         // Setup input for volume control
         this.setupInput();
+
+        // Setup button sound listener
+        this.cleanupButtonSounds = ButtonSoundHelper.setupButtonSounds(this);
 
         EventBus.emit('current-scene-ready', this);
     }
@@ -95,13 +111,13 @@ export class MainMenu extends Scene
 
         // Initialize menu music
         this.soundManager.initBackgroundMusic('menu_music', {
-            volume: 0.4,  // Set appropriate volume for menu music
+            volume: 0.04,  // Reduced to 10% of original value (0.4 -> 0.04)
             loop: true
         });
 
         // Initialize UI sound effects
         this.soundManager.initSoundEffect('button_click', {
-            volume: 0.6,
+            volume: 0.06, // Reduced to 10% of original value (0.6 -> 0.06)
             rate: 1.0
         });
 
@@ -178,7 +194,7 @@ export class MainMenu extends Scene
     handleVolumeControls() {
         if (!this.soundManager) return;
 
-        const volumeStep = 0.05; // 5% volume change per key press
+        const volumeStep = 0.01; // 1% volume change per key press (of the 0-0.1 range)
         let volumeChanged = false;
         let newVolume = this.soundManager.musicVolume;
 
@@ -190,7 +206,7 @@ export class MainMenu extends Scene
 
         // Check for volume up key (0)
         if (Phaser.Input.Keyboard.JustDown(this.volumeUpKey)) {
-            newVolume = Math.min(1, newVolume + volumeStep);
+            newVolume = Math.min(0.1, newVolume + volumeStep);
             volumeChanged = true;
         }
 
@@ -300,5 +316,18 @@ export class MainMenu extends Scene
                 }
             });
         }
+    }
+
+    /**
+     * Clean up resources when the scene is shut down
+     */
+    shutdown() {
+        // Clean up button sound event listeners
+        if (this.cleanupButtonSounds) {
+            this.cleanupButtonSounds();
+        }
+
+        // Call parent shutdown method
+        super.shutdown();
     }
 }

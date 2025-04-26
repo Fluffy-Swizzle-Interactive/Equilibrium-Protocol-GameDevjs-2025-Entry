@@ -508,13 +508,13 @@ Choose carefully: destroy the wrong side too quickly, and the world could collap
 
         // Initialize menu music to ensure we can access it
         this.soundManager.initBackgroundMusic('menu_music', {
-            volume: 0.4,
+            volume: 0.04, // Reduced to 10% of original value (0.4 -> 0.04)
             loop: true
         });
 
         // Initialize sound effects
         this.soundManager.initSoundEffect('button_click', {
-            volume: 0.6,
+            volume: 0.06, // Reduced to 10% of original value (0.6 -> 0.06)
             rate: 1.0
         });
     }
@@ -531,10 +531,11 @@ Choose carefully: destroy the wrong side too quickly, and the world could collap
         // Transition effect
         this.cameras.main.fadeOut(500, 0, 0, 0);
 
-        // Force stop all audio before transitioning to ensure menu music stops
-        this.sound.stopAll();
+        
 
         this.cameras.main.once('camerafadeoutcomplete', () => {
+            // Force stop all audio before transitioning to ensure menu music stops
+            this.sound.stopAll();
             // Start the wave-based game with the stored wave number and debug setting
             this.scene.start('WaveGame', {
                 startWave: this.startWave || 0,

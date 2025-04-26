@@ -8,8 +8,9 @@ export class SoundManager {
         this.musicTracks = {};
         this.soundEffects = {};
         this.currentMusic = null;
-        this.musicVolume = 0.5;
-        this.effectsVolume = 0.7;
+        // Reduced to 10% of original values (0.5 -> 0.05, 0.7 -> 0.07)
+        this.musicVolume = 0.05;
+        this.effectsVolume = 0.07;
         this.isMuted = false;
 
         // Initialize pause-related state properties
@@ -35,12 +36,16 @@ export class SoundManager {
         // Merge default options with provided options
         const musicOptions = { ...defaultOptions, ...options };
 
+        // Ensure volume doesn't exceed our base volume
+        const finalVolume = Math.min(musicOptions.volume, this.musicVolume);
+
         // Create the music object
         this.musicTracks[key] = this.scene.sound.add(key, {
-            volume: musicOptions.volume,
+            volume: finalVolume,
             loop: musicOptions.loop
         });
 
+        console.debug(`Initialized music track "${key}" with volume ${finalVolume}`);
         return this.musicTracks[key];
     }
 
@@ -60,8 +65,18 @@ export class SoundManager {
         // Merge default options with provided options
         const playOptions = { ...defaultOptions, ...options };
 
+        // Make sure the track exists
+        if (!this.musicTracks[key]) {
+            console.warn(`Music track "${key}" not found, cannot play`);
+            return;
+        }
+
         // If we have music playing and it's different from what we want to play
         if (this.currentMusic && this.currentMusic !== this.musicTracks[key]) {
+            // Store the current volume for debugging
+            const currentVolume = this.currentMusic.volume;
+            console.debug(`Crossfading music from ${this._getMusicKeyByTrack(this.currentMusic)} (vol: ${currentVolume}) to ${key}`);
+
             // Fade out current music
             this.scene.tweens.add({
                 targets: this.currentMusic,
@@ -76,9 +91,12 @@ export class SoundManager {
             });
         } else if (!this.currentMusic) {
             // No music playing, start new track
+            console.debug(`Starting music ${key} with volume ${this.musicVolume}`);
             this.startNewMusic(key, playOptions.fadeIn, playOptions.delay);
+        } else {
+            // Current music is already the requested track
+            console.debug(`Music ${key} is already playing at volume ${this.currentMusic.volume}`);
         }
-        // If current music is already playing the requested track, do nothing
     }
 
     /**
@@ -97,20 +115,33 @@ export class SoundManager {
         // Set as current music
         this.currentMusic = this.musicTracks[key];
 
-        // Start with volume 0
-        this.currentMusic.volume = 0;
+        // Set the target volume
+        const targetVolume = this.isMuted ? 0 : this.musicVolume;
 
-        // Start playback
-        this.currentMusic.play({
-            delay: delay / 1000 // Convert ms to seconds
-        });
+        // If no fade-in is requested or duration is very short, start at target volume
+        if (fadeInDuration <= 50) {
+            this.currentMusic.volume = targetVolume;
 
-        // Fade in
-        this.scene.tweens.add({
-            targets: this.currentMusic,
-            volume: this.isMuted ? 0 : this.musicVolume,
-            duration: fadeInDuration
-        });
+            // Start playback
+            this.currentMusic.play({
+                delay: delay / 1000 // Convert ms to seconds
+            });
+        } else {
+            // Start with volume 0 for fade-in
+            this.currentMusic.volume = 0;
+
+            // Start playback
+            this.currentMusic.play({
+                delay: delay / 1000 // Convert ms to seconds
+            });
+
+            // Fade in
+            this.scene.tweens.add({
+                targets: this.currentMusic,
+                volume: targetVolume,
+                duration: fadeInDuration
+            });
+        }
     }
 
     /**
@@ -195,11 +226,16 @@ export class SoundManager {
                 this.currentMusic = track;
 
                 // Start the music from where it was paused
+                // Use the stored volume, but ensure it doesn't exceed our current musicVolume
+                const resumeVolume = Math.min(this._originalVolume || this.musicVolume, this.musicVolume);
+
                 this.currentMusic.play({
                     loop: true,
-                    volume: this._originalVolume || this.musicVolume,
+                    volume: resumeVolume,
                     seek: this._seekPosition || 0
                 });
+
+                console.debug(`Resumed music with volume ${resumeVolume}`);
 
                 console.debug(`Background music resumed from position ${this._seekPosition}`);
             } else {
@@ -255,10 +291,10 @@ export class SoundManager {
 
     /**
      * Set music volume
-     * @param {number} volume - Volume level (0 to 1)
+     * @param {number} volume - Volume level (0 to 0.1)
      */
     setMusicVolume(volume) {
-        this.musicVolume = Phaser.Math.Clamp(volume, 0, 1);
+        this.musicVolume = Phaser.Math.Clamp(volume, 0, 0.1);
 
         // Apply to current music if playing
         if (this.currentMusic) {
@@ -273,10 +309,10 @@ export class SoundManager {
 
     /**
      * Set sound effects volume
-     * @param {number} volume - Volume level (0 to 1)
+     * @param {number} volume - Volume level (0 to 0.1)
      */
     setEffectsVolume(volume) {
-        this.effectsVolume = Phaser.Math.Clamp(volume, 0, 1);
+        this.effectsVolume = Phaser.Math.Clamp(volume, 0, 0.1);
 
         // Apply to all sound effects
         Object.values(this.soundEffects).forEach(sound => {
@@ -336,8 +372,12 @@ export class SoundManager {
                 // Try playing the sound after the system is unlocked
                 if (this.soundEffects[key]) {
                     console.debug(`Audio system unlocked, now playing "${key}"`);
-                    // Ensure loop is false when playing
-                    const playOptions = { ...options, loop: false };
+                    // Ensure loop is false when playing and volume is capped
+                    const playOptions = {
+                        ...options,
+                        loop: false,
+                        volume: Math.min(options.volume || this.effectsVolume, this.effectsVolume)
+                    };
                     this.soundEffects[key].play(playOptions);
                 }
             });
@@ -352,8 +392,15 @@ export class SoundManager {
             this.soundEffects[key].stop();
         }
 
-        // Ensure loop is false in the options
-        const playOptions = { ...options, loop: false };
+        // Ensure loop is false in the options and volume is capped at effectsVolume
+        const playOptions = {
+            ...options,
+            loop: false,
+            volume: Math.min(options.volume || this.effectsVolume, this.effectsVolume)
+        };
+
+        // Log the volume for debugging
+        console.debug(`Playing sound "${key}" with volume ${playOptions.volume}`);
 
         // Sound exists and audio system is ready, play the sound
         try {
@@ -385,7 +432,7 @@ export class SoundManager {
 
         // Default options for wave end sounds
         const defaultOptions = {
-            volume: 0.7,
+            volume: 0.07, // Reduced to 10% of original value (0.7 -> 0.07)
             // Add slight pitch variation for more variety
             detune: Math.random() * 100 - 50, // Random detune between -50 and +50
             loop: false, // Explicitly set loop to false to prevent looping

@@ -148,6 +148,13 @@ export default class ShopManager {
    * Handle rerolling shop upgrades
    */
   handleReroll() {
+    // Check if player has reached the reroll limit
+    if (this.upgradeManager.rerollCount >= this.upgradeManager.maxRerollsPerRound) {
+      // Reached reroll limit
+      EventBus.emit('shop-reroll-failed', { reason: 'reroll-limit-reached' });
+      return false;
+    }
+
     // Check if player can afford reroll
     const rerollCost = this.upgradeManager.getRerollCost();
 
@@ -174,14 +181,16 @@ export default class ShopManager {
     // Emit event with new upgrades for the ShopMenuScene to update
     EventBus.emit('shop-rerolled', {
       newUpgrades: upgrades,
-      newRerollCost: this.upgradeManager.getRerollCost()
+      newRerollCost: this.upgradeManager.getRerollCost(),
+      rerollsRemaining: this.upgradeManager.maxRerollsPerRound - this.upgradeManager.rerollCount
     });
 
-    // Play reroll sound
+    // Play shop upgrade sound for reroll (same as upgrade buttons)
     if (this.scene.soundManager) {
-      this.scene.soundManager.playSoundEffect('shoot_minigun', {
-        detune: -600,
-        volume: 0.5
+      this.scene.soundManager.playSoundEffect('shop_upgrade', {
+        volume: 0.06, // Same as other shop upgrades
+        detune: -100,
+        rate: 1.1
       });
     }
 
@@ -222,7 +231,7 @@ export default class ShopManager {
     // Play purchase sound
     if (this.scene.soundManager) {
       this.scene.soundManager.playSoundEffect('levelUp', {
-        volume: 0.5
+        volume: 0.05 // Reduced to 10% of original value (0.5 -> 0.05)
       });
     }
 
@@ -262,7 +271,7 @@ export default class ShopManager {
     // Play purchase sound
     if (this.scene.soundManager) {
       this.scene.soundManager.playSoundEffect('levelUp', {
-        volume: 0.5
+        volume: 0.05 // Reduced to 10% of original value (0.5 -> 0.05)
       });
     }
 
