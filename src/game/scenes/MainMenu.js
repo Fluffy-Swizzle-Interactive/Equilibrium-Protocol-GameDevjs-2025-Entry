@@ -10,7 +10,7 @@ import { DEPTHS } from '../constants';
 export class MainMenu extends Scene
 {
     logoTween;
-    
+
     constructor ()
     {
         super('MainMenu');
@@ -20,14 +20,14 @@ export class MainMenu extends Scene
     {
         this.add.image(512, 384, 'background');
 
-        
+
         // Add Wave Mode button with a special highlight
         const waveButton = this.add.text(512, 500, 'START GAME', {
             fontFamily: 'Arial Black', fontSize: 38, color: '#39C66B',
             stroke: '#000000', strokeThickness: 8,
             align: 'center'
         }).setDepth(100).setOrigin(0.5).setInteractive().on('pointerdown', () => this.startGame('wave'), this);
-        
+
         // Add a glow effect to the wave mode button to attract attention
         this.tweens.add({
             targets: waveButton,
@@ -36,10 +36,10 @@ export class MainMenu extends Scene
             repeat: -1,
             duration: 1000
         });
-        
+
         // Setup sound manager and start ambient music
         this.setupSoundManager();
-        
+
         EventBus.emit('current-scene-ready', this);
     }
 
@@ -49,13 +49,19 @@ export class MainMenu extends Scene
     setupSoundManager() {
         // Create sound manager
         this.soundManager = new SoundManager(this);
-        
+
         // Initialize ambient music
         this.soundManager.initBackgroundMusic('ambient_music', {
             volume: 0.3,  // Slightly lower volume for menu
             loop: true
         });
-        
+
+        // Initialize UI sound effects
+        this.soundManager.initSoundEffect('button_click', {
+            volume: 0.6,
+            rate: 1.0
+        });
+
         // Start playing ambient music with fade in
         this.soundManager.playMusic('ambient_music', {
             fadeIn: 3000  // 3 second fade in for menu (longer for atmosphere)
@@ -69,17 +75,17 @@ export class MainMenu extends Scene
     startGame(mode) {
         // Transition effect
         this.cameras.main.fadeOut(500, 0, 0, 0);
-        
+
         this.cameras.main.once('camerafadeoutcomplete', () => {
             if (this.logoTween) {
                 this.logoTween.stop();
                 this.logoTween = null;
             }
-            
+
             // Start the PreSpawn scene instead of going directly to WaveGame
             if (mode === 'wave') {
                 // Pass relevant data to PreSpawn scene
-                this.scene.start('PreSpawn', { 
+                this.scene.start('PreSpawn', {
                     startWave: 0 // Default to wave 0 in regular mode
                 });
             } else {

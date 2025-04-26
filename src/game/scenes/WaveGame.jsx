@@ -105,9 +105,14 @@ export class WaveGame extends Scene {
             loop: true
         });
 
-        // Initialize weapon sound effect
+        // Initialize sound effects
         this.soundManager.initSoundEffect('shoot_weapon', {
             volume: 0.5,
+            rate: 1.0
+        });
+
+        this.soundManager.initSoundEffect('level_up', {
+            volume: 0.7,
             rate: 1.0
         });
 
