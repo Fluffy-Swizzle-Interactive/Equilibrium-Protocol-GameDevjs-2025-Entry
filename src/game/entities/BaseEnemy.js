@@ -19,21 +19,21 @@ export class BaseEnemy {
         this.active = true;
         this.type = 'base';
         this.hasHealthBar = false;
-
+        
         // Initialize group properties
         this.groupId = null;
         this._originalStats = null;
-
+        
         // Initialize animation state tracking
         this.currentAnimationKey = null;
-
+        
         // Initialize enemy properties
         this.initProperties();
 
         // Create visual representation if not using pooling
         if (!fromPool) {
             this.createVisuals(x, y);
-
+            
             // Create health bar if needed
             if (this.hasHealthBar) {
                 this.createHealthBar();
@@ -50,17 +50,17 @@ export class BaseEnemy {
     reset(x, y, options = {}) {
         // Set active state
         this.active = true;
-
+        
         // Reset dying flag - important fix for enemies getting stuck
         this.dying = false;
 
         // Reset group and original stats
         this.groupId = null;
         this._originalStats = null;
-
+        
         // Reset animation state
         this.currentAnimationKey = null;
-
+        
         // Reset rage state if present
         if (this.rageState) {
             this.exitRageState();
@@ -80,18 +80,18 @@ export class BaseEnemy {
             this.sprite.setPosition(x, y);
             this.sprite.setActive(true);
             this.sprite.setVisible(true);
-
+            
             // Clear any tints from previous states (death, rage, neutral)
             if (this.sprite.clearTint) {
                 this.sprite.clearTint();
             }
-
+            
             // Reset any physics velocities
             if (this.sprite.body) {
                 this.sprite.body.reset(x, y);
                 this.sprite.body.setVelocity(0, 0);
             }
-
+            
             // Play idle animation if available
             this.playAnimation('idle');
         }
@@ -140,20 +140,20 @@ export class BaseEnemy {
             // Create sprite with proper atlas texture
             this.sprite = this.scene.add.sprite(x, y, this.type);
             this.sprite.setScale(1.5); // Adjust scale as needed for your game
-
+            
             // Play idle animation if available
             this.playAnimation('idle');
-
+            
             // Set consistent depth to ensure proper layering
             this.sprite.setDepth(DEPTHS.ENEMIES);
-
+            
             // Store reference to parent in sprite for collision detection
             this.sprite.parentEnemy = this;
-
+            
             // Store reference to sprite as graphics for compatibility with existing code
             // This creates the standardized reference that other code can rely on
             this.graphics = this.sprite;
-
+            
             // Add to physics system if needed
             this.scene.physics.add.existing(this.sprite);
         } else {
@@ -161,14 +161,14 @@ export class BaseEnemy {
             this.graphics = this.scene.add.rectangle(x, y, this.size, this.size, this.color);
             this.graphics.setDepth(DEPTHS.ENEMIES);
             this.graphics.parentEnemy = this;
-
+            
             // Also store as sprite for standardized reference (even though it's a rectangle)
             this.sprite = this.graphics;
-
+            
             // Add to physics system
             this.scene.physics.add.existing(this.graphics);
         }
-
+        
         // Add to enemies group
         if (this.scene.enemies) {
             this.scene.enemies.add(this.graphics);
@@ -219,7 +219,7 @@ export class BaseEnemy {
         // Additional neutralization behavior
         if (success) {
             this.isNeutral = true;
-
+            
             // Change visual appearance - tint sprite or graphic to gray
             if (this.sprite) {
                 this.sprite.setTint(0xaaaaaa);
@@ -267,7 +267,7 @@ export class BaseEnemy {
 
         // Health bar (red)
         this.healthBar = this.scene.add.rectangle(
-            this.sprite.x - barWidth / 2,
+            this.sprite.x - barWidth/2,
             barY,
             barWidth,
             barHeight,
@@ -292,7 +292,7 @@ export class BaseEnemy {
         const healthPercent = Math.max(0, this.health / this.baseHealth);
         const barWidth = this.size * 2;
         this.healthBar.width = barWidth * healthPercent;
-        this.healthBar.x = this.sprite.x - barWidth / 2;
+        this.healthBar.x = this.sprite.x - barWidth/2;
         this.healthBar.y = this.sprite.y - this.size - 10;
     }
 
@@ -305,20 +305,20 @@ export class BaseEnemy {
     playAnimation(animType, ignoreIfPlaying = false) {
         // Skip if enemy is not active or sprite doesn't exist
         if (!this.active || !this.sprite || !this.sprite.anims) return false;
-
+        
         // Skip for the base enemy type (which has no animations)
         if (this.type === 'base') return false;
-
+        
         // Construct animation key
         const key = `${this.type}_${animType}`;
-
+        
         // Don't restart if already playing this animation
-        if (ignoreIfPlaying &&
-            this.sprite.anims.currentAnim &&
+        if (ignoreIfPlaying && 
+            this.sprite.anims.currentAnim && 
             this.sprite.anims.currentAnim.key === key) {
             return true;
         }
-
+        
         // Try to play using AnimationManager if available
         if (this.scene.animationManager) {
             const success = this.scene.animationManager.playAnimation(this.sprite, key, ignoreIfPlaying);
@@ -327,12 +327,12 @@ export class BaseEnemy {
                 return true;
             }
         }
-
+        
         // Fallback to direct play - but first check if animation exists
         if (!this.scene.anims.exists(key)) {
             return false;
         }
-
+        
         // Play the animation directly
         this.sprite.play(key, ignoreIfPlaying);
         this.currentAnimationKey = key;
@@ -434,7 +434,7 @@ export class BaseEnemy {
         if (this.rageState) {
             this.rageState.exit();
             this.rageState = null;
-
+            
             // Remove rage tint
             if (this.sprite && !this.isNeutral) {
                 this.sprite.clearTint();
@@ -457,10 +457,10 @@ export class BaseEnemy {
     moveTowardsPlayer(playerPos) {
         // Skip if targeting is disabled (neutralized enemy)
         if (this.isNeutral) return;
-
+        
         // Skip if sprite doesn't exist
         if (!this.sprite) return;
-
+        
         // Skip if playing death animation
         if (this.currentAnimationKey && this.currentAnimationKey.includes('death')) {
             return;
@@ -469,22 +469,22 @@ export class BaseEnemy {
         // Calculate direction to player
         const dx = playerPos.x - this.sprite.x;
         const dy = playerPos.y - this.sprite.y;
-
+        
         // Calculate distance
         const distance = Math.sqrt(dx * dx + dy * dy);
-
+        
         if (distance > 0) {
             // Normalize direction
             const dirX = dx / distance;
             const dirY = dy / distance;
-
+            
             // Move toward player
             this.sprite.x += dirX * this.speed;
             this.sprite.y += dirY * this.speed;
-
+            
             // Update animation based on direction - use run animation when moving
             this.playAnimation('run', true);
-
+            
             // Flip sprite based on horizontal direction
             if (dirX !== 0 && this.sprite.anims) {
                 this.sprite.setFlipX(dirX < 0);
@@ -502,7 +502,7 @@ export class BaseEnemy {
     checkPlayerCollision(playerPos) {
         // Skip if enemy is neutralized
         if (this.isNeutral) return;
-
+        
         // Skip if sprite doesn't exist
         if (!this.sprite) return;
 
@@ -510,9 +510,9 @@ export class BaseEnemy {
         const dx = playerPos.x - this.sprite.x;
         const dy = playerPos.y - this.sprite.y;
         const distance = Math.sqrt(dx * dx + dy * dy);
-
+        
         // Collision occurs when distance is less than sum of radii
-        if (distance < (this.size / 2 + this.scene.player.radius)) {
+        if (distance < (this.size/2 + this.scene.player.radius)) {
             // Notify scene of collision - if needed
         }
     }
@@ -524,10 +524,10 @@ export class BaseEnemy {
     takeDamage(damage) {
         // Skip if already inactive
         if (!this.active) return;
-
+        
         // Apply damage
         this.health -= damage;
-
+        
         // Flash the sprite to indicate damage
         if (this.sprite) {
             this.sprite.setTint(0xffffff);
@@ -537,7 +537,7 @@ export class BaseEnemy {
                 }
             });
         }
-
+        
         // Check if enemy is dead
         if (this.health <= 0) {
             this.die();
@@ -554,38 +554,37 @@ export class BaseEnemy {
         }
         // Skip if already inactive
         if (!this.active) return;
-
-
+        
         // Store the current position before marking as inactive
-        const lastPosition = this.sprite ? {
-            x: this.sprite.x,
-            y: this.sprite.y
+        const lastPosition = this.sprite ? { 
+            x: this.sprite.x, 
+            y: this.sprite.y 
         } : null;
-
+        
         // Important: Only mark enemy as "dying" not fully inactive
         // We want to keep it "active" enough for the animation to play
         this.dying = true; // New flag to track death state
-
+        
         // Debug - log the death animation attempt
         console.log(`Enemy ${this.type} death initiated`);
-
+        
         // Play death animation if available
         if (this.sprite && this.type === 'enemy1') {
             // Special handling for ENEMY1
             // Force the sprite to be visible
             this.sprite.setVisible(true);
             this.sprite.setAlpha(1);
-
+            
             // Explicitly set the death animation and ensure it plays
             const deathAnimKey = `${this.type}_death`;
-
+            
             // Debug - check if animation exists
             if (this.scene.anims.exists(deathAnimKey)) {
                 console.log(`${deathAnimKey} animation exists, trying to play it`);
-
+                
                 // Remove any previous animation listeners
                 this.sprite.off('animationcomplete');
-
+                
                 // Add new listener for animation completion
                 this.sprite.on('animationcomplete', (anim) => {
                     if (anim.key === deathAnimKey) {
@@ -593,11 +592,11 @@ export class BaseEnemy {
                         this.completeCleanup();
                     }
                 });
-
+                
                 // Force play the death animation
                 this.sprite.play(deathAnimKey);
                 this.currentAnimationKey = deathAnimKey;
-
+                
                 // Set a much longer timeout to ensure animation completes
                 this.scene.time.delayedCall(3000, () => {
                     console.log(`Timeout cleanup for ${this.type}`);
@@ -610,77 +609,41 @@ export class BaseEnemy {
         } else if (this.playAnimation('death')) {
             // Standard handling for other enemy types
             console.log(`Standard death animation for ${this.type}`);
-
+            
             // Make sprite visible during animation
             if (this.sprite) {
                 this.sprite.setVisible(true);
                 this.sprite.setAlpha(1);
             }
-
+            
             // Listen for animation completion
             const onDeathAnimComplete = (animation, frame, sprite) => {
                 if (sprite === this.sprite && animation.key === `${this.type}_death`) {
                     console.log(`Death animation complete for ${this.type}`);
-
+                    
                     // Remove the listener
                     if (this.sprite && this.sprite.off) {
                         this.sprite.off('animationcomplete', onDeathAnimComplete);
                     }
-
-                    // Spawn cash pickup based on enemy value (30% chance for regular enemies, always for bosses)
-                    if (this.scene.cashManager && this.graphics) {
-                        // Always drop cash for bosses, 40% chance for regular enemies
-                        const shouldDropCash = isBoss || Math.random() < 0.4;
-
-                        if (shouldDropCash) {
-                            // Calculate cash value based on enemy type
-                            let cashMultiplier = 1.0; // Regular enemy
-
-                            if (isBoss) {
-                                cashMultiplier = 2.0; // Boss enemies drop more cash
-                            } else if (this.type === 'enemy2' || this.type === 'enemy3') {
-                                cashMultiplier = 1.5; // Elite enemies (types 2 and 3) drop more cash
-                            }
-
-                            const cashValue = Math.ceil(this.scoreValue * cashMultiplier);
-
-                            // Spawn cash pickup at enemy position
-                            this.scene.cashManager.spawnCashPickup(
-                                this.graphics.x,
-                                this.graphics.y,
-                                cashValue
-                            );
-                        }
-
-                        // 5% chance to spawn a health pickup (independent of cash drop)
-                        if (Math.random() < 0.05 && this.scene.spritePool) {
-                            // Create health pickup
-                            this.scene.spritePool.createHealthPickup(
-                                this.graphics.x,
-                                this.graphics.y,
-                                { value: 20 } // Health amount to restore
-                            );
-                        }
-                    }
-
+                    
                     this.completeCleanup();
                 }
             };
-
+            
             // Add event listener
             if (this.sprite && this.sprite.on) {
                 this.sprite.on('animationcomplete', onDeathAnimComplete);
             }
-
+            
             // Ensure the death animation has plenty of time to complete
             let deathAnimDuration = 3000; // Much longer default time
-
+            
             if (this.sprite && this.sprite.anims && this.sprite.anims.currentAnim) {
                 const framerate = this.sprite.anims.currentAnim.frameRate || 10;
                 const frameCount = this.sprite.anims.currentAnim.frames.length;
                 deathAnimDuration = Math.ceil((1000 * frameCount) / framerate) + 500;
             }
-
+            
             this.scene.time.delayedCall(deathAnimDuration, () => {
                 console.log(`Timeout cleanup for ${this.type}`);
                 this.completeCleanup();
@@ -690,33 +653,83 @@ export class BaseEnemy {
             console.log(`No death animation for ${this.type}, cleaning up immediately`);
             this.completeCleanup();
         }
-
+        
         // Notify the scene about the enemy death
         this.scene.onEnemyKilled(
-            this.isBossEnemy(),
+            this.isBossEnemy(), 
             lastPosition ? lastPosition.x : 0,
             lastPosition ? lastPosition.y : 0,
             this.type,
             this
         );
     }
-
+    
     /**
      * Complete cleanup after death animation
      */
     completeCleanup(coords) {
         // Skip if already destroyed
         if (!this.active && (!this.sprite && !this.graphics)) return;
-
+        
+        // Store position for cash/pickup spawning before cleanup
+        const position = {
+            x: coords ? coords.x : (this.sprite ? this.sprite.x : 0),
+            y: coords ? coords.y : (this.sprite ? this.sprite.y : 0)
+        };
+        
         // Mark as inactive
         this.active = false;
-
+        
+        // Deregister from GroupManager if needed
+        if (this.scene.groupManager && this.groupId) {
+            this.scene.groupManager.deregister(this, this.groupId);
+        }
+        
+        // Determine if this is a boss enemy
+        const isBoss = this.isBossEnemy();
+        
+        // Spawn cash pickup based on enemy value
+        if (this.scene.cashManager) {
+            // Always drop cash for bosses, 40% chance for regular enemies
+            const shouldDropCash = isBoss || Math.random() < 0.4;
+            
+            if (shouldDropCash) {
+                // Calculate cash value based on enemy type
+                let cashMultiplier = 1.0; // Regular enemy
+                
+                if (isBoss) {
+                    cashMultiplier = 2.0; // Boss enemies drop more cash
+                } else if (this.type === 'enemy2' || this.type === 'enemy3') {
+                    cashMultiplier = 1.5; // Elite enemies (types 2 and 3) drop more cash
+                }
+                
+                const cashValue = Math.ceil(this.scoreValue * cashMultiplier);
+                
+                // Spawn cash pickup at enemy position
+                this.scene.cashManager.spawnCashPickup(
+                    position.x,
+                    position.y,
+                    cashValue
+                );
+            }
+            
+            // 5% chance to spawn a health pickup (independent of cash drop)
+            if (Math.random() < 0.05 && this.scene.spritePool) {
+                // Create health pickup
+                this.scene.spritePool.createHealthPickup(
+                    position.x,
+                    position.y,
+                    { value: 20 } // Health amount to restore
+                );
+            }
+        }
+        
         // Remove from scene
         if (this.sprite) {
             this.sprite.destroy();
             this.sprite = null;
         }
-
+        
         // If graphics is different from sprite (which shouldn't happen with our standardization),
         // also clean it up
         if (this.graphics && this.graphics !== this.sprite) {
@@ -725,12 +738,9 @@ export class BaseEnemy {
         } else {
             this.graphics = null;
         }
-
+        
         // Clean up health bar if it exists
         this.cleanupHealthBar();
-
-
-
     }
 
     /**
@@ -773,19 +783,19 @@ export class BaseEnemy {
     destroy() {
         // Mark as inactive
         this.active = false;
-
+        
         // If we have a group ID, deregister from GroupManager
         if (this.groupId && this.scene.groupManager) {
             this.scene.groupManager.deregister(this, this.groupId);
             this.groupId = null;
         }
-
+        
         // Destroy visual components if they exist
         if (this.sprite) {
             this.sprite.destroy();
             this.sprite = null;
         }
-
+        
         // If graphics is different from sprite, also clean it up
         if (this.graphics && this.graphics !== this.sprite) {
             this.graphics.destroy();
@@ -793,15 +803,15 @@ export class BaseEnemy {
         } else {
             this.graphics = null;
         }
-
+        
         // Clean up healthbar
         this.cleanupHealthBar();
-
+        
         // Nullify references
         this._originalStats = null;
         this.currentAnimationKey = null;
         this.rageState = null;
-
+        
         // Emit destroyed event
         EventBus.emit('enemy-destroyed', { enemy: this });
     }
