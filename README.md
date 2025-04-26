@@ -1,4 +1,6 @@
+
 # Equilibrium Protocol -- GameDevjs 2025 Entry By Fluffy Swizzle Interactive
+
 ## Overview
 
 Equilibrium Protocol is a top-down shooter game built with Phaser 3 and React. Players use a unified weapon system and must survive as long as possible against increasingly difficult waves of enemies.
