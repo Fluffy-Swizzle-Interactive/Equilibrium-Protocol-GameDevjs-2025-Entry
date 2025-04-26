@@ -103,7 +103,8 @@ export default class UpgradeManager {
         // Create player stats object for filtering
         const playerStats = {
             defense: playerDefense,
-            healthRegen: healthRegen
+            healthRegen: healthRegen,
+            purchasedLegendaryUpgrades: this.permanentlyPurchasedUpgrades
         };
 
         // Get player upgrades with filtering for defense cap
@@ -433,6 +434,18 @@ export default class UpgradeManager {
         // Track this upgrade as purchased for this shop session
         if (upgrade.id) {
             this.trackPurchasedUpgrade('player', upgrade.id);
+
+            // Special handling for abilities that should be permanently excluded from the shop
+            if (upgrade.id === 'dash_1' || upgrade.id === 'shield_1' || upgrade.id === 'regen_1') {
+                this.permanentlyPurchasedUpgrades.add(upgrade.id);
+                console.log(`Special ability "${upgrade.name}" purchased - will no longer appear in shop`);
+            }
+
+            // Special handling for LEGENDARY rarity upgrades - permanently exclude them from future shops
+            if (upgrade.rarity && upgrade.rarity.name === 'Legendary') {
+                this.permanentlyPurchasedUpgrades.add(upgrade.id);
+                console.log(`Legendary upgrade "${upgrade.name}" purchased - will no longer appear in shop`);
+            }
         }
 
         // Apply each stat change from the upgrade
@@ -545,6 +558,16 @@ export default class UpgradeManager {
 
                 case 'healthRegen':
                     this.player.healthRegen = (this.player.healthRegen || 0) + value;
+
+                    // Show message to player
+                    if (this.player.scene.showFloatingText) {
+                        this.player.scene.showFloatingText(
+                            this.player.graphics.x,
+                            this.player.graphics.y - 40,
+                            'Health regeneration activated!',
+                            0xaa66aa
+                        );
+                    }
                     break;
 
                 case 'dash':
@@ -552,6 +575,16 @@ export default class UpgradeManager {
                     this.player.dashPower = upgrade.stats.dashPower || 1.5;
                     this.player.dashCooldown = upgrade.stats.dashCooldown || 10000;
                     this.player.dashCooldownTimer = 0;
+
+                    // Show message to player
+                    if (this.player.scene.showFloatingText) {
+                        this.player.scene.showFloatingText(
+                            this.player.graphics.x,
+                            this.player.graphics.y - 40,
+                            'Dash ability unlocked! (Press Q)',
+                            0x00ffff
+                        );
+                    }
                     break;
 
                 case 'shield':
@@ -559,6 +592,16 @@ export default class UpgradeManager {
                     this.player.shieldDuration = upgrade.stats.shieldDuration || 3000;
                     this.player.shieldCooldown = upgrade.stats.shieldCooldown || 30000;
                     this.player.shieldCooldownTimer = 0;
+
+                    // Show message to player
+                    if (this.player.scene.showFloatingText) {
+                        this.player.scene.showFloatingText(
+                            this.player.graphics.x,
+                            this.player.graphics.y - 40,
+                            'Shield ability unlocked! (Press E)',
+                            0x00aaff
+                        );
+                    }
                     break;
 
                 default:

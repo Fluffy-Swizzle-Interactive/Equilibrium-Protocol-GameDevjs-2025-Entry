@@ -340,6 +340,34 @@ export function getRandomPlayerUpgrades(count = 3, rng, playerLevel = 1, playerS
         }
     }
 
+    // Filter out any LEGENDARY rarity upgrades that have been purchased
+    // This is handled by the permanentlyPurchasedUpgrades set in UpgradeManager
+    // But we'll also filter them out here based on rarity
+    if (playerStats && playerStats.purchasedLegendaryUpgrades) {
+        // Filter out all LEGENDARY rarity upgrades and special abilities (dash, shield, regen)
+        availableUpgrades = availableUpgrades.filter(upgrade => {
+            // Check if this is a LEGENDARY upgrade that's been purchased
+            const isLegendaryPurchased = upgrade.rarity &&
+                upgrade.rarity.name === 'Legendary' &&
+                playerStats.purchasedLegendaryUpgrades.has(upgrade.id);
+
+            // Check if this is the Emergency Dash upgrade and it's been purchased
+            const isDashPurchased = upgrade.id === 'dash_1' &&
+                playerStats.purchasedLegendaryUpgrades.has('dash_1');
+
+            // Check if this is the Shield upgrade and it's been purchased
+            const isShieldPurchased = upgrade.id === 'shield_1' &&
+                playerStats.purchasedLegendaryUpgrades.has('shield_1');
+
+            // Check if this is the Regeneration upgrade and it's been purchased
+            const isRegenPurchased = upgrade.id === 'regen_1' &&
+                playerStats.purchasedLegendaryUpgrades.has('regen_1');
+
+            // Filter out if any of the above conditions are true
+            return !(isLegendaryPurchased || isDashPurchased || isShieldPurchased || isRegenPurchased);
+        });
+    }
+
     // Create a weighted pool based on rarity
     const weightedPool = [];
 
