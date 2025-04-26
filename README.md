@@ -1,16 +1,53 @@
-# Fluffy-Swizz Interactive Game
+# Equilibrium Protocol GameDevjs 2025 Entry By Fluffy Swizzle Interactive
+## Overview
 
-A top-down shooter game built with Phaser 3 and React.
+Fluffy-Swizz Interactive is a top-down shooter game built with Phaser 3 and React. Players use a unified weapon system and must survive as long as possible against increasingly difficult waves of enemies.
 
-## Game Overview
+### Tech Stack
 
-Players can choose between two weapon modes (minigun or shotgun) and must survive as long as possible against waves of increasingly difficult enemies. The game features:
+- **Game Engine**: Phaser 3.88.2
+- **UI Framework**: React 18.3.1
+- **Build Tool**: Vite 5.3.1
 
-- Fast-paced arcade-style gameplay
-- Two distinct weapon systems
-- Wave-based and endless survival game modes
-- XP and cash systems for player progression
-- Dynamic difficulty adjustment through the Chaos System
+## Documentation Index
+
+This documentation is organized into modular sections for easier navigation and maintenance:
+
+### Core Systems
+
+- [Architecture](Architecture.md) - System architecture and project structure
+- [Game Entities](GameEntities.md) - Player, enemies, and other game objects
+- [Game Mechanics](GameMechanics.md) - Core gameplay systems and interactions
+- [Scene Transitions](SceneTransitions.md) - Scene flow and transition screens
+
+### User Interface
+
+- [UI Components](UIComponents.md) - User interface elements and their functionality
+
+### Game Systems
+
+- [Sound System](SoundSystem.md) - Audio management and implementation
+- [XP System](XPSystem.md) - Experience points and leveling mechanics
+- [Cash System](CashSystem.md) - In-game currency and economy
+- [Wave Game Mode](WaveGameMode.md) - Wave-based gameplay implementation
+- [Mapping System](MappingSystem.md) - Map creation and management
+- [Enemy System](EnemySystem.md) - Enemy types, behavior, and spawning
+- [Chaos System](ChaosSystem.md) - Chaos meter and related mechanics
+- [Weapon System](WeaponSystem.md) - Unified weapon mechanics and upgrades
+
+### Development
+
+- [Development Guidelines](DevelopmentGuidelines.md) - Coding standards and practices
+- [Asset Management](AssetManagement.md) - Asset handling and requirements
+- [Troubleshooting](Troubleshooting.md) - Common issues and solutions
+
+## Getting Started
+
+For new developers joining the project, we recommend starting with:
+
+1. [Architecture](Architecture.md) to understand the project structure
+2. [Development Guidelines](DevelopmentGuidelines.md) for coding standards
+3. The specific system documentation relevant to your assigned tasks
 
 ## Development Setup
 
@@ -43,7 +80,6 @@ This project is configured with GitHub Actions for automatic deployment to itch.
 
 1. Create an itch.io account at https://itch.io
 2. Create a new game page on itch.io with project name: `gjg2`
-
 3. Generate a Butler API key at https://itch.io/user/settings/api-keys
 4. Add the API key as a GitHub secret named `BUTLER_API_KEY` in your repository settings
 
@@ -54,7 +90,6 @@ This project is configured with GitHub Actions for automatic deployment to itch.
   - Deploy to itch.io using Butler
   - Channel will be set to `web` for browser-based play
   - The game will be published to https://fluffymcchicken.itch.io/gjg2
-
 
 ### Manual Deployment
 
@@ -75,21 +110,20 @@ npm run deploy:all
 
 1. Install Butler: https://itch.io/docs/butler/installing.html
    - Or use the included `install-butler.bat` script on Windows
-
 2. Log in to Butler:
 ```bash
 butler login
 ```
 
-## Documentation
+## Contributing to Documentation
 
-Comprehensive documentation is available in the `/docs` directory:
+When updating documentation:
 
-- [Documentation Home](docs/README.md) - Overview and index of all documentation
-- [Architecture](docs/Architecture.md) - System architecture and project structure
-- [Game Entities](docs/GameEntities.md) - Player, enemies, and other game objects
-- [Game Mechanics](docs/GameMechanics.md) - Core gameplay systems
-- [UI Components](docs/UIComponents.md) - User interface elements
-- [Development Guidelines](docs/DevelopmentGuidelines.md) - Coding standards and practices
+1. Keep each file focused on a single topic
+2. Use consistent formatting (headings, code blocks, lists)
+3. Include practical examples where helpful
+4. Update the documentation when making code changes
 
-See the [Documentation Home](docs/README.md) for a complete list of available documentation.
+---
+
+*This documentation is maintained by the Fluffy-Swizz Interactive development team.*
