@@ -38,9 +38,16 @@ export class Enemy1 extends BaseEnemy {
      * @override
      */
     moveTowardsPlayer(playerPos) {
+        // Skip if targeting is disabled (neutralized enemy)
+        if (this.isNeutral) return;
+        
+        // Get reference to visual representation
+        const visual = this.sprite || this.graphics;
+        if (!visual) return;
+        
         // Calculate direction to player
-        const dx = playerPos.x - this.graphics.x;
-        const dy = playerPos.y - this.graphics.y;
+        const dx = playerPos.x - visual.x;
+        const dy = playerPos.y - visual.y;
         
         // Normalize the direction
         const distance = Math.sqrt(dx * dx + dy * dy);
@@ -50,7 +57,7 @@ export class Enemy1 extends BaseEnemy {
             const dirX = dx / distance;
             const dirY = dy / distance;
             
-            // Add very subtle zigzag motion effect based on time (significantly reduced)
+            // Add very subtle zigzag motion effect based on time
             const offset = Math.sin(this.scene.time.now / 400) * 0.15;
             
             // Apply zigzag perpendicular to movement direction
@@ -58,8 +65,24 @@ export class Enemy1 extends BaseEnemy {
             const perpY = dirX;
             
             // Move toward player with subtle zigzag
-            this.graphics.x += (dirX + perpX * offset) * this.speed;
-            this.graphics.y += (dirY + perpY * offset) * this.speed;
+            visual.x += (dirX + perpX * offset) * this.speed;
+            visual.y += (dirY + perpY * offset) * this.speed;
+            
+            // Update sprite animation and direction
+            if (this.sprite) {
+                // Only change animation if we're not already in a death animation
+                if (!this.sprite.anims.isPlaying || 
+                    !this.sprite.anims.currentAnim || 
+                    !this.sprite.anims.currentAnim.key.includes('death')) {
+                    
+                    this.sprite.play('enemy1_run', true);
+                    
+                    // Flip sprite based on horizontal direction
+                    if (dirX !== 0) {
+                        this.sprite.setFlipX(dirX < 0);
+                    }
+                }
+            }
         }
     }
 }

@@ -368,6 +368,32 @@ export class ChaosManager {
     }
     
     /**
+     * Check if a specific group is weakened by the current chaos level
+     * A group is weakened when the chaos value is biased against it
+     * @param {string} groupId - The group ID to check
+     * @returns {boolean} True if the group is weakened by chaos
+     */
+    isGroupWeakened(groupId) {
+        // Skip if invalid group
+        if (!groupId || groupId === GroupId.NEUTRAL) {
+            return false;
+        }
+        
+        // Get the normalized faction balance (-1 to 1)
+        const balance = this.getFactionBalance();
+        
+        // AI is weakened when balance is positive (CODER dominance)
+        // CODER is weakened when balance is negative (AI dominance)
+        if (groupId === GroupId.AI) {
+            return balance > 0.3; // AI is weakened when CODER dominance is above 30%
+        } else if (groupId === GroupId.CODER) {
+            return balance < -0.3; // CODER is weakened when AI dominance is above 30%
+        }
+        
+        return false;
+    }
+    
+    /**
      * Get the current chaos level
      * @returns {number} Current chaos value
      */
@@ -409,6 +435,20 @@ export class ChaosManager {
     getChaosPercentage() {
         const percentage = Math.round((this.chaosValue / this.maxValue) * 100);
         return (percentage > 0 ? '+' : '') + percentage + '%';
+    }
+    
+    /**
+     * Get the faction balance status
+     * Returns a value between -1 and 1 where:
+     * -1 = complete AI dominance
+     * 0 = balanced
+     * 1 = complete CODER dominance
+     * 
+     * @returns {number} Normalized faction balance (-1 to 1)
+     */
+    getFactionBalance() {
+        // Normalize chaos value from -100...100 to -1...1
+        return this.chaosValue / 100;
     }
     
     /**

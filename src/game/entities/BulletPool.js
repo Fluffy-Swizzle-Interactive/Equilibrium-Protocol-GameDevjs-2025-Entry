@@ -354,4 +354,23 @@ export class BulletPool {
     getStats() {
         return this.objectManager.getStats().bullet;
     }
+
+    /**
+     * Get all active bullets
+     * @returns {Array} Array of active bullet objects
+     */
+    getActiveBullets() {
+        // If using object manager
+        if (this.objectManager && typeof this.objectManager.getActive === 'function') {
+            return this.objectManager.getActive('bullet');
+        }
+        
+        // Fallback to direct access if using a different pooling system
+        if (Array.isArray(this.bullets)) {
+            return this.bullets.filter(bullet => bullet && bullet.active);
+        }
+        
+        // Last resort - empty array
+        return [];
+    }
 }

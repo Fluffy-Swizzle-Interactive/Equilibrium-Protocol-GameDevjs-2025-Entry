@@ -80,6 +80,16 @@ export class GroupManager {
     }
     
     /**
+     * Register an entity with a specific group (alias for register method)
+     * @param {BaseEnemy} entity - The entity instance
+     * @param {string} groupId - The group ID from GroupId enum
+     * @returns {Object} Applied modifiers
+     */
+    registerEntity(entity, groupId) {
+        return this.register(entity, groupId);
+    }
+    
+    /**
      * Deregister an enemy from its group (usually when defeated)
      * @param {BaseEnemy} enemy - The enemy instance
      * @param {string} groupId - The group ID from GroupId enum 

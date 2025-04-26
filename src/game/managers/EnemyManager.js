@@ -503,6 +503,18 @@ export class EnemyManager {
         const index = this.enemies.indexOf(enemy);
         if (index !== -1) {
             this.enemies.splice(index, 1);
+            
+            // Notify WaveManager of this removal if it hasn't already been counted via onEnemyKilled
+            if (!enemy.killCounted && this.scene.waveManager) {
+                // Determine if this is a boss
+                const isBoss = enemy.isBossEnemy ? enemy.isBossEnemy() : enemy.type.includes('boss');
+                
+                // Notify WaveManager directly - this ensures accurate enemy counting
+                this.scene.waveManager.onEnemyKilled(isBoss, enemy.type);
+                
+                // Mark as counted
+                enemy.killCounted = true;
+            }
         }
         
         // Release back to appropriate pool based on type

@@ -1,4 +1,5 @@
 import { BaseEnemy } from './BaseEnemy';
+import { DEPTHS } from '../constants';
 
 /**
  * Boss1 - First boss enemy type
@@ -57,6 +58,48 @@ export class Boss1 extends BaseEnemy {
         this.isAttacking = false;
         this.attackPhase = 0;
         this.phaseTime = 0;
+        this.chargeDirection = null;
+    }
+    
+    /**
+     * Create visual representation with proper scale for boss
+     * @override
+     */
+    createVisuals(x, y) {
+        if (this.scene.textures.exists(this.type)) {
+            // Create sprite with proper atlas texture
+            this.sprite = this.scene.add.sprite(x, y, this.type);
+            this.sprite.setScale(2.5); // Larger scale for boss
+            
+            // Play idle animation if available
+            this.sprite.play(`${this.type}_idle`);
+            
+            // Set consistent depth to ensure proper layering
+            this.sprite.setDepth(DEPTHS.ENEMIES);
+            
+            // Store reference to parent in sprite for collision detection
+            this.sprite.parentEnemy = this;
+            
+            // Store reference to sprite as graphics for compatibility with existing code
+            this.graphics = this.sprite;
+            
+            // Add to physics system if needed
+            this.scene.physics.add.existing(this.sprite);
+        } else {
+            // Fallback to circle if sprite not available
+            this.graphics = this.scene.add.circle(x, y, this.size / 2, this.color);
+            this.graphics.setStrokeStyle(4, 0xffff00); // Gold outline for boss
+            this.graphics.setDepth(DEPTHS.ENEMIES);
+            this.graphics.parentEnemy = this;
+            
+            // Add to physics system
+            this.scene.physics.add.existing(this.graphics);
+        }
+        
+        // Add to enemies group
+        if (this.scene.enemies) {
+            this.scene.enemies.add(this.graphics);
+        }
     }
     
     /**
@@ -65,7 +108,8 @@ export class Boss1 extends BaseEnemy {
      */
     update() {
         // Skip if not active
-        if (!this.active || !this.graphics || !this.graphics.active) {
+        const visual = this.sprite || this.graphics;
+        if (!this.active || !visual || !visual.active) {
             return;
         }
         
@@ -100,7 +144,15 @@ export class Boss1 extends BaseEnemy {
             this.currentPattern = pattern;
             
             // Visual indicator for attack start
-            this.graphics.setStrokeStyle(2, 0xffff00);
+            if (this.sprite) {
+                if (this.scene.textures.exists(this.type) && 
+                    this.scene.anims.exists(`${this.type}_attack`)) {
+                    this.sprite.play(`${this.type}_attack`);
+                }
+                this.sprite.setTint(0xffff00); // Yellow tint when charging attack
+            } else if (this.graphics) {
+                this.graphics.setStrokeStyle(2, 0xffff00);
+            }
             
             // If it's a summon attack, immediately spawn minions
             if (pattern.name === 'summon') {
@@ -119,7 +171,13 @@ export class Boss1 extends BaseEnemy {
             if (currentTime > this.attackStartTime + this.attackDuration) {
                 this.isAttacking = false;
                 this.attackCooldown = currentTime + this.currentPattern.cooldown;
-                this.graphics.setStrokeStyle(0); // Remove visual indicator
+                
+                if (this.sprite) {
+                    this.sprite.clearTint();
+                    this.sprite.play(`${this.type}_idle`);
+                } else if (this.graphics) {
+                    this.graphics.setStrokeStyle(0); // Remove visual indicator
+                }
             }
         } else {
             // Standard movement when not attacking
@@ -139,9 +197,18 @@ export class Boss1 extends BaseEnemy {
         const elapsedTime = currentTime - this.attackStartTime;
         const angle = orbitSpeed * elapsedTime;
         
+        // Get visual representation
+        const visual = this.sprite || this.graphics;
+        
         // Position on orbit
-        this.graphics.x = playerPos.x + Math.cos(angle) * orbitRadius;
-        this.graphics.y = playerPos.y + Math.sin(angle) * orbitRadius;
+        visual.x = playerPos.x + Math.cos(angle) * orbitRadius;
+        visual.y = playerPos.y + Math.sin(angle) * orbitRadius;
+        
+        // If using sprite, update flip based on orbit direction
+        if (this.sprite) {
+            const movingLeft = Math.sin(angle + Math.PI/2) > 0;
+            this.sprite.setFlipX(movingLeft);
+        }
         
         // Spawn projectiles periodically
         if (elapsedTime % 500 < 20) { // Every 500ms
@@ -156,14 +223,23 @@ export class Boss1 extends BaseEnemy {
      */
     executeChargeAttack(playerPos, currentTime) {
         const elapsedTime = currentTime - this.attackStartTime;
+        const visual = this.sprite || this.graphics;
         
         // First 1000ms: pause and telegraph attack
         if (elapsedTime < 1000) {
             // Flash to indicate charging
             if (elapsedTime % 200 < 100) {
-                this.graphics.setFillStyle(0xffff00); // Yellow when charging
+                if (this.sprite) {
+                    this.sprite.setTint(0xffff00); // Yellow when charging
+                } else {
+                    this.graphics.setFillStyle(0xffff00);
+                }
             } else {
-                this.graphics.setFillStyle(this.color);
+                if (this.sprite) {
+                    this.sprite.setTint(0xff0000); // Red when not flashing
+                } else {
+                    this.graphics.setFillStyle(this.color);
+                }
             }
             return;
         }
@@ -171,27 +247,44 @@ export class Boss1 extends BaseEnemy {
         // Execute charge after telegraph
         if (!this.chargeDirection) {
             // Calculate direction to player at start of charge
-            const dx = playerPos.x - this.graphics.x;
-            const dy = playerPos.y - this.graphics.y;
+            const dx = playerPos.x - visual.x;
+            const dy = playerPos.y - visual.y;
             const distance = Math.sqrt(dx * dx + dy * dy);
             this.chargeDirection = {
                 x: dx / distance,
                 y: dy / distance
             };
             
-            // Set to red during charge
-            this.graphics.setFillStyle(0xff0000);
+            // Set appearance during charge
+            if (this.sprite) {
+                this.sprite.setTint(0xff0000); // Red during charge
+                // Set sprite direction based on charge
+                this.sprite.setFlipX(this.chargeDirection.x < 0);
+                
+                // Play charge/run animation if available
+                if (this.scene.anims.exists(`${this.type}_run`)) {
+                    this.sprite.play(`${this.type}_run`, true);
+                    this.sprite.anims.setTimeScale(2); // Speed up animation
+                }
+            } else {
+                this.graphics.setFillStyle(0xff0000);
+            }
         }
         
         // Move in the charge direction
         const chargeSpeed = 3.0; // Much faster than normal movement
-        this.graphics.x += this.chargeDirection.x * chargeSpeed;
-        this.graphics.y += this.chargeDirection.y * chargeSpeed;
+        visual.x += this.chargeDirection.x * chargeSpeed;
+        visual.y += this.chargeDirection.y * chargeSpeed;
         
         // Reset charge direction when attack completes
         if (elapsedTime >= this.attackDuration - 100) {
             this.chargeDirection = null;
-            this.graphics.setFillStyle(this.color);
+            if (this.sprite) {
+                this.sprite.clearTint();
+                this.sprite.anims.setTimeScale(1); // Reset animation speed
+            } else if (this.graphics) {
+                this.graphics.setFillStyle(this.color);
+            }
         }
     }
     
@@ -202,9 +295,11 @@ export class Boss1 extends BaseEnemy {
     summonMinions(playerPos) {
         // Request the EnemyManager to spawn minions around the boss
         if (this.scene.enemyManager) {
+            const visual = this.sprite || this.graphics;
+            
             // Boss location
-            const x = this.graphics.x;
-            const y = this.graphics.y;
+            const x = visual.x;
+            const y = visual.y;
             
             // Spawn 3-5 minions in a circle around the boss
             const count = Math.floor(3 + Math.random() * 3);
@@ -250,9 +345,11 @@ export class Boss1 extends BaseEnemy {
      * @param {Object} playerPos - The player's position {x, y}
      */
     spawnProjectile(playerPos) {
+        const visual = this.sprite || this.graphics;
+        
         // Calculate direction to player
-        const dx = playerPos.x - this.graphics.x;
-        const dy = playerPos.y - this.graphics.y;
+        const dx = playerPos.x - visual.x;
+        const dy = playerPos.y - visual.y;
         const distance = Math.sqrt(dx * dx + dy * dy);
         
         // Normalize direction
@@ -262,10 +359,57 @@ export class Boss1 extends BaseEnemy {
         // Create projectile if available in scene
         if (this.scene.enemyManager) {
             this.scene.enemyManager.spawnProjectile(
-                this.graphics.x, 
-                this.graphics.y,
+                visual.x, 
+                visual.y,
                 dirX, dirY, 2.0
             );
+        }
+    }
+    
+    /**
+     * Override moveTowardsPlayer to add boss-specific movement
+     * @override
+     * @param {Object} playerPos - The player's position {x, y}
+     */
+    moveTowardsPlayer(playerPos) {
+        // Skip if targeting is disabled (neutralized enemy)
+        if (this.isNeutral) return;
+        
+        // Get reference to visual representation
+        const visual = this.sprite || this.graphics;
+        if (!visual) return;
+
+        // Calculate direction to player
+        const dx = playerPos.x - visual.x;
+        const dy = playerPos.y - visual.y;
+        
+        // Calculate distance
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        if (distance > 0) {
+            // Normalize direction
+            const dirX = dx / distance;
+            const dirY = dy / distance;
+            
+            // Move toward player with slower speed for boss
+            visual.x += dirX * this.speed;
+            visual.y += dirY * this.speed;
+            
+            // If using sprite animations, update based on direction
+            if (this.sprite) {
+                // Play idle or run animation
+                const animKey = distance > 100 ? `${this.type}_run` : `${this.type}_idle`;
+                if (this.sprite.anims.currentAnim?.key !== animKey &&
+                    !this.sprite.anims.currentAnim?.key.includes('attack') &&
+                    !this.sprite.anims.currentAnim?.key.includes('death')) {
+                    this.sprite.play(animKey, true);
+                }
+                
+                // Flip sprite based on horizontal direction
+                if (dirX !== 0) {
+                    this.sprite.setFlipX(dirX < 0);
+                }
+            }
         }
     }
     
@@ -274,12 +418,41 @@ export class Boss1 extends BaseEnemy {
      * @override
      */
     die() {
-        // Create spectacular death effect
-        if (this.scene.createBossDeathEffect && this.graphics) {
-            this.scene.createBossDeathEffect(this.graphics.x, this.graphics.y);
+        // Play death animation if available
+        if (this.sprite && this.scene.anims.exists(`${this.type}_death`)) {
+            this.sprite.play(`${this.type}_death`);
+            
+            // Wait for death animation to complete before removing
+            this.sprite.on('animationcomplete', (anim) => {
+                if (anim.key === `${this.type}_death`) {
+                    this.completeCleanup();
+                }
+            });
+            
+            // Also set a timer as fallback if animation doesn't complete
+            this.scene.time.delayedCall(1500, () => {
+                this.completeCleanup();
+            });
+        } else {
+            // Create spectacular death effect
+            if (this.scene.createBossDeathEffect && (this.sprite || this.graphics)) {
+                const visual = this.sprite || this.graphics;
+                this.scene.createBossDeathEffect(visual.x, visual.y);
+            }
+            
+            // No animation, clean up immediately
+            this.completeCleanup();
         }
         
-        // Call base die implementation
-        super.die();
+        // Notify the scene about the boss death
+        const visual = this.sprite || this.graphics;
+        const position = visual ? { x: visual.x, y: visual.y } : null;
+        
+        this.scene.onEnemyKilled(
+            true, // isBoss is true
+            position ? position.x : 0,
+            position ? position.y : 0,
+            this.type
+        );
     }
 }

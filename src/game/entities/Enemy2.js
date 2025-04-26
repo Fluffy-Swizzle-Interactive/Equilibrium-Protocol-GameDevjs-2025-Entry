@@ -54,9 +54,16 @@ export class Enemy2 extends BaseEnemy {
      * @override
      */
     moveTowardsPlayer(playerPos) {
+        // Skip if targeting is disabled (neutralized enemy)
+        if (this.isNeutral) return;
+        
+        // Get reference to visual representation
+        const visual = this.sprite || this.graphics;
+        if (!visual) return;
+        
         // Calculate direction to player
-        const dx = playerPos.x - this.graphics.x;
-        const dy = playerPos.y - this.graphics.y;
+        const dx = playerPos.x - visual.x;
+        const dy = playerPos.y - visual.y;
         
         // Normalize the direction
         const distance = Math.sqrt(dx * dx + dy * dy);
@@ -70,8 +77,14 @@ export class Enemy2 extends BaseEnemy {
             this.dashTarget = { x: playerPos.x, y: playerPos.y };
             this.chargeStartTime = currentTime;
             
-            // Flash to indicate charging
-            this.graphics.setFillStyle(0xffff00); // Yellow when charging
+            // Visual indicators for charging
+            if (this.sprite) {
+                // Play activation animation when starting to charge
+                this.sprite.play('enemy2_activate');
+                this.sprite.setTint(0xffff00); // Yellow tint when charging
+            } else if (this.graphics) {
+                this.graphics.setFillStyle(0xffff00); // Yellow when charging
+            }
             
         } else if (this.dashState === 'charging') {
             // Hold position while charging
@@ -79,25 +92,48 @@ export class Enemy2 extends BaseEnemy {
                 // Start dash after charge time
                 this.dashState = 'dashing';
                 this.dashStartTime = currentTime;
-                this.graphics.setFillStyle(0xff0000); // Red during dash
+                
+                if (this.sprite) {
+                    // Play run animation at faster rate during dash
+                    this.sprite.play('enemy2_run', true);
+                    this.sprite.anims.setTimeScale(2); // Speed up animation
+                    this.sprite.setTint(0xff0000); // Red during dash
+                } else if (this.graphics) {
+                    this.graphics.setFillStyle(0xff0000); // Red during dash
+                }
             } else {
                 // Move very slowly while charging
                 const dirX = dx / distance;
                 const dirY = dy / distance;
-                this.graphics.x += dirX * (this.speed * 0.3);
-                this.graphics.y += dirY * (this.speed * 0.3);
+                visual.x += dirX * (this.speed * 0.3);
+                visual.y += dirY * (this.speed * 0.3);
+                
+                // Keep the activation animation playing during charge
+                if (this.sprite && 
+                    (!this.sprite.anims.isPlaying || 
+                     this.sprite.anims.currentAnim.key !== 'enemy2_activate')) {
+                    this.sprite.play('enemy2_idle', true);
+                }
             }
             
         } else if (this.dashState === 'dashing') {
             // Execute dash
-            this.graphics.x += this.dashDirection.x * this.dashSpeed;
-            this.graphics.y += this.dashDirection.y * this.dashSpeed;
+            visual.x += this.dashDirection.x * this.dashSpeed;
+            visual.y += this.dashDirection.y * this.dashSpeed;
             
             if (currentTime > this.dashStartTime + this.dashTime) {
                 // End dash
                 this.dashState = 'ready';
                 this.dashCooldown = currentTime + this.dashCooldownTime;
-                this.graphics.setFillStyle(this.color); // Reset color
+                
+                if (this.sprite) {
+                    this.sprite.anims.setTimeScale(1); // Reset animation speed
+                    this.sprite.clearTint();
+                    // Return to idle animation after dash
+                    this.sprite.play('enemy2_idle', true);
+                } else if (this.graphics) {
+                    this.graphics.setFillStyle(this.color); // Reset color
+                }
             }
             
         } else if (distance > 0) {
@@ -106,8 +142,22 @@ export class Enemy2 extends BaseEnemy {
             const dirY = dy / distance;
             
             // Move toward player
-            this.graphics.x += dirX * this.speed;
-            this.graphics.y += dirY * this.speed;
+            visual.x += dirX * this.speed;
+            visual.y += dirY * this.speed;
+            
+            // Update animation for normal movement
+            if (this.sprite && 
+                (!this.sprite.anims.isPlaying || 
+                 (this.sprite.anims.currentAnim && 
+                  !this.sprite.anims.currentAnim.key.includes('death')))) {
+                
+                this.sprite.play('enemy2_run', true);
+                
+                // Flip sprite based on horizontal direction
+                if (dirX !== 0) {
+                    this.sprite.setFlipX(dirX < 0);
+                }
+            }
         }
     }
 }

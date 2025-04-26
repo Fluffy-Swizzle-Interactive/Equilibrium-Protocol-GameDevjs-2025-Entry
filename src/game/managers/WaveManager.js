@@ -524,7 +524,51 @@ export class WaveManager {
         // Skip updates if game is paused
         if (this.scene.isPaused) return;
         
-        // Basic update checks - nothing needed for now
+        // If wave is active, periodically verify enemy counts match reality
+        if (this.isWaveActive && this.scene.enemyManager) {
+            // Every 2 seconds, verify enemy count matches reality
+            const now = this.scene.time.now;
+            if (!this._lastVerifyTime || now - this._lastVerifyTime > 2000) {
+                this._lastVerifyTime = now;
+                this.verifyEnemyCount();
+            }
+        }
+    }
+    
+    /**
+     * Verify that tracked enemy count matches actual enemies in the scene
+     * This helps prevent waves getting stuck due to tracking errors
+     * @private
+     */
+    verifyEnemyCount() {
+        if (!this.scene.enemyManager || !this.isWaveActive) return;
+        
+        // Get the actual count from enemy manager
+        const actualEnemyCount = this.scene.enemyManager.getEnemyCount();
+        const actualBossCount = this.scene.enemyManager.getEnemyCount('boss1');
+        
+        // Log any discrepancies in dev mode
+        if (this.scene.isDev && (actualEnemyCount !== this.activeEnemies || actualBossCount !== this.activeBosses)) {
+            console.debug(`[WaveManager] Enemy count mismatch! Tracked: ${this.activeEnemies} (bosses: ${this.activeBosses}), Actual: ${actualEnemyCount} (bosses: ${actualBossCount})`);
+        }
+        
+        // Update our tracking to match reality
+        this.activeEnemies = actualEnemyCount;
+        this.activeBosses = actualBossCount;
+        
+        // Check if wave should complete (all enemies spawned and none active)
+        const allEnemiesSpawned = this.enemiesSpawned >= this.enemiesToSpawn;
+        
+        if (allEnemiesSpawned && this.activeEnemies === 0) {
+            // For boss waves, also check that all bosses are defeated
+            const isBossWave = this.currentWave % this.bossWaveInterval === 0;
+            if (!isBossWave || this.activeBosses === 0) {
+                // Don't call completeWave if wave is already completed
+                if (this.isWaveActive) {
+                    this.completeWave();
+                }
+            }
+        }
     }
     
     /**

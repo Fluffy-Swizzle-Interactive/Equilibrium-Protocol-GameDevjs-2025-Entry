@@ -61,6 +61,12 @@ export class Preloader extends Scene
         // Load player sprite atlas
         this.load.atlas('player', 'assets/sprites/TESTPLAYER1.png', 'assets/sprites/TESTPLAYER1.json');
 
+        // Load enemy sprite atlases
+        this.load.atlas('enemy1', 'assets/sprites/ENEMY1.png', 'assets/sprites/ENEMY1.json');
+        this.load.atlas('enemy2', 'assets/sprites/ENEMY2.png', 'assets/sprites/ENEMY2.json');
+        this.load.atlas('enemy3', 'assets/sprites/ENEMY3.png', 'assets/sprites/ENEMY3.json');
+        this.load.atlas('boss1', 'assets/sprites/BOSS1.png', 'assets/sprites/BOSS1.json');
+
         // Also load individual sprite frames as fallback
         // This ensures we can load the individual frames if the atlas doesn't work
         this.load.image('down1', 'assets/sprites/PLAYER1/down1.png');

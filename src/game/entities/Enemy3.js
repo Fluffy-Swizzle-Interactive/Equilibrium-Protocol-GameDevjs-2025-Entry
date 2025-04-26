@@ -1,4 +1,5 @@
 import { BaseEnemy } from './BaseEnemy';
+import { EventBus } from '../EventBus';
 
 /**
  * Enemy3 - Ranged attacker enemy type
@@ -54,9 +55,16 @@ export class Enemy3 extends BaseEnemy {
      * @override
      */
     moveTowardsPlayer(playerPos) {
+        // Skip if targeting is disabled (neutralized enemy)
+        if (this.isNeutral) return;
+        
+        // Get reference to visual
+        const visual = this.sprite || this.graphics;
+        if (!visual) return;
+        
         // Calculate direction and distance to player
-        const dx = playerPos.x - this.graphics.x;
-        const dy = playerPos.y - this.graphics.y;
+        const dx = playerPos.x - visual.x;
+        const dy = playerPos.y - visual.y;
         const distance = Math.sqrt(dx * dx + dy * dy);
         
         // Normalize direction
@@ -73,13 +81,37 @@ export class Enemy3 extends BaseEnemy {
         // Movement behavior based on distance
         if (distance < this.retreatRange) {
             // Too close - back away
-            this.graphics.x -= dirX * this.speed * 1.2; // Move away faster
-            this.graphics.y -= dirY * this.speed * 1.2;
+            visual.x -= dirX * this.speed * 1.2; // Move away faster
+            visual.y -= dirY * this.speed * 1.2;
+            
+            // Update animation
+            if (this.sprite && 
+                (!this.sprite.anims.isPlaying || 
+                 (this.sprite.anims.currentAnim && 
+                  !this.sprite.anims.currentAnim.key.includes('death') &&
+                  !this.sprite.anims.currentAnim.key.includes('shoot')))) {
+                
+                this.sprite.play('enemy3_run', true);
+                // Flip based on direction of retreat (opposite of player)
+                this.sprite.setFlipX(dirX > 0);
+            }
             
         } else if (distance > this.preferredRange) {
             // Too far - approach slowly
-            this.graphics.x += dirX * this.speed * 0.8; // Move towards more slowly
-            this.graphics.y += dirY * this.speed * 0.8;
+            visual.x += dirX * this.speed * 0.8; // Move towards more slowly
+            visual.y += dirY * this.speed * 0.8;
+            
+            // Update animation
+            if (this.sprite && 
+                (!this.sprite.anims.isPlaying || 
+                 (this.sprite.anims.currentAnim && 
+                  !this.sprite.anims.currentAnim.key.includes('death') &&
+                  !this.sprite.anims.currentAnim.key.includes('shoot')))) {
+                
+                this.sprite.play('enemy3_run', true);
+                // Flip based on direction of approach
+                this.sprite.setFlipX(dirX < 0);
+            }
             
         } else {
             // At preferred range - strafe sideways
@@ -87,10 +119,22 @@ export class Enemy3 extends BaseEnemy {
             const perpY = dirX;
             
             // Strafe direction changes every few seconds
-            const strafeDir = Math.floor(this.scene.time.now / 3000) % 2 === 0 ? 1 : -1;
+            const strafeDir = Math.floor(currentTime / 3000) % 2 === 0 ? 1 : -1;
             
-            this.graphics.x += perpX * this.speed * strafeDir;
-            this.graphics.y += perpY * this.speed * strafeDir;
+            visual.x += perpX * this.speed * strafeDir;
+            visual.y += perpY * this.speed * strafeDir;
+            
+            // Update animation - use idle when strafing
+            if (this.sprite && 
+                (!this.sprite.anims.isPlaying || 
+                 (this.sprite.anims.currentAnim && 
+                  !this.sprite.anims.currentAnim.key.includes('death') &&
+                  !this.sprite.anims.currentAnim.key.includes('shoot')))) {
+                
+                this.sprite.play('enemy3_idle', true);
+                // Flip to face player
+                this.sprite.setFlipX(dirX < 0);
+            }
         }
     }
     
@@ -101,27 +145,52 @@ export class Enemy3 extends BaseEnemy {
     fireProjectile(playerPos) {
         if (!this.scene.enemyManager) return;
         
+        // Get reference to visual
+        const visual = this.sprite || this.graphics;
+        if (!visual) return;
+        
         // Calculate direction to player
-        const dx = playerPos.x - this.graphics.x;
-        const dy = playerPos.y - this.graphics.y;
+        const dx = playerPos.x - visual.x;
+        const dy = playerPos.y - visual.y;
         const distance = Math.sqrt(dx * dx + dy * dy);
         
         // Normalize direction
         const dirX = dx / distance;
         const dirY = dy / distance;
         
-        // Flash the enemy to indicate firing
-        this.graphics.setFillStyle(0xffff00);
-        this.scene.time.delayedCall(100, () => {
-            if (this.active && this.graphics && this.graphics.active) {
-                this.graphics.setFillStyle(this.color);
-            }
+        // Play shooting animation if available
+        if (this.sprite) {
+            this.sprite.play('enemy3_shoot');
+            // Make sure the sprite is facing the player
+            this.sprite.setFlipX(dirX < 0);
+            
+            // Listen for animation completion to go back to idle
+            this.sprite.once('animationcomplete', (anim) => {
+                if (anim.key === 'enemy3_shoot') {
+                    this.sprite.play('enemy3_idle', true);
+                }
+            });
+        } else {
+            // Flash the graphics to indicate firing
+            this.graphics.setFillStyle(0xffff00);
+            this.scene.time.delayedCall(100, () => {
+                if (this.active && this.graphics && this.graphics.active) {
+                    this.graphics.setFillStyle(this.color);
+                }
+            });
+        }
+        
+        // Emit event for sound and visual effects
+        EventBus.emit('enemy-attack', {
+            type: 'ranged',
+            enemyType: this.type,
+            position: { x: visual.x, y: visual.y }
         });
         
         // Spawn the projectile
         this.scene.enemyManager.spawnProjectile(
-            this.graphics.x, 
-            this.graphics.y,
+            visual.x, 
+            visual.y,
             dirX, 
             dirY, 
             3.0, // Faster projectile

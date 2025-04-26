@@ -303,6 +303,295 @@ export class WaveGame extends Scene {
         }
     }
 
+     /**
+     * Set up collisions between player and map layers
+     */
+     setupPlayerCollisions() {
+        // Get collision layers from the map manager
+        if (this.mapManager && this.mapManager.currentMapKey) {
+            // Get the map configuration directly from the maps Map in the MapManager
+            const mapConfig = this.mapManager.maps.get(this.mapManager.currentMapKey);
+
+            if (mapConfig && mapConfig.collisionLayers) {
+                console.log(`Setting up collisions for map: ${this.mapManager.currentMapKey}`);
+                console.log(`Collision layers: ${mapConfig.collisionLayers.join(', ')}`);
+
+                // Set up collisions for each layer
+                mapConfig.collisionLayers.forEach(layerName => {
+                    const layer = this.mapManager.getLayer(layerName);
+                    if (layer) {
+                        console.log(`Adding collider for layer: ${layerName}`);
+
+                        // Add collision between player and this layer
+                        const collider = this.physics.add.collider(
+                            this.player.graphics,
+                            layer,
+                            null, // No callback needed
+                            null, // No process callback needed
+                            this
+                        );
+
+                        // Store the collider for reference
+                        if (!this.playerColliders) {
+                            this.playerColliders = [];
+                        }
+                        this.playerColliders.push(collider);
+
+                        // Debug visualization removed
+                    } else {
+                        console.warn(`Layer not found: ${layerName}`);
+                    }
+                });
+            } else {
+                console.warn('No collision layers defined for current map');
+            }
+        } else {
+            console.warn('Map manager or current map key not available');
+        }
+    }
+
+    /**
+ * Set up the camera to follow the player
+ */
+    setupCamera() {
+        this.cameras.main.setBounds(0, 0, this.mapDimensions.width, this.mapDimensions.height);
+        this.cameras.main.startFollow(this.player.graphics, true, 0.09, 0.09);
+        this.cameras.main.setZoom(0.7);
+    }
+
+
+    /**
+     * Set up game objects including player, enemies, and bullets
+     */
+    setupGameObjects() {
+        // Create player instance (in center of map)
+        const playerX = this.mapDimensions.width / 2;
+        const playerY = this.mapDimensions.height / 2;
+        this.player = new Player(this, playerX, playerY);
+
+        // Initialize player's weapon system
+        this.player.initWeaponSystem();
+
+        // Setup player health system
+        this.playerHealth = new PlayerHealth(this, {
+            maxHealth: 100,
+            hitDamage: 34, // Dies in 3 hits
+            damageResistance: 0 // Start with 0% defense
+        });
+
+        // Create animations for enemies
+        this.createEnemyAnimations();
+
+        // Setup collision with map layers
+        this.setupPlayerCollisions();
+
+        // Setup camera to follow player
+        this.setupCamera();
+    }
+
+    /**
+     * Create animations for all enemy types
+     */
+    createEnemyAnimations() {
+        // Enemy1 animations (fast green enemy)
+        this.anims.create({
+            key: 'enemy1_idle',
+            frames: this.anims.generateFrameNames('enemy1', {
+                prefix: 'enemy1_idle_',
+                suffix: '.png',
+                start: 0,
+                end: 3
+            }),
+            frameRate: 8,
+            repeat: -1
+        });
+
+        this.anims.create({
+            key: 'enemy1_run',
+            frames: this.anims.generateFrameNames('enemy1', {
+                prefix: 'enemy1_run_',
+                suffix: '.png',
+                start: 0,
+                end: 3
+            }),
+            frameRate: 10,
+            repeat: -1
+        });
+
+        this.anims.create({
+            key: 'enemy1_death',
+            frames: this.anims.generateFrameNames('enemy1', {
+                prefix: 'enemy1_death_',
+                suffix: '.png',
+                start: 0,
+                end: 7
+            }),
+            frameRate: 12,
+            repeat: 0
+        });
+
+        this.anims.create({
+            key: 'enemy1_shoot',
+            frames: this.anims.generateFrameNames('enemy1', {
+                prefix: 'enemy1_shoot_',
+                suffix: '.png',
+                start: 0,
+                end: 3
+            }),
+            frameRate: 12,
+            repeat: 0
+        });
+
+        // Enemy2 animations (slower blue enemy)
+        this.anims.create({
+            key: 'enemy2_idle',
+            frames: this.anims.generateFrameNames('enemy2', {
+                prefix: 'enemy2_idle_',
+                suffix: '.png',
+                start: 0,
+                end: 7
+            }),
+            frameRate: 8,
+            repeat: -1
+        });
+
+        this.anims.create({
+            key: 'enemy2_run',
+            frames: this.anims.generateFrameNames('enemy2', {
+                prefix: 'enemy2_run_',
+                suffix: '.png',
+                start: 0,
+                end: 3
+            }),
+            frameRate: 8,
+            repeat: -1
+        });
+
+        this.anims.create({
+            key: 'enemy2_death',
+            frames: this.anims.generateFrameNames('enemy2', {
+                prefix: 'enemy2_death_',
+                suffix: '.png',
+                start: 0,
+                end: 7
+            }),
+            frameRate: 12,
+            repeat: 0
+        });
+
+        this.anims.create({
+            key: 'enemy2_activate',
+            frames: this.anims.generateFrameNames('enemy2', {
+                prefix: 'enemy2_activate_',
+                suffix: '.png',
+                start: 0,
+                end: 4
+            }),
+            frameRate: 10,
+            repeat: 0
+        });
+
+        this.anims.create({
+            key: 'enemy2_shoot',
+            frames: this.anims.generateFrameNames('enemy2', {
+                prefix: 'enemy2_shoot_',
+                suffix: '.png',
+                start: 0,
+                end: 3
+            }),
+            frameRate: 12,
+            repeat: 0
+        });
+
+        // Enemy3 animations (ranged orange enemy)
+        this.anims.create({
+            key: 'enemy3_idle',
+            frames: this.anims.generateFrameNames('enemy3', {
+                prefix: 'enemy3_idle_',
+                suffix: '.png',
+                start: 0,
+                end: 2
+            }),
+            frameRate: 6,
+            repeat: -1
+        });
+
+        this.anims.create({
+            key: 'enemy3_run',
+            frames: this.anims.generateFrameNames('enemy3', {
+                prefix: 'enemy3_run_',
+                suffix: '.png',
+                start: 0,
+                end: 3
+            }),
+            frameRate: 10,
+            repeat: -1
+        });
+
+        this.anims.create({
+            key: 'enemy3_death',
+            frames: this.anims.generateFrameNames('enemy3', {
+                prefix: 'enemy3_death_',
+                suffix: '.png',
+                start: 0,
+                end: 7
+            }),
+            frameRate: 12,
+            repeat: 0
+        });
+
+        this.anims.create({
+            key: 'enemy3_shoot',
+            frames: this.anims.generateFrameNames('enemy3', {
+                prefix: 'enemy3_shoot_',
+                suffix: '.png',
+                start: 0,
+                end: 3
+            }),
+            frameRate: 10,
+            repeat: 0
+        });
+
+        // Boss1 animations - If BOSS1.json exists in your project
+        if (this.textures.exists('boss1')) {
+            this.anims.create({
+                key: 'boss1_idle',
+                frames: this.anims.generateFrameNames('boss1', {
+                    prefix: 'boss1_idle_',
+                    suffix: '.png',
+                    start: 0,
+                    end: 3
+                }),
+                frameRate: 6,
+                repeat: -1
+            });
+
+            this.anims.create({
+                key: 'boss1_attack',
+                frames: this.anims.generateFrameNames('boss1', {
+                    prefix: 'boss1_attack_',
+                    suffix: '.png',
+                    start: 0,
+                    end: 5
+                }),
+                frameRate: 10,
+                repeat: 0
+            });
+
+            this.anims.create({
+                key: 'boss1_death',
+                frames: this.anims.generateFrameNames('boss1', {
+                    prefix: 'boss1_death_',
+                    suffix: '.png',
+                    start: 0,
+                    end: 7
+                }),
+                frameRate: 8,
+                repeat: 0
+            });
+        }
+    }
+
     /**
      * Set up the collectible manager for handling collectibles
      */
@@ -557,88 +846,6 @@ export class WaveGame extends Scene {
     }
 
     /**
-     * Set up game objects including player, enemies, and bullets
-     */
-    setupGameObjects() {
-        // Create player instance (in center of map)
-        const playerX = this.mapDimensions.width / 2;
-        const playerY = this.mapDimensions.height / 2;
-        this.player = new Player(this, playerX, playerY);
-
-        // Initialize player's weapon system
-        this.player.initWeaponSystem();
-
-        // Setup player health system
-        this.playerHealth = new PlayerHealth(this, {
-            maxHealth: 100,
-            hitDamage: 34, // Dies in 3 hits
-            damageResistance: 0 // Start with 0% defense
-        });
-
-        // Setup collision with map layers
-        this.setupPlayerCollisions();
-
-        // Setup camera to follow player
-        this.setupCamera();
-    }
-
-    /**
-     * Set up collisions between player and map layers
-     */
-    setupPlayerCollisions() {
-        // Get collision layers from the map manager
-        if (this.mapManager && this.mapManager.currentMapKey) {
-            // Get the map configuration directly from the maps Map in the MapManager
-            const mapConfig = this.mapManager.maps.get(this.mapManager.currentMapKey);
-
-            if (mapConfig && mapConfig.collisionLayers) {
-                console.log(`Setting up collisions for map: ${this.mapManager.currentMapKey}`);
-                console.log(`Collision layers: ${mapConfig.collisionLayers.join(', ')}`);
-
-                // Set up collisions for each layer
-                mapConfig.collisionLayers.forEach(layerName => {
-                    const layer = this.mapManager.getLayer(layerName);
-                    if (layer) {
-                        console.log(`Adding collider for layer: ${layerName}`);
-
-                        // Add collision between player and this layer
-                        const collider = this.physics.add.collider(
-                            this.player.graphics,
-                            layer,
-                            null, // No callback needed
-                            null, // No process callback needed
-                            this
-                        );
-
-                        // Store the collider for reference
-                        if (!this.playerColliders) {
-                            this.playerColliders = [];
-                        }
-                        this.playerColliders.push(collider);
-
-                        // Debug visualization removed
-                    } else {
-                        console.warn(`Layer not found: ${layerName}`);
-                    }
-                });
-            } else {
-                console.warn('No collision layers defined for current map');
-            }
-        } else {
-            console.warn('Map manager or current map key not available');
-        }
-    }
-
-    /**
-     * Set up the camera to follow the player
-     */
-    setupCamera() {
-        this.cameras.main.setBounds(0, 0, this.mapDimensions.width, this.mapDimensions.height);
-        this.cameras.main.startFollow(this.player.graphics, true, 0.09, 0.09);
-        this.cameras.main.setZoom(0.7);
-    }
-
-    /**
      * Set up input handlers for keyboard and mouse
      */
     setupInput() {
@@ -880,14 +1087,14 @@ export class WaveGame extends Scene {
                         );
 
                         // Get enemy size and bullet properties
-                        const enemySize = enemyGraphics.parentEnemy ? enemyGraphics.parentEnemy.size/2 : 12;
+                        const enemySize = enemyGraphics.parentEnemy ? enemyGraphics.parentEnemy.size / 2 : 12;
 
                         // Get bullet properties - either from the bullet itself or from the player's weapon
                         const bulletSize = bullet.radius || this.player.caliber || 5;
                         const bulletDamage = bullet.damage ||
-                                            (this.player.weaponManager ?
-                                             this.player.weaponManager.getDamage() :
-                                             this.player.bulletDamage || 10);
+                            (this.player.weaponManager ?
+                                this.player.weaponManager.getDamage() :
+                                this.player.bulletDamage || 10);
 
                         // Check if bullet hits enemy
                         if (distance < (bulletSize + enemySize)) {
@@ -970,7 +1177,7 @@ export class WaveGame extends Scene {
                 new Phaser.Geom.Circle(
                     enemy.graphics.x,
                     enemy.graphics.y,
-                    enemy.size/2
+                    enemy.size / 2
                 )
             );
 
@@ -1077,7 +1284,21 @@ export class WaveGame extends Scene {
      * @param {number} y - Y position of the killed enemy
      * @param {string} enemyType - Type of enemy that was killed
      */
-    onEnemyKilled(isBoss, x, y, enemyType) {
+    onEnemyKilled(isBoss, x, y, enemyType, enemy) {
+        // Skip if this enemy has already been counted
+        if (enemy && enemy.killCounted) {
+            console.log(`Skipping already counted enemy: ${enemyType}`);
+            return;
+        }
+        
+        // Mark this enemy as counted
+        if (enemy) {
+            enemy.killCounted = true;
+        }
+        
+        // Debug logging to track kill events
+        console.log(`Enemy killed: ${enemyType}, isBoss: ${isBoss}, at position: ${x},${y}`);
+        
         // Increment total kill count
         this.killCount++;
 
@@ -1107,9 +1328,9 @@ export class WaveGame extends Scene {
                 if (this.soundManager) {
                     // Use existing sound with different parameters for XP collection
                     const soundKey = this.soundManager.soundEffects &&
-                                     this.soundManager.soundEffects['xp_collect'] ?
-                                     'xp_collect' :
-                                     'shoot_weapon'; // Fallback to an existing sound
+                        this.soundManager.soundEffects['xp_collect'] ?
+                        'xp_collect' :
+                        'shoot_weapon'; // Fallback to an existing sound
 
                     this.soundManager.playSoundEffect(soundKey, {
                         detune: 1200, // Higher pitch for XP collection
