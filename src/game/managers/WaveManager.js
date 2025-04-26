@@ -329,18 +329,49 @@ export class WaveManager {
      * @returns {string} Enemy type identifier
      */
     getEnemyTypeForWave() {
+        // Capture chosen enemy type for debugging
+        let chosenType;
+        
         if (this.currentWave < 5) {
             // Early waves only have basic enemies
-            return 'enemy1';
-        } else if (this.currentWave < 15) {
+            chosenType = 'enemy1';
+        } else if (this.currentWave < 10) {
             // Mid waves introduce enemy2 with increasing probability
-            const enemy2Chance = (this.currentWave - 5) / 20;
-            return Math.random() < enemy2Chance ? 'enemy2' : 'enemy1';
+            const enemy2Chance = (this.currentWave - 5) / 10;
+            chosenType = Math.random() < enemy2Chance ? 'enemy2' : 'enemy1';
+        } else if (this.currentWave < 15) {
+            // Waves 10-14 introduce enemy3 with small probability
+            const roll = Math.random();
+            if (roll < 0.1) {
+                chosenType = 'enemy3'; // 10% chance for enemy3
+            } else if (roll < 0.4) {
+                chosenType = 'enemy2'; // 30% chance for enemy2
+            } else {
+                chosenType = 'enemy1'; // 60% chance for enemy1
+            }
         } else {
-            // Later waves have more enemy2 than enemy1
-            const enemy2Chance = Math.min(0.7, (this.currentWave - 15) / 30);
-            return Math.random() < enemy2Chance ? 'enemy2' : 'enemy1';
+            // Later waves have all three enemy types with higher chance of advanced enemies
+            const roll = Math.random();
+            if (roll < 0.25) {
+                chosenType = 'enemy3'; // 25% chance for enemy3
+            } else if (roll < 0.65) {
+                chosenType = 'enemy2'; // 40% chance for enemy2
+            } else {
+                chosenType = 'enemy1'; // 35% chance for enemy1
+            }
         }
+        
+        // Debug log enemy selection when on wave 10 or higher
+        if (this.currentWave >= 10 && this.scene.isDev) {
+            // Check if enemy3 is registered in the enemy manager
+            const isEnemy3Registered = this.scene.enemyManager && 
+                this.scene.enemyManager.enemyRegistry && 
+                this.scene.enemyManager.enemyRegistry.getConstructor('enemy3');
+                
+            console.debug(`[WaveManager] Wave ${this.currentWave} selected enemy: ${chosenType}. Enemy3 registered: ${isEnemy3Registered ? 'YES' : 'NO'}`);
+        }
+        
+        return chosenType;
     }
 
     /**
@@ -733,32 +764,34 @@ export class WaveManager {
     }
 
     /**
-     * Reset the wave manager state
+     * Reset the wave manager
+     * Called when starting a new game or restarting
      */
     reset() {
-        this.currentWave = 0;
-        this.isPaused = false;
         this.isWaveActive = false;
-        this.activeEnemies = 0; // Reset to 0
-        this.activeBosses = 0;  // Reset to 0
-        this.enemiesSpawned = 0;
+        this.waveCompleted = false;
+        this.isPaused = false;
+        this.isWaitingForNextWave = false;
+        
+        this.currentWave = 0;
+        
         this.enemiesToSpawn = 0;
+        this.enemiesSpawned = 0;
+        this.activeEnemies = 0;
+        this.activeBosses = 0;
+        
         this.hasBoss = false;
-        this.lastBossWave = 0;
 
+        // Don't reset boss counter to maintain progressive difficulty
+        // this.lastBossWave = 0;
+        
         if (this.spawnTimer) {
             this.spawnTimer.destroy();
             this.spawnTimer = null;
         }
-
-        // Reset GroupManager counts if it exists
-        if (this.scene.groupManager) {
-            this.scene.groupManager.reset();
-        }
-
-        // Update UI with initial wave information
-        if (this.uiManager) {
-            this.uiManager.updateWaveUI(this.currentWave, this.maxWaves);
+        
+        if (this.scene.isDev) {
+            console.debug('[WaveManager] Reset completed');
         }
     }
 

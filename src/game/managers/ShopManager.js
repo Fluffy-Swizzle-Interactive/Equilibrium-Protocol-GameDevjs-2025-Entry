@@ -23,6 +23,7 @@ export default class ShopManager {
     this.rng = rng;
     this.upgradeManager = new UpgradeManager(player, weapon, rng);
     this.isShopOpen = false;
+    this.isProcessingShopOpen = false; // Add debounce flag
 
     // Register with scene for easier access
     scene.shopManager = this;
@@ -76,7 +77,19 @@ export default class ShopManager {
 
         // Add new listener for opening shop (only to the background element)
         nextWaveBg.on('pointerdown', () => {
+          // Add debounce protection
+          if (this.isProcessingShopOpen) return;
+          
+          // Set processing flag
+          this.isProcessingShopOpen = true;
+          
+          // Open shop
           this.openShop();
+          
+          // Reset flag after a delay to prevent double-clicks
+          this.scene.time.delayedCall(500, () => {
+            this.isProcessingShopOpen = false;
+          });
         });
 
         // Make the text non-interactive or ensure it doesn't have its own handler
@@ -98,6 +111,11 @@ export default class ShopManager {
     if (this.isShopOpen) return;
 
     this.isShopOpen = true;
+    
+    // Immediately hide the "Open Shop" button to prevent double-clicks
+    if (this.scene.uiManager) {
+      this.scene.uiManager.hideNextWaveButton();
+    }
 
     // Sync player credits with cashManager before opening shop
     if (this.scene.cashManager) {

@@ -17,6 +17,21 @@ export class Enemy3 extends BaseEnemy {
         super(scene, x, y, fromPool);
         this.type = 'enemy3';
         this.attackCooldown = 0;
+        
+        // Debug logging for Enemy3 creation
+        if (scene.isDev) {
+            console.debug(`[Enemy3] Created at (${x}, ${y}), fromPool: ${fromPool}`);
+            
+            // Check if texture exists
+            const textureExists = scene.textures.exists('enemy3');
+            console.debug(`[Enemy3] Texture exists: ${textureExists}`);
+            
+            // Check if animations exist
+            const idleAnimExists = scene.anims.exists('enemy3_idle');
+            const runAnimExists = scene.anims.exists('enemy3_run');
+            const shootAnimExists = scene.anims.exists('enemy3_shoot');
+            console.debug(`[Enemy3] Animations exist: idle=${idleAnimExists}, run=${runAnimExists}, shoot=${shootAnimExists}`);
+        }
     }
     
     /**
@@ -47,6 +62,47 @@ export class Enemy3 extends BaseEnemy {
     reset(x, y, options = {}) {
         super.reset(x, y, options);
         this.attackCooldown = 0;
+        
+        // Debug logging for Enemy3 reset
+        if (this.scene.isDev) {
+            console.debug(`[Enemy3] Reset at (${x}, ${y})`);
+        }
+    }
+    
+    /**
+     * Create visuals - override to ensure proper sprite creation
+     * @override
+     */
+    createVisuals(x, y) {
+        // First try the standard method from BaseEnemy
+        super.createVisuals(x, y);
+        
+        // Debug visuals creation
+        if (this.scene.isDev) {
+            console.debug(`[Enemy3] Creating visuals at (${x}, ${y})`);
+            console.debug(`[Enemy3] Has sprite: ${!!this.sprite}, Has graphics: ${!!this.graphics}`);
+            
+            // If we have a sprite, try to force an animation
+            if (this.sprite) {
+                try {
+                    // Try to play idle animation
+                    const success = this.playAnimation('idle');
+                    console.debug(`[Enemy3] Forced idle animation play: ${success}`);
+                    
+                    if (!success) {
+                        // Fallback - create a visible orange circle
+                        console.debug(`[Enemy3] Animation failed, creating bright orange indicator for visibility`);
+                        this.graphics.setFillStyle(0xff8800, 1);
+                        this.graphics.setStrokeStyle(2, 0xffffff);
+                    }
+                } catch (error) {
+                    console.warn(`[Enemy3] Error playing animation: ${error.message}`);
+                    // Ensure we have a visible representation regardless
+                    this.graphics.setFillStyle(0xff8800, 1);
+                    this.graphics.setStrokeStyle(2, 0xffffff);
+                }
+            }
+        }
     }
     
     /**
@@ -90,15 +146,20 @@ export class Enemy3 extends BaseEnemy {
             visual.y -= dirY * this.speed * 1.2;
             
             // Update animation
-            if (this.sprite && 
-                (!this.sprite.anims.isPlaying || 
-                 (this.sprite.anims.currentAnim && 
-                  !this.sprite.anims.currentAnim.key.includes('death') &&
-                  !this.sprite.anims.currentAnim.key.includes('shoot')))) {
-                
-                this.sprite.play('enemy3_run', true);
-                // Flip based on direction of retreat (opposite of player)
-                this.sprite.setFlipX(dirX > 0);
+            if (this.sprite && this.sprite.anims) {
+                try {
+                    if (!this.sprite.anims.isPlaying || 
+                        (this.sprite.anims.currentAnim && 
+                         !this.sprite.anims.currentAnim.key.includes('death') &&
+                         !this.sprite.anims.currentAnim.key.includes('shoot'))) {
+                        
+                        this.sprite.play('enemy3_run', true);
+                        // Flip based on direction of retreat (opposite of player)
+                        this.sprite.setFlipX(dirX > 0);
+                    }
+                } catch (error) {
+                    console.warn(`[Enemy3] Error updating animation during retreat: ${error.message}`);
+                }
             }
             
         } else if (distance > this.preferredRange) {
@@ -107,15 +168,20 @@ export class Enemy3 extends BaseEnemy {
             visual.y += dirY * this.speed * 0.8;
             
             // Update animation
-            if (this.sprite && 
-                (!this.sprite.anims.isPlaying || 
-                 (this.sprite.anims.currentAnim && 
-                  !this.sprite.anims.currentAnim.key.includes('death') &&
-                  !this.sprite.anims.currentAnim.key.includes('shoot')))) {
-                
-                this.sprite.play('enemy3_run', true);
-                // Flip based on direction of approach
-                this.sprite.setFlipX(dirX < 0);
+            if (this.sprite && this.sprite.anims) {
+                try {
+                    if (!this.sprite.anims.isPlaying || 
+                        (this.sprite.anims.currentAnim && 
+                         !this.sprite.anims.currentAnim.key.includes('death') &&
+                         !this.sprite.anims.currentAnim.key.includes('shoot'))) {
+                        
+                        this.sprite.play('enemy3_run', true);
+                        // Flip based on direction of approach
+                        this.sprite.setFlipX(dirX < 0);
+                    }
+                } catch (error) {
+                    console.warn(`[Enemy3] Error updating animation during approach: ${error.message}`);
+                }
             }
             
         } else {
@@ -130,15 +196,20 @@ export class Enemy3 extends BaseEnemy {
             visual.y += perpY * this.speed * strafeDir;
             
             // Update animation - use idle when strafing
-            if (this.sprite && 
-                (!this.sprite.anims.isPlaying || 
-                 (this.sprite.anims.currentAnim && 
-                  !this.sprite.anims.currentAnim.key.includes('death') &&
-                  !this.sprite.anims.currentAnim.key.includes('shoot')))) {
-                
-                this.sprite.play('enemy3_idle', true);
-                // Flip to face player
-                this.sprite.setFlipX(dirX < 0);
+            if (this.sprite && this.sprite.anims) {
+                try {
+                    if (!this.sprite.anims.isPlaying || 
+                        (this.sprite.anims.currentAnim && 
+                         !this.sprite.anims.currentAnim.key.includes('death') &&
+                         !this.sprite.anims.currentAnim.key.includes('shoot'))) {
+                        
+                        this.sprite.play('enemy3_idle', true);
+                        // Flip to face player
+                        this.sprite.setFlipX(dirX < 0);
+                    }
+                } catch (error) {
+                    console.warn(`[Enemy3] Error updating animation during strafe: ${error.message}`);
+                }
             }
         }
     }
@@ -165,16 +236,41 @@ export class Enemy3 extends BaseEnemy {
         
         // Play shooting animation if available
         if (this.sprite) {
-            this.sprite.play('enemy3_shoot');
-            // Make sure the sprite is facing the player
-            this.sprite.setFlipX(dirX < 0);
-            
-            // Listen for animation completion to go back to idle
-            this.sprite.once('animationcomplete', (anim) => {
-                if (anim.key === 'enemy3_shoot') {
-                    this.sprite.play('enemy3_idle', true);
+            try {
+                if (this.sprite.anims) {
+                    this.sprite.play('enemy3_shoot');
+                    // Make sure the sprite is facing the player
+                    this.sprite.setFlipX(dirX < 0);
+                    
+                    // Listen for animation completion to go back to idle
+                    this.sprite.once('animationcomplete', (anim) => {
+                        if (anim.key === 'enemy3_shoot' && this.sprite && this.sprite.anims) {
+                            try {
+                                this.sprite.play('enemy3_idle', true);
+                            } catch (error) {
+                                console.warn(`[Enemy3] Error playing idle after shoot: ${error.message}`);
+                            }
+                        }
+                    });
+                } else {
+                    // Flash the graphics to indicate firing as fallback
+                    this.graphics.setFillStyle(0xffff00);
+                    this.scene.time.delayedCall(100, () => {
+                        if (this.active && this.graphics && this.graphics.active) {
+                            this.graphics.setFillStyle(this.color);
+                        }
+                    });
                 }
-            });
+            } catch (error) {
+                console.warn(`[Enemy3] Error playing shoot animation: ${error.message}`);
+                // Flash the graphics to indicate firing as fallback
+                this.graphics.setFillStyle(0xffff00);
+                this.scene.time.delayedCall(100, () => {
+                    if (this.active && this.graphics && this.graphics.active) {
+                        this.graphics.setFillStyle(this.color);
+                    }
+                });
+            }
         } else {
             // Flash the graphics to indicate firing
             this.graphics.setFillStyle(0xffff00);
@@ -183,6 +279,11 @@ export class Enemy3 extends BaseEnemy {
                     this.graphics.setFillStyle(this.color);
                 }
             });
+        }
+        
+        // Debug logging for projectile firing
+        if (this.scene.isDev) {
+            console.debug(`[Enemy3] Firing projectile from (${visual.x}, ${visual.y}) to (${playerPos.x}, ${playerPos.y})`);
         }
         
         // Emit event for sound and visual effects
