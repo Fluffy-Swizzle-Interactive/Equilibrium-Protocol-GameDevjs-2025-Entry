@@ -12,6 +12,13 @@ export class PreSpawn extends Scene
     constructor ()
     {
         super('PreSpawn');
+        
+        // Define a custom depth for the lore popup that's higher than any other UI element
+        this.LORE_POPUP_DEPTH = {
+            BACKDROP: 2000,
+            WINDOW: 2001,
+            CONTENT: 2002
+        };
     }
 
     init(data)
@@ -21,6 +28,9 @@ export class PreSpawn extends Scene
 
         // Store debug mode from DEV menu if provided
         this.debugMode = data.debug !== undefined ? data.debug : false;
+        
+        // Track if lore popup is currently shown
+        this.isLorePopupActive = false;
     }
 
     create ()
@@ -132,10 +142,328 @@ export class PreSpawn extends Scene
             this.backToMainMenu();
         });
 
+        // Add lore button in the bottom left corner
+        this.createLoreButton();
+
         // Setup sound manager
         this.setupSoundManager();
 
         EventBus.emit('current-scene-ready', this);
+    }
+
+    /**
+     * Create lore button in the bottom left corner
+     */
+    createLoreButton() {
+        // Lore button container (bottom left corner)
+        const loreButton = this.add.rectangle(120, 700, 180, 60, 0x8B4513)
+            .setOrigin(0.5)
+            .setStrokeStyle(3, 0xFFD700)
+            .setInteractive()
+            .setDepth(DEPTHS.UI_ELEMENTS);
+
+        const loreText = this.add.text(120, 700, 'GAME LORE', {
+            fontFamily: 'Arial Black',
+            fontSize: 22,
+            color: '#FFD700',
+            stroke: '#000000',
+            strokeThickness: 3,
+            align: 'center'
+        }).setOrigin(0.5).setDepth(DEPTHS.UI_TEXT + 1);
+
+        // Lore button hover effect
+        loreButton.on('pointerover', () => {
+            loreButton.fillColor = 0xA0522D;
+            this.scale.canvas.style.cursor = 'pointer';
+        });
+
+        loreButton.on('pointerout', () => {
+            loreButton.fillColor = 0x8B4513;
+            this.scale.canvas.style.cursor = 'default';
+        });
+
+        // Lore button click - show popup
+        loreButton.on('pointerdown', () => {
+            if (!this.isLorePopupActive) {
+                // Play button click sound
+                if (this.soundManager) {
+                    this.soundManager.playSoundEffect('button_click');
+                }
+                this.showLorePopup();
+            }
+        });
+    }
+
+    /**
+     * Show popup with game lore and mechanics explanation
+     */
+    showLorePopup() {
+        this.isLorePopupActive = true;
+        
+        // Create popup container with highest depth
+        const popupContainer = this.add.container(512, 384).setDepth(this.LORE_POPUP_DEPTH.CONTENT);
+        
+        // Add semi-transparent backdrop that covers the entire screen
+        const backdrop = this.add.rectangle(0, 0, 1024, 768, 0x000000, 0.8)
+            .setOrigin(0.5)
+            .setInteractive()
+            .setDepth(this.LORE_POPUP_DEPTH.BACKDROP);
+        
+        // Create popup window
+        const popupWindow = this.add.rectangle(0, 0, 800, 600, 0x222222, 0.95)
+            .setOrigin(0.5)
+            .setStrokeStyle(4, 0xFFD700)
+            .setDepth(this.LORE_POPUP_DEPTH.WINDOW);
+            
+        // Popup title with highest depth
+        const popupTitle = this.add.text(0, -250, 'EQUILIBRIUM PROTOCOL', {
+            fontFamily: 'Arial Black',
+            fontSize: 32,
+            color: '#FFD700',
+            stroke: '#000000',
+            strokeThickness: 4,
+            align: 'center'
+        }).setOrigin(0.5).setDepth(this.LORE_POPUP_DEPTH.CONTENT);
+        
+        // Define scrollable viewport dimensions and position
+        const viewportX = -350;
+        const viewportY = -200;
+        const viewportWidth = 700;
+        const viewportHeight = 400;
+        
+        // Create mask for scrollable content
+        const textMask = this.make.graphics();
+        textMask.fillRect(viewportX + 512, viewportY + 384, viewportWidth, viewportHeight);
+        const mask = new Phaser.Display.Masks.GeometryMask(this, textMask);
+        
+        // Lore text content
+        const loreText = this.make.text({
+            x: viewportX,
+            y: viewportY,
+            text: this.getLoreContent(),
+            style: {
+                fontFamily: 'Arial',
+                fontSize: 22,
+                color: '#ffffff',
+                wordWrap: { width: viewportWidth },
+                lineSpacing: 12
+            }
+        }).setOrigin(0).setDepth(this.LORE_POPUP_DEPTH.CONTENT);
+        
+        // Apply mask to make text scrollable
+        loreText.setMask(mask);
+        
+        // Create close button
+        const closeButton = this.add.rectangle(350, -250, 60, 40, 0xaa0000)
+            .setOrigin(0.5)
+            .setStrokeStyle(2, 0xffffff)
+            .setInteractive()
+            .setDepth(this.LORE_POPUP_DEPTH.CONTENT);
+            
+        const closeText = this.add.text(350, -250, 'X', {
+            fontFamily: 'Arial Black',
+            fontSize: 24,
+            color: '#ffffff'
+        }).setOrigin(0.5).setDepth(this.LORE_POPUP_DEPTH.CONTENT);
+        
+        // Close button hover effects
+        closeButton.on('pointerover', () => {
+            closeButton.fillColor = 0xcc0000;
+            this.scale.canvas.style.cursor = 'pointer';
+        });
+        
+        closeButton.on('pointerout', () => {
+            closeButton.fillColor = 0xaa0000;
+            this.scale.canvas.style.cursor = 'default';
+        });
+        
+        // Create scrollbar track
+        const scrollTrack = this.add.rectangle(370, 0, 16, viewportHeight, 0x666666)
+            .setOrigin(0.5)
+            .setDepth(this.LORE_POPUP_DEPTH.CONTENT);
+        
+        // Calculate content height and scrollbar parameters
+        const contentHeight = loreText.height;
+        const visibleRatio = Math.min(viewportHeight / contentHeight, 1);
+        const scrollThumbHeight = Math.max(visibleRatio * viewportHeight, 40);
+        
+        // Create scrollbar thumb
+        const scrollThumb = this.add.rectangle(370, -viewportHeight/2 + scrollThumbHeight/2, 12, scrollThumbHeight, 0xffffff)
+            .setOrigin(0.5)
+            .setInteractive({ draggable: true })
+            .setDepth(this.LORE_POPUP_DEPTH.CONTENT);
+            
+        // Calculate scroll parameters
+        const maxScrollDistance = contentHeight - viewportHeight;
+        const scrollTrackRange = viewportHeight - scrollThumbHeight;
+        
+        // Initialize scroll position
+        let scrollPosition = 0;
+        
+        // Function to update UI based on scroll position
+        const updateScroll = (newScrollPosition) => {
+            // Clamp scroll position between 0 and maxScrollDistance
+            scrollPosition = Phaser.Math.Clamp(newScrollPosition, 0, maxScrollDistance);
+            
+            // Update text position for scrolling effect
+            loreText.y = viewportY - scrollPosition;
+            
+            // Calculate and update thumb position
+            const scrollProgress = maxScrollDistance > 0 ? scrollPosition / maxScrollDistance : 0;
+            const thumbY = -viewportHeight/2 + scrollThumbHeight/2 + scrollProgress * scrollTrackRange;
+            scrollThumb.y = thumbY;
+        };
+        
+        // Reset scroll position initially
+        updateScroll(0);
+        
+        // Mouse wheel scrolling
+        this.input.on('wheel', (pointer, gameObjects, deltaX, deltaY) => {
+            if (this.isLorePopupActive) {
+                // Scroll faster (20px per wheel tick)
+                updateScroll(scrollPosition + deltaY * 0.4);
+            }
+        });
+        
+        // Draggable scrollbar
+        scrollThumb.on('drag', (pointer, dragX, dragY) => {
+            // Calculate scrollPosition from thumb position
+            const minY = -viewportHeight/2 + scrollThumbHeight/2;
+            const maxY = viewportHeight/2 - scrollThumbHeight/2;
+            const clampedY = Phaser.Math.Clamp(dragY, minY, maxY);
+            
+            // Convert thumb position to scroll position
+            const scrollProgress = (clampedY - minY) / scrollTrackRange;
+            updateScroll(scrollProgress * maxScrollDistance);
+        });
+        
+        // Make scroll track clickable to jump to position
+        scrollTrack.setInteractive();
+        scrollTrack.on('pointerdown', (pointer) => {
+            // Get relative y position within track
+            const localY = pointer.y - popupContainer.y - scrollTrack.y;
+            const normalizedY = (localY + viewportHeight/2) / viewportHeight; // 0 to 1
+            
+            // Set thumb position and update scroll
+            updateScroll(normalizedY * maxScrollDistance);
+        });
+        
+        // Close button click handler
+        closeButton.on('pointerdown', () => {
+            // Play button click sound
+            if (this.soundManager) {
+                this.soundManager.playSoundEffect('button_click');
+            }
+            
+            // Clean up event listeners
+            this.input.off('wheel');
+            
+            // Destroy popup container and contents
+            popupContainer.destroy();
+            
+            // Reset state
+            this.isLorePopupActive = false;
+        });
+        
+        // Add all elements to popup container
+        popupContainer.add([
+            backdrop,
+            popupWindow,
+            popupTitle,
+            loreText,
+            closeButton,
+            closeText,
+            scrollTrack,
+            scrollThumb
+        ]);
+    }
+    
+    /**
+     * Get the lore content text
+     * @returns {string} The formatted lore content
+     */
+    getLoreContent() {
+        return `
+=== THE STORY OF EQUILIBRIUM PROTOCOL ===
+
+In the near future, the world's code repositories grew so vast and vital that they formed the digital lifeblood of society.
+To manage this chaos, two factions emerged:
+
+  • The AI Collectives — self-evolving artificial intelligences, optimized for pure efficiency and control.
+
+  • The Coder Guilds — rebellious human programmers, determined to preserve creativity, freedom, and chaos.
+
+When balance between these forces was lost, catastrophic instability followed. Systems crashed. Cities fell into darkness.
+
+You are the First Sentient, humanity’s last experiment: a hybrid of human intuition and machine precision 
+derived from the desperation of one Master Coder tasked with saving the world.
+Placed delicatley at the heart of the global network, you are the only hope to restore balance.
+Your sole purpose is to maintain the Equilibrium Protocol.
+
+=== THE FACTIONS ===
+
+  • AI Collectives — Enforce order through machine logic and domination.
+
+  • Coder Guilds — Inject chaos and creativity back into the system.
+
+Both sides are necessary — but too much power in either direction will collapse the system.
+
+=== CORE GAMEPLAY MECHANICS ===
+
+Chaos Meter (Balance System)
+
+The Chaos Meter measures the world's imbalance between Coders and AI.
+
+  • Meter Range: -100 (AI dominance) to +100 (Coder dominance)
+  • Default: 0 (Perfect Balance)
+
+Every enemy you defeat shifts the Chaos Meter.
+Momentum builds with consecutive kills, amplifying your influence up to 4.9x.
+Momentum naturally decays by 4% per cycle, preventing runaway effects.
+
+As chaos tilts:
+  • The dominant faction grows stronger.
+  • Enemy HP, damage, fire rate, and dodge ability scale upward.
+  • The losing side spawns more enemies to push back.
+
+Extreme imbalance (±100) triggers a cooldown, then resets chaos to 25% to prevent collapse.
+
+Stay balanced — or survive the consequences.
+
+=== UPGRADE SYSTEM ===
+
+Earn upgrade points by defeating enemies and completing objectives.
+
+Upgrades include:
+  • Weapon Enhancements — stronger bullets, faster fire rates.
+  • Defensive Upgrades — shields, speed boosts, dodge improvements.
+  • Drones, Explosives, Homing ammo and more!
+
+Customize your Sentient to fit your strategy.
+
+=== DRONE SYSTEM ===
+
+Unlock autonomous drones to assist you in battle.
+
+  • Up to 5 drones can orbit and fire automatically.
+  • Drones share your upgrades and scale with you.
+  • They provide crucial extra firepower in chaotic fights.
+
+Deploy and upgrade wisely — drones are your lifeline.
+
+=== FACTION BATTLES ===
+
+Major battles erupt as AI and Coders clash for dominance.
+
+  • Both sides fight each other — and you.
+  • Imbalance can cause one faction to overwhelm the battlefield.
+  • Strategic intervention is critical to survival.
+
+Tip the scales carefully. Total dominance by either side is a disaster.
+
+=== MAINTAIN THE BALANCE. SURVIVE THE CHAOS. FULFILL THE PROTOCOL. ===
+
+`;
     }
 
     /**
