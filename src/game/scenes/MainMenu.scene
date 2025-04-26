@@ -22,17 +22,6 @@
             "y": 384
         },
         {
-            "type": "Image",
-            "id": "e5babb96-c526-40f4-94d3-ce0955d9767d",
-            "label": "logo",
-            "scope": "CLASS",
-            "texture": {
-                "key": "logo"
-            },
-            "x": 513,
-            "y": 384
-        },
-        {
             "type": "Text",
             "id": "849c46c6-b507-4dba-9e0b-1d60465186c2",
             "label": "text",

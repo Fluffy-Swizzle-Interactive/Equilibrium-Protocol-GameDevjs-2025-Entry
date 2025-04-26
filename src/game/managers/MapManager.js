@@ -16,7 +16,7 @@ export class MapManager {
         this.currentMapKey = null;
         this.maps = new Map(); // Store map configurations
         this.tilesets = new Map(); // Store tileset configurations
-        
+
         // Default options for map scaling and physics
         this.defaultOptions = {
             scaleFactor: 1.5, // Default scale: 50% larger than needed to fit screen
@@ -24,19 +24,19 @@ export class MapManager {
             defaultTileWidth: 32,
             defaultTileHeight: 32
         };
-        
+
         // Merge provided options with defaults
         this.options = { ...this.defaultOptions, ...options };
-        
+
         // Register this manager with the scene for easy access
         this.scene.mapManager = this;
-        
+
         // Initialize maps from options if provided
         if (options.maps) {
             this.registerMaps(options.maps);
         }
     }
-    
+
     /**
      * Register multiple maps at once
      * @param {Object[]} maps - Array of map configuration objects
@@ -46,12 +46,12 @@ export class MapManager {
             console.error('Maps must be an array of map configuration objects');
             return;
         }
-        
+
         maps.forEach(mapConfig => {
             this.registerMap(mapConfig);
         });
     }
-    
+
     /**
      * Register a single map
      * @param {Object} mapConfig - Map configuration object
@@ -66,10 +66,10 @@ export class MapManager {
             console.error('Map configuration must include key and tilemapKey');
             return;
         }
-        
+
         // Store the map configuration
         this.maps.set(mapConfig.key, mapConfig);
-        
+
         // Store tileset configurations if provided
         if (mapConfig.tilesets) {
             mapConfig.tilesets.forEach(tileset => {
@@ -77,7 +77,7 @@ export class MapManager {
             });
         }
     }
-    
+
     /**
      * Load all registered maps
      * Call this in the scene's preload method
@@ -88,7 +88,7 @@ export class MapManager {
             if (mapConfig.tilemapKey && !this.scene.load.cacheManager.tilemap.exists(mapConfig.tilemapKey)) {
                 this.scene.load.tilemapTiledJSON(mapConfig.tilemapKey, mapConfig.tilemapPath || `assets/${mapConfig.tilemapKey}.json`);
             }
-            
+
             // Load tilesets for this map if not already loaded
             if (mapConfig.tilesets) {
                 mapConfig.tilesets.forEach(tilesetConfig => {
@@ -99,7 +99,7 @@ export class MapManager {
             }
         });
     }
-    
+
     /**
      * Load a specific map
      * @param {string} mapKey - Key of the map to load
@@ -108,20 +108,20 @@ export class MapManager {
     loadMap(mapKey) {
         // Cleanup any existing map
         this.cleanupCurrentMap();
-        
+
         // Get the map configuration
         const mapConfig = this.maps.get(mapKey);
         if (!mapConfig) {
             console.error(`Map with key ${mapKey} is not registered`);
             return null;
         }
-        
+
         // Create the tilemap
         const tilemap = this.scene.make.tilemap({ key: mapConfig.tilemapKey });
-        
+
         // For storing created tilesets
         const createdTilesets = new Map();
-        
+
         // Add tilesets to the map
         if (mapConfig.tilesets) {
             mapConfig.tilesets.forEach(tilesetConfig => {
@@ -132,10 +132,10 @@ export class MapManager {
                 createdTilesets.set(tilesetConfig.key, tileset);
             });
         }
-        
+
         // Create layers based on configuration
         const createdLayers = new Map();
-        
+
         if (mapConfig.layers) {
             mapConfig.layers.forEach(layerConfig => {
                 // Get the tileset for this layer
@@ -146,20 +146,44 @@ export class MapManager {
                     // If only one tileset is available, use it
                     tileset = createdTilesets.values().next().value;
                 }
-                
+
+                // Check if the layer exists in the tilemap
+                const layerExists = tilemap.layers.some(l => l.name === layerConfig.name);
+                if (!layerExists) {
+                    console.warn(`Layer "${layerConfig.name}" not found in tilemap`);
+                    return; // Skip this layer
+                }
+
                 if (tileset) {
+                    // For layers that might need multiple tilesets (like Props and Prop1)
+                    // we'll create an array of all tilesets
+                    let tilesetToUse;
+
+                    // Check if this layer uses high tile IDs (from props_and_items_x1 tileset)
+                    const layerData = tilemap.layers.find(l => l.name === layerConfig.name);
+                    const hasHighTileIDs = layerData && layerData.data.some(tileID => tileID >= 852);
+
+                    if (layerConfig.name === 'Props' || layerConfig.name === 'Props1' || hasHighTileIDs) {
+                        // Use an array of all tilesets for these special layers
+                        tilesetToUse = Array.from(createdTilesets.values());
+                        console.debug(`Using all tilesets for layer: ${layerConfig.name}`);
+                    } else {
+                        // Use the specific tileset for this layer
+                        tilesetToUse = tileset;
+                    }
+
                     const layer = tilemap.createLayer(
-                        layerConfig.name, 
-                        tileset,
+                        layerConfig.name,
+                        tilesetToUse,
                         layerConfig.offsetX || 0,
                         layerConfig.offsetY || 0
                     );
-                    
+
                     if (layer) {
                         // Apply layer-specific configurations
                         if (layerConfig.visible === false) layer.setVisible(false);
                         if (layerConfig.alpha !== undefined) layer.setAlpha(layerConfig.alpha);
-                        
+
                         // Set depth based on configuration or default value from constants
                         // This is important for proper rendering order
                         if (layerConfig.depth !== undefined) {
@@ -174,47 +198,117 @@ export class MapManager {
                             // Default depth ensures map layers are below game entities
                             layer.setDepth(DEPTHS.MAP_GROUND);
                         }
-                        
+
                         // Store created layer
                         createdLayers.set(layerConfig.name, layer);
                     }
                 }
             });
+
+            // Check if we need to load any layers that weren't explicitly configured
+            const configuredLayerNames = new Set(mapConfig.layers.map(l => l.name));
+            const tilemapLayerNames = tilemap.layers.map(l => l.name);
+
+            // Find layers in the tilemap that weren't configured
+            const unconfiguredLayers = tilemapLayerNames.filter(name => !configuredLayerNames.has(name));
+
+            if (unconfiguredLayers.length > 0) {
+                console.debug(`Found ${unconfiguredLayers.length} unconfigured layers in tilemap: ${unconfiguredLayers.join(', ')}`);
+
+                // Use the first tileset as default for unconfigured layers
+                const defaultTileset = createdTilesets.values().next().value;
+
+                unconfiguredLayers.forEach((layerName, index) => {
+                    // For Props or Prop1 layers, use all tilesets
+                    let tilesetToUse;
+
+                    // Check if this layer uses high tile IDs (from props_and_items_x1 tileset)
+                    const layerData = tilemap.layers.find(l => l.name === layerName);
+                    const hasHighTileIDs = layerData && layerData.data.some(tileID => tileID >= 852);
+
+                    if (layerName === 'Props' || layerName === 'Prop1' || hasHighTileIDs) {
+                        tilesetToUse = Array.from(createdTilesets.values());
+                        console.debug(`Using all tilesets for unconfigured layer: ${layerName}`);
+                    } else {
+                        tilesetToUse = defaultTileset;
+                    }
+
+                    const layer = tilemap.createLayer(layerName, tilesetToUse);
+                    if (layer) {
+                        // Set depth based on layer name
+                        if (layerName === 'Props1') {
+                            layer.setDepth(15); // Under player
+                        } else if (layerName === 'Props') {
+                            layer.setDepth(25); // Over player
+                        } else {
+                            // Default depth based on index
+                            layer.setDepth(index);
+                        }
+
+                        // Store created layer
+                        createdLayers.set(layerName, layer);
+
+                        console.debug(`Created unconfigured layer: ${layerName} with depth ${layer.depth}`);
+                    }
+                });
+            }
         } else {
             // If no specific layers configured, try to create all layers from the map
-            // using the first tileset (simple case for single tileset maps)
-            const tileset = createdTilesets.values().next().value;
-            if (tileset) {
+            // using the appropriate tilesets
+            if (createdTilesets.size > 0) {
+                const defaultTileset = createdTilesets.values().next().value;
                 const layerData = tilemap.layers.map(l => l.name);
+
                 layerData.forEach((layerName, index) => {
-                    const layer = tilemap.createLayer(layerName, tileset);
+                    // Determine which tileset(s) to use for this layer
+                    let tilesetToUse;
+
+                    // Check if this layer uses high tile IDs (from props_and_items_x1 tileset)
+                    const layerData = tilemap.layers.find(l => l.name === layerName);
+                    const hasHighTileIDs = layerData && layerData.data.some(tileID => tileID >= 852);
+
+                    if (layerName === 'Props' || layerName === 'Prop1' || hasHighTileIDs) {
+                        // Use all tilesets for Props and Prop1 layers
+                        tilesetToUse = Array.from(createdTilesets.values());
+                        console.debug(`Using all tilesets for layer in else case: ${layerName}`);
+                    } else {
+                        // Use default tileset for other layers
+                        tilesetToUse = defaultTileset;
+                    }
+
+                    const layer = tilemap.createLayer(layerName, tilesetToUse);
                     if (layer) {
-                        // Set depth based on layer name or index
+                        // Set depth based on layer name
                         if (layerName.toLowerCase().includes('ground')) {
                             layer.setDepth(DEPTHS.MAP_GROUND);
                         } else if (layerName.toLowerCase().includes('wall')) {
                             layer.setDepth(DEPTHS.MAP_WALLS);
                         } else if (layerName.toLowerCase().includes('decoration')) {
                             layer.setDepth(DEPTHS.MAP_DECORATION);
+                        } else if (layerName === 'Props1') {
+                            layer.setDepth(15); // Under player
+                        } else if (layerName === 'Props') {
+                            layer.setDepth(25); // Over player
                         } else {
                             // Default depth = index to preserve stacking order from Tiled
                             layer.setDepth(index);
                         }
-                        
+
                         createdLayers.set(layerName, layer);
+                        console.debug(`Created layer: ${layerName} with depth ${layer.depth}`);
                     }
                 });
             }
         }
-        
+
         // Scale the map appropriately
         this.scaleMap(tilemap, createdLayers);
-        
+
         // Set up physics if enabled
         if (this.options.enablePhysics !== false) {
             this.setupMapPhysics(tilemap, createdLayers, mapConfig);
         }
-        
+
         // Store the current map data
         this.currentMapData = {
             key: mapKey,
@@ -223,12 +317,12 @@ export class MapManager {
             layers: createdLayers,
             mapDimensions: this.calculateMapDimensions(tilemap, createdLayers)
         };
-        
+
         this.currentMapKey = mapKey;
-        
+
         return this.currentMapData;
     }
-    
+
     /**
      * Calculate the dimensions of the currently loaded map
      * @param {Phaser.Tilemaps.Tilemap} tilemap - The tilemap
@@ -239,18 +333,18 @@ export class MapManager {
         // Get the base map dimensions
         const mapWidth = tilemap.widthInPixels;
         const mapHeight = tilemap.heightInPixels;
-        
+
         // Get the scale from the first layer (assuming all layers have same scale)
         let scale = 1;
         if (layers.size > 0) {
             const firstLayer = layers.values().next().value;
             scale = firstLayer.scaleX || 1; // Use scaleX as we assume uniform scaling
         }
-        
+
         // Calculate effective dimensions after scaling
         const effectiveWidth = mapWidth * scale;
         const effectiveHeight = mapHeight * scale;
-        
+
         return {
             baseWidth: mapWidth,
             baseHeight: mapHeight,
@@ -259,7 +353,7 @@ export class MapManager {
             scale
         };
     }
-    
+
     /**
      * Scale the map to fit the screen appropriately
      * @param {Phaser.Tilemaps.Tilemap} tilemap - The tilemap
@@ -268,24 +362,24 @@ export class MapManager {
     scaleMap(tilemap, layers) {
         const mapConfig = this.maps.get(this.currentMapKey);
         const scaleFactor = mapConfig?.options?.scaleFactor || this.options.scaleFactor;
-        
+
         // Calculate map scaling to fit the screen
         const mapWidth = tilemap.widthInPixels;
         const mapHeight = tilemap.heightInPixels;
-        
+
         const scaleX = this.scene.game.config.width / mapWidth;
         const scaleY = this.scene.game.config.height / mapHeight;
-        
+
         // Use the largest scale to ensure the map covers the screen
         // Multiply by scaleFactor to make it larger/smaller than needed
         const scale = Math.max(scaleX, scaleY) * scaleFactor;
-        
+
         // Apply scaling to all layers
         layers.forEach(layer => {
             layer.setScale(scale);
         });
     }
-    
+
     /**
      * Set up physics boundaries and collision for the map
      * @param {Phaser.Tilemaps.Tilemap} tilemap - The tilemap
@@ -295,21 +389,28 @@ export class MapManager {
     setupMapPhysics(tilemap, layers, mapConfig) {
         // Calculate the effective dimensions after scaling
         const dimensions = this.calculateMapDimensions(tilemap, layers);
-        
+
         // Set world bounds based on map dimensions
         this.scene.physics.world.setBounds(
-            0, 0, 
-            dimensions.width, 
+            0, 0,
+            dimensions.width,
             dimensions.height
         );
-        
+
         // Set up collision for specific layers if configured
         if (mapConfig.collisionLayers) {
             mapConfig.collisionLayers.forEach(layerName => {
                 const layer = layers.get(layerName);
                 if (layer) {
+                    // Check if this is the Level1-REDUX map
+                    if (mapConfig.key === 'level1redux') {
+                        // Use collision groups defined in Tiled
+                        layer.setCollisionFromCollisionGroup();
+
+                        // Debug collision visualization removed
+                    }
                     // If specific properties are defined for collision, use them
-                    if (mapConfig.collisionProperties) {
+                    else if (mapConfig.collisionProperties) {
                         layer.setCollisionByProperty(mapConfig.collisionProperties);
                     } else {
                         // Otherwise enable collision for all tiles
@@ -319,7 +420,7 @@ export class MapManager {
             });
         }
     }
-    
+
     /**
      * Clean up the current map to prepare for a new one
      */
@@ -329,16 +430,16 @@ export class MapManager {
             this.currentMapData.layers.forEach(layer => {
                 layer.destroy();
             });
-            
+
             // Clear references
             this.currentMapData.layers.clear();
             this.currentMapData.tilesets.clear();
-            
+
             // Null out current map data
             this.currentMapData = null;
         }
     }
-    
+
     /**
      * Get current map dimensions
      * @returns {Object} Current map dimensions or null if no map is loaded
@@ -347,7 +448,7 @@ export class MapManager {
         if (!this.currentMapData) return null;
         return this.currentMapData.mapDimensions;
     }
-    
+
     /**
      * Get a specific layer from the current map
      * @param {string} layerName - Name of the layer
@@ -357,7 +458,7 @@ export class MapManager {
         if (!this.currentMapData || !this.currentMapData.layers) return null;
         return this.currentMapData.layers.get(layerName) || null;
     }
-    
+
     /**
      * Find a random walkable position on the map
      * Useful for entity spawning
@@ -368,22 +469,22 @@ export class MapManager {
      */
     findRandomPosition(options = {}) {
         if (!this.currentMapData) return null;
-        
+
         const dimensions = this.currentMapData.mapDimensions;
         const margin = options.margin || 50;
-        
+
         let x, y, positionValid;
         let attempts = 0;
         const maxAttempts = 50;
-        
+
         do {
             positionValid = true;
             attempts++;
-            
+
             // Generate random position within bounds
             x = Phaser.Math.Between(margin, dimensions.width - margin);
             y = Phaser.Math.Between(margin, dimensions.height - margin);
-            
+
             // Check collision with specified layer if needed
             if (options.avoidLayer) {
                 const layer = this.getLayer(options.avoidLayer);
@@ -395,10 +496,10 @@ export class MapManager {
                 }
             }
         } while (!positionValid && attempts < maxAttempts);
-        
+
         return { x, y };
     }
-    
+
     /**
      * Check if a position is valid (within bounds and not colliding)
      * @param {number} x - X coordinate
@@ -409,14 +510,14 @@ export class MapManager {
      */
     isPositionValid(x, y, options = {}) {
         if (!this.currentMapData) return false;
-        
+
         const dimensions = this.currentMapData.mapDimensions;
-        
+
         // Check if within world bounds
         if (x < 0 || x > dimensions.width || y < 0 || y > dimensions.height) {
             return false;
         }
-        
+
         // Check collision with specified layer if needed
         if (options.collisionLayer) {
             const layer = this.getLayer(options.collisionLayer);
@@ -427,10 +528,10 @@ export class MapManager {
                 }
             }
         }
-        
+
         return true;
     }
-    
+
     /**
      * Switch to a different map
      * @param {string} mapKey - Key of the map to switch to
@@ -445,11 +546,11 @@ export class MapManager {
             const fadeOut = options.fadeOut !== false;
             const fadeIn = options.fadeIn !== false;
             const fadeDuration = options.fadeDuration || 500;
-            
+
             const doSwitch = () => {
                 // Load the new map
                 const mapData = this.loadMap(mapKey);
-                
+
                 // Fade in if needed
                 if (fadeIn) {
                     this.scene.cameras.main.fadeIn(fadeDuration);
@@ -460,7 +561,7 @@ export class MapManager {
                     resolve(mapData);
                 }
             };
-            
+
             // Fade out if needed
             if (fadeOut) {
                 this.scene.cameras.main.fadeOut(fadeDuration);

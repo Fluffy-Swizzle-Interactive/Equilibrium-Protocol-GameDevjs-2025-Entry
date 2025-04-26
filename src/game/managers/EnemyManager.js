@@ -1,6 +1,8 @@
 import { GameObjectManager } from './GameObjectManager';
 import { BaseEnemy } from '../entities/BaseEnemy';
 import { EnemyRegistry } from './EnemyRegistry';
+import { GroupId } from '../constants';
+import { GroupWeightManager } from './GroupWeightManager';
 
 /**
  * EnemyManager class
@@ -22,11 +24,20 @@ export class EnemyManager {
         // Create the enemy registry
         this.enemyRegistry = new EnemyRegistry(scene);
         
+        // Initialize group weight manager for randomized enemy spawning
+        this.groupWeightManager = new GroupWeightManager(scene, {
+            initialWeights: options.initialGroupWeights || { 'ai': 50, 'coder': 50 },
+            volatility: options.groupVolatility || 0.2
+        });
+        
         // Register this manager with the scene for easy access
         scene.enemyManager = this;
         
         // Initialize enemy pools
         this.initializePools(options);
+        
+        // Debug properties
+        this.isDev = this.scene.isDev || false;
     }
     
     /**
@@ -172,8 +183,26 @@ export class EnemyManager {
             return null;
         }
         
+        // If no group ID is specified in options, use weighted random selection
+        if (!options.groupId) {
+            // Use GroupWeightManager to determine the group/faction
+            const selectedGroup = this.groupWeightManager.pickRandomGroup();
+            options.groupId = selectedGroup;
+            
+            if (this.isDev) {
+                console.debug(`Spawning enemy with dynamically selected group: ${selectedGroup}`);
+            }
+        }
+        
         // Get enemy from pool
-        return this.gameObjectManager.get(type, x, y, options);
+        const enemy = this.gameObjectManager.get(type, x, y, options);
+        
+        // Make sure enemy has the correct group ID set
+        if (enemy && options.groupId && enemy.setGroup) {
+            enemy.setGroup(options.groupId);
+        }
+        
+        return enemy;
     }
     
     /**
@@ -191,6 +220,50 @@ export class EnemyManager {
         this.createEnemyPool(typeId, Constructor, poolOptions);
         
         return this;
+    }
+    
+    /**
+     * Registers a kill with the group weight manager to adjust future spawning probabilities
+     * @param {String} groupId - The group ID of the killed enemy
+     */
+    registerKill(groupId) {
+        if (this.groupWeightManager) {
+            this.groupWeightManager.registerKill(groupId);
+        }
+    }
+    
+    /**
+     * Get the current group weights/probabilities for enemy spawning
+     * @returns {Object} Object containing group weights and probabilities
+     */
+    getGroupDistribution() {
+        if (!this.groupWeightManager) return { weights: {}, probabilities: {} };
+        
+        return {
+            weights: {...this.groupWeightManager.groupWeights},
+            probabilities: this.groupWeightManager.getProbabilities()
+        };
+    }
+    
+    /**
+     * Set the volatility factor for group weight adjustments
+     * @param {Number} value - Volatility value (0-1)
+     */
+    setGroupVolatility(value) {
+        if (this.groupWeightManager) {
+            this.groupWeightManager.setVolatility(value);
+        }
+    }
+
+    /**
+     * Manually adjust the weight of a specific group
+     * @param {String} groupId - Group ID to adjust
+     * @param {Number} weight - New weight value
+     */
+    setGroupWeight(groupId, weight) {
+        if (this.groupWeightManager) {
+            this.groupWeightManager.setWeight(groupId, weight);
+        }
     }
     
     /**

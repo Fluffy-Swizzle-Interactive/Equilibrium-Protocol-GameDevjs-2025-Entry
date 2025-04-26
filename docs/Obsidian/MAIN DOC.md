@@ -94,13 +94,15 @@ src/
 
         ├── Boot.js        # Initial loading
 
-        ├── Game.jsx       # Main gameplay
-
         ├── GameOver.js    # End screen
 
         ├── MainMenu.js    # Menu screen
 
-        └── Preloader.js   # Asset loading
+        ├── MainMenu_DEV.js # Development version of menu
+
+        ├── Preloader.js   # Asset loading
+
+        └── WaveGame.jsx   # Main gameplay scene
 
 ```
 
@@ -196,7 +198,7 @@ Initializes the Phaser game with appropriate configuration.
 
 - `MainMenu` - Game menu
 
-- `Game` - Main gameplay
+- `WaveGame` - Main gameplay
 
 - `GameOver` - End screen
 
@@ -424,11 +426,11 @@ Game start screen with weapon selection options.
 
   
 
-### `Game` Scene (`Game.jsx`)
+### `WaveGame` Scene (`WaveGame.jsx`)
 
   
 
-Main gameplay scene handling game loop, entities, and mechanics.
+Main gameplay scene implementing a wave-based survival game with boss encounters.
 
   
 
@@ -436,11 +438,15 @@ Main gameplay scene handling game loop, entities, and mechanics.
 
 - `gameMode` - Selected weapon type
 
-- `enemySpawnRate` - Time between enemy spawns (decreases over time)
+- `waveManager` - Manages wave progression and enemy spawning
 
 - `enemyList` - Array of active enemies
 
 - `killCount` - Number of enemies defeated
+
+- `regularKillCount` - Number of regular enemies killed
+
+- `bossesKilled` - Number of boss enemies killed
 
 - `survivalTime` - Time survived in seconds
 
@@ -460,7 +466,15 @@ Main gameplay scene handling game loop, entities, and mechanics.
 
 - `setupCamera()` - Configures camera to follow player
 
-- `setupUI()` - Creates UI elements
+- `setupUIManager()` - Creates UI elements
+
+- `setupGroupManager()` - Sets up enemy faction management
+
+- `setupChaosManager()` - Sets up chaos mechanics
+
+- `setupWaveManager()` - Sets up wave progression system
+
+- `setupCollectibleManager()` - Sets up collectible system
 
 - `setupInput()` - Sets up keyboard and mouse input
 
@@ -472,29 +486,21 @@ Main gameplay scene handling game loop, entities, and mechanics.
 
 - `updateBullets()` - Manages bullet movement and lifetime
 
-- `updateEnemies()` - Manages enemy behavior
-
 - `checkCollisions()` - Detects and handles collisions
 
-- `spawnEnemy()` - Creates new enemy at appropriate position
+- `checkBulletEnemyCollisions()` - Handles bullet-enemy collisions
 
-- `spawnEnemyGroup()` - Creates group of 3-6 enemies together
+- `checkPlayerEnemyCollisions()` - Handles player-enemy collisions
 
-- `spawnBoss()` - Creates boss enemy
+- `updateSpatialGrid()` - Updates grid for collision optimization  
 
-- `updateDifficulty()` - Increases difficulty over time
-
-- `playerDeath()` - Handles player death
-
-- `setPauseState(isPaused, reason)` - Manages game pause functionality
-
-- `togglePause()` - Toggles pause state
+- `onEnemyKilled(isBoss, x, y, enemyType)` - Handles enemy death
 
 - `createEnemyDeathEffect(x, y)` - Visual effects for enemy death
 
 - `createBossDeathEffect(x, y)` - Visual effects for boss death
 
-- `showBossWarning()` - Displays boss warning message
+- `playerDeath()` - Handles player death
 
   
 

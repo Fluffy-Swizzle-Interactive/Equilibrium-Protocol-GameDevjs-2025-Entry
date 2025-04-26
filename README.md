@@ -1,11 +1,16 @@
-# Fluffy-Swizz Game Jam 2025
-
+# Fluffy-Swizz Interactive Game
 
 A top-down shooter game built with Phaser 3 and React.
 
 ## Game Overview
 
-Players can choose between two weapon modes (minigun or shotgun) and must survive as long as possible against waves of increasingly difficult enemies.
+Players can choose between two weapon modes (minigun or shotgun) and must survive as long as possible against waves of increasingly difficult enemies. The game features:
+
+- Fast-paced arcade-style gameplay
+- Two distinct weapon systems
+- Wave-based and endless survival game modes
+- XP and cash systems for player progression
+- Dynamic difficulty adjustment through the Chaos System
 
 ## Development Setup
 
@@ -76,6 +81,15 @@ npm run deploy:all
 butler login
 ```
 
-## Project Structure
+## Documentation
 
-See `.ProjectDoc.md` for comprehensive documentation of the codebase structure, components, and interfaces.
+Comprehensive documentation is available in the `/docs` directory:
+
+- [Documentation Home](docs/README.md) - Overview and index of all documentation
+- [Architecture](docs/Architecture.md) - System architecture and project structure
+- [Game Entities](docs/GameEntities.md) - Player, enemies, and other game objects
+- [Game Mechanics](docs/GameMechanics.md) - Core gameplay systems
+- [UI Components](docs/UIComponents.md) - User interface elements
+- [Development Guidelines](docs/DevelopmentGuidelines.md) - Coding standards and practices
+
+See the [Documentation Home](docs/README.md) for a complete list of available documentation.

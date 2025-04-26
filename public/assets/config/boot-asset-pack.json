@@ -2,17 +2,17 @@
     "section1": {
         "files": [
             {
-                "url": "assets/bg.png",
+                "url": "assets/images/bg.png",
                 "type": "image",
                 "key": "background"
             },
             {
-                "url": "assets/map.json",
+                "url": "assets/maps/map.json",
                 "type": "tilemapTiledJSON",
                 "key": "map"
             },
             {
-                "url": "assets/scifi_tiles.png",
+                "url": "assets/maps/scifi_tiles.png",
                 "type": "image",
                 "key": "scifi_tiles"
             }

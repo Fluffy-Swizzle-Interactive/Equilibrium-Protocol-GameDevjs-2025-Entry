@@ -1,11 +1,11 @@
 import { Boot } from './scenes/Boot';
-import { Game } from './scenes/Game.jsx';
 import { GameOver } from './scenes/GameOver';
 import { MainMenu } from './scenes/MainMenu';
 import { MainMenu_DEV } from './scenes/MainMenu_DEV';
 import { WaveGame } from './scenes/WaveGame.jsx';
 import Phaser from 'phaser';
 import { Preloader } from './scenes/Preloader';
+import ShopMenuScene from './scenes/ShopMenuScene';
 
 // Find out more information about the Game Config at:
 // https://newdocs.phaser.io/docs/3.70.0/Phaser.Types.Core.GameConfig
@@ -39,8 +39,8 @@ const config = {
         Boot,
         Preloader,
         menuComponent,
-        Game,
         WaveGame,
+        ShopMenuScene,
         GameOver
     ]
 };

@@ -21,11 +21,10 @@ export class MainMenu extends Scene
     {
         this.add.image(512, 384, 'background');
 
-        this.logo = this.add.image(512, 300, 'logo').setDepth(100);
         
         // Add Wave Mode button with a special highlight
-        const waveButton = this.add.text(512, 440, 'START GAME', {
-            fontFamily: 'Arial Black', fontSize: 38, color: '#ffff00',
+        const waveButton = this.add.text(512, 500, 'START GAME', {
+            fontFamily: 'Arial Black', fontSize: 38, color: '#39C66B',
             stroke: '#000000', strokeThickness: 8,
             align: 'center'
         }).setDepth(100).setOrigin(0.5).setInteractive().on('pointerdown', () => this.startGame('wave'), this);
@@ -87,7 +86,7 @@ export class MainMenu extends Scene
                 });
             } else {
                 // Start the classic game mode
-                this.scene.start('Game', { weaponType: this.selectedWeapon });
+                this.scene.start('WaveGame', { weaponType: this.selectedWeapon });
             }
         });
     }

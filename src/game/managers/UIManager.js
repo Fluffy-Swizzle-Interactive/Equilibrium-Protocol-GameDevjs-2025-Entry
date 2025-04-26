@@ -1,4 +1,5 @@
-import { DEPTHS, GroupId } from '../constants';
+import { DEPTHS, GroupId, CHAOS } from '../constants';
+import { EventBus } from '../EventBus';
 
 /**
  * UIManager class
@@ -14,8 +15,9 @@ export class UIManager {
         this.scene = scene;
         this.elements = {}; // Store all UI elements
         this.groups = {}; // Store UI element groups
-        this.isDebugShown = false;
+        
         this.initialized = false;
+        this.isProcessingNextWave = false; // Flag for debounce protection
 
         // Register with scene for easier access
         scene.uiManager = this;
@@ -29,12 +31,7 @@ export class UIManager {
         // Skip if already initialized
         if (this.initialized) return;
 
-        // Store configuration options
-        this.options = {
-            showDebug: options.showDebug !== undefined ? options.showDebug : false,
-            ...options
-        };
-        
+       
         // Create UI container
         this.createUIContainer();
         
@@ -43,6 +40,8 @@ export class UIManager {
         
         // Create health UI
         this.createHealthUI();
+
+        
         
         // Create wave banner
         this.createWaveBanner();
@@ -55,18 +54,15 @@ export class UIManager {
         
         // Create pause overlay
         this.createPauseOverlay();
-        
-        // Create debug info
-        if (this.options.showDebug) {
-            this.createDebugInfo();
-            this.isDebugShown = true;
-        }
 
-        // Add group stats display for enemy factions
-        this.setupGroupDisplay();
-        
         // Add chaos meter display
-        this.setupChaosMeter();
+        this.setupGroupDisplay();
+
+        // Create cash display UI
+        this.createCashUI();
+
+        // Set up event listeners
+        this.setupEventListeners();
 
         this.initialized = true;
     }
@@ -130,6 +126,29 @@ export class UIManager {
             { fontFamily: 'Arial', fontSize: 14, color: '#ffffff' }
         ).setOrigin(0.5, 0.5).setScrollFactor(0).setDepth(102);
         
+        // Create level circle to the right of health bar
+        this.elements.levelCircle = this.scene.add.circle(
+            width - 30, 35, 22,
+            0x000000, 0.8
+        ).setScrollFactor(0).setDepth(101);
+        
+        // Create level circle border
+        this.elements.levelBorder = this.scene.add.circle(
+            width - 30, 35, 22
+        ).setScrollFactor(0).setDepth(102)
+        .setStrokeStyle(2, 0x00ff99);
+        
+        // Create level progress arc (empty initially)
+        this.elements.levelArc = this.scene.add.graphics()
+            .setScrollFactor(0)
+            .setDepth(101);
+        
+        // Create level text
+        this.elements.levelText = this.scene.add.text(
+            width - 30, 35, '1',
+            { fontFamily: 'Arial', fontSize: 18, color: '#ffffff' }
+        ).setOrigin(0.5, 0.5).setScrollFactor(0).setDepth(103);
+                
         // Add to container
         this.elements.container.add(this.elements.healthBackground);
         this.elements.container.add(this.elements.healthBar);
@@ -354,108 +373,469 @@ export class UIManager {
     }
     
     /**
-     * Create debug info display
+     * Create cash display UI
      */
-    createDebugInfo() {
+    createCashUI() {
         const width = this.scene.cameras.main.width;
         
-        // Create debug background
-        this.elements.debugBg = this.scene.add.rectangle(
-            width - 260, 100, 240, 200,
-            0x000000, 0.5
+        // Create cash background
+        this.elements.cashBackground = this.scene.add.rectangle(
+            width - 220, 60, 120, 30,
+            0x000000, 0.7
         ).setOrigin(0, 0).setScrollFactor(0).setDepth(100);
         
-        // Create debug text
-        this.elements.debugText = this.scene.add.text(
-            width - 250, 110, 'Debug Info',
-            { 
-                fontFamily: 'Courier', 
-                fontSize: 14, 
-                color: '#ffffff',
-                align: 'left'
-            }
-        ).setScrollFactor(0).setDepth(101);
+        // Create cash icon ($ symbol)
+        this.elements.cashIcon = this.scene.add.text(
+            width - 210, 75, '$',
+            { fontFamily: 'Arial', fontSize: 18, color: '#FFD700', fontWeight: 'bold' }
+        ).setOrigin(0.5, 0.5).setScrollFactor(0).setDepth(102);
+        
+        // Create cash text
+        this.elements.cashText = this.scene.add.text(
+            width - 170, 75, '0',
+            { fontFamily: 'Arial', fontSize: 16, color: '#FFD700' }
+        ).setOrigin(0, 0.5).setScrollFactor(0).setDepth(102);
         
         // Add to container
-        this.elements.container.add(this.elements.debugBg);
-        this.elements.container.add(this.elements.debugText);
-        
-        // Update debug info periodically
-        this.scene.time.addEvent({
-            delay: 500, // Update every 500ms
-            callback: this.updateDebugInfo,
-            callbackScope: this,
-            loop: true
-        });
+        this.elements.container.add(this.elements.cashBackground);
+        this.elements.container.add(this.elements.cashIcon);
+        this.elements.container.add(this.elements.cashText);
     }
     
     /**
-     * Set up group display showing enemy faction counts
+     * Update cash UI with current cash amount
+     * @param {Object} data - Cash data object containing cash value
+     */
+    updateCashUI(data) {
+        if (!this.elements.cashText) return;
+        
+        const { cash } = data;
+        
+        // Format cash value with commas for thousands
+        const formattedCash = cash.toLocaleString();
+        
+        // Update cash text
+        this.elements.cashText.setText(formattedCash);
+        
+        // Optional: Add animation effect when cash changes
+        if (this._previousCash !== undefined && cash > this._previousCash) {
+            // Cash increased, show animation
+            this.scene.tweens.add({
+                targets: this.elements.cashText,
+                scale: { from: 1.2, to: 1 },
+                duration: 200,
+                ease: 'Back.easeOut'
+            });
+            
+            // Flash the text to gold color
+            this.elements.cashText.setTint(0xFFFFFF);
+            this.scene.time.delayedCall(100, () => {
+                this.elements.cashText.setTint(0xFFD700);
+            });
+        }
+        
+        // Store current cash for next comparison
+        this._previousCash = cash;
+    }
+    
+    /**
+     * Set up chaos meter display at top center
+     * Creates a bi-directional bar showing balance between AI and Coder factions
      */
     setupGroupDisplay() {
-        const centerX = this.scene.cameras.main.width / 2;
-        
-        // Create container for group info
-        this.groups.groupContainer = this.scene.add.container(centerX, 40).setScrollFactor(0).setDepth(DEPTHS.UI_ELEMENTS);
-        
-        // Background for group counter
-        this.elements.groupBg = this.scene.add.rectangle(0, 0, 240, 60, 0x000000, 0.6)
-            .setOrigin(0.5, 0.5);
-        
-        // Text for group counts
-        this.elements.groupText = this.scene.add.text(0, 0, 'Factions: AI: 0 | CODER: 0 | NEUTRAL: 0', {
-            fontFamily: 'Arial',
-            fontSize: '14px',
-            color: '#ffffff',
-            align: 'center'
-        }).setOrigin(0.5, 0.5);
-        
-        // Add elements to container
-        this.groups.groupContainer.add([this.elements.groupBg, this.elements.groupText]);
-    }
-    
-    /**
-     * Set up chaos meter to display chaos level
-     */
-    setupChaosMeter() {
         const width = this.scene.cameras.main.width;
+        const centerX = width / 2;
         
         // Create container for chaos meter
-        this.groups.chaosContainer = this.scene.add.container(width - 100, 40).setScrollFactor(0).setDepth(DEPTHS.UI_ELEMENTS);
+        this.groups.chaosContainer = this.scene.add.container(centerX, 40).setScrollFactor(0).setDepth(DEPTHS.UI_ELEMENTS);
         
         // Background for chaos meter
         this.elements.chaosBg = this.scene.add.rectangle(0, 0, 180, 25, 0x000000, 0.6)
             .setOrigin(0.5, 0.5);
         
-        // Border for chaos meter
-        this.elements.chaosBorder = this.scene.add.rectangle(0, 0, 150, 15, 0xffffff, 0.8)
+        // Background for chaos meter
+        this.elements.chaosBg = this.scene.add.rectangle(0, 0, 300, 30, 0x000000, 0.7)
             .setOrigin(0.5, 0.5)
-            .setStrokeStyle(1, 0xffffff);
+            .setStrokeStyle(1, 0xffffff, 0.3);
         
-        // Empty bar (background)
-        this.elements.chaosBarBg = this.scene.add.rectangle(0, 0, 146, 11, 0x222222)
+        // Central marker line
+        this.elements.centerLine = this.scene.add.rectangle(0, 0, 2, 30, 0xffffff, 0.8)
             .setOrigin(0.5, 0.5);
         
-        // Chaos meter fill bar
-        this.elements.chaosBar = this.scene.add.rectangle(-73, 0, 0, 11, 0xff0000)
+        // AI side bar (left side - blue)
+        this.elements.aiBar = this.scene.add.rectangle(-150, 0, 0, 24, CHAOS.COLORS.AI, 1)
             .setOrigin(0, 0.5);
         
-        // Chaos label text
-        this.elements.chaosText = this.scene.add.text(0, -25, 'CHAOS: 50%', {
+        // Coder side bar (right side - red)
+        this.elements.coderBar = this.scene.add.rectangle(0, 0, 0, 24, CHAOS.COLORS.CODER, 1)
+            .setOrigin(0, 0.5);
+        
+        // Labels
+        this.elements.aiLabel = this.scene.add.text(-140, 0, 'AI', {
             fontFamily: 'Arial',
             fontSize: '12px',
+            color: '#ffffff',
+            fontStyle: 'bold'
+        }).setOrigin(0, 0.5).setShadow(1, 1, '#000000', 2);
+        
+        this.elements.coderLabel = this.scene.add.text(140, 0, 'CODER', {
+            fontFamily: 'Arial',
+            fontSize: '12px',
+            color: '#ffffff',
+            fontStyle: 'bold'
+        }).setOrigin(1, 0.5).setShadow(1, 1, '#000000', 2);
+        
+        // Chaos value display
+        this.elements.chaosValue = this.scene.add.text(0, 0, '0', {
+            fontFamily: 'Arial',
+            fontSize: '14px',
+            color: '#ffffff',
+            fontStyle: 'bold'
+        }).setOrigin(0.5, 0.5).setShadow(1, 1, '#000000', 2);
+        
+        // Faction count text (below the chaos meter)
+        this.elements.groupText = this.scene.add.text(0, 20, '', {
+            fontFamily: 'Arial',
+            fontSize: '11px',
             color: '#ffffff',
             align: 'center'
         }).setOrigin(0.5, 0.5);
         
-        // Add elements to container
+        // Add all elements to the container
         this.groups.chaosContainer.add([
             this.elements.chaosBg,
-            this.elements.chaosBorder,
-            this.elements.chaosBarBg,
-            this.elements.chaosBar,
-            this.elements.chaosText
+            this.elements.aiBar,
+            this.elements.coderBar,
+            this.elements.centerLine,
+            this.elements.aiLabel,
+            this.elements.coderLabel,
+            this.elements.chaosValue,
+            this.elements.groupText
         ]);
+        
+        // Set up event listeners for chaos events
+        if (this.scene.chaosManager) {
+            EventBus.on('chaos-changed', this.handleChaosChanged, this);
+            EventBus.on('MAJOR_CHAOS', this.handleMajorChaosEvent, this);
+        }
+        
+        // Initialize with current value if available
+        this.updateChaosMeter();
+    }
+    
+    /**
+     * Handle chaos value changes
+     * @param {Object} data - Data containing old and new chaos values
+     */
+    handleChaosChanged(data) {
+        // Update the chaos meter visualization
+        this.updateChaosMeter();
+        
+        const majorEventThreshold = CHAOS?.MAJOR_EVENT_VALUE || 85;
+        
+        const newValue = data.newValue || data.value || 0;
+        const oldValue = data.oldValue || 0;
+        
+        // Flash the meter when passing major thresholds
+        if (Math.abs(newValue) >= majorEventThreshold && 
+            Math.abs(oldValue) < majorEventThreshold) {
+            this.flashChaosMeter();
+        }
+    }
+    
+    /**
+     * Handle major chaos events
+     * @param {Object} data - Event data with faction info
+     */
+    handleMajorChaosEvent(data) {
+        this.flashChaosMeter();
+        
+        // Add screen shake effect
+        if (this.scene.cameras && this.scene.cameras.main) {
+            this.scene.cameras.main.shake(
+                CHAOS.SHAKE_DURATION || 500,
+                CHAOS.SHAKE_INTENSITY || 0.01
+            );
+        }
+        
+        // Add particle burst effect
+        this.createChaosParticleEffect(data.factionId);
+    }
+    
+    /**
+     * Create particle effect for major chaos events
+     * @param {string} factionId - ID of the dominant faction
+     */
+    createChaosParticleEffect(factionId) {
+        const centerX = this.scene.cameras.main.width / 2;
+        const centerY = this.scene.cameras.main.height / 2;
+        
+        // Determine color based on dominant faction
+        const particleColor = factionId === GroupId.AI ? 
+            CHAOS.COLORS.AI : CHAOS.COLORS.CODER;
+        
+        // Create particle emitter
+        if (this.scene.add && this.scene.add.particles) {
+            // Use default particle texture if available, otherwise use a circle
+            const particleManager = this.scene.add.particles(centerX, centerY, 'particle_texture', {
+                speed: { min: 100, max: 300 },
+                scale: { start: 0.5, end: 0 },
+                alpha: { start: 1, end: 0 },
+                lifespan: 800,
+                blendMode: 'ADD',
+                tint: particleColor,
+                quantity: 50,
+                angle: { min: 0, max: 360 }
+            });
+            
+            // Auto-destroy after effect completes
+            this.scene.time.delayedCall(1000, () => {
+                if (particleManager) particleManager.destroy();
+            });
+        }
+    }
+    
+    /**
+     * Create flashing effect for the chaos meter
+     */
+    flashChaosMeter() {
+        if (!this.elements.chaosBg) return;
+        
+        // Stop any existing flash tween
+        if (this.flashTween) {
+            this.flashTween.stop();
+        }
+        
+        // Reset to normal state
+        this.elements.chaosBg.setStrokeStyle(1, 0xffffff, 0.3);
+        
+        // Create flash effect
+        this.flashTween = this.scene.tweens.add({
+            targets: [this.elements.chaosBg],
+            alpha: { from: 0.7, to: 1 },
+            strokeAlpha: { from: 0.3, to: 0.8 },
+            yoyo: true,
+            repeat: 5,
+            duration: 100,
+            ease: 'Sine.easeInOut',
+            onComplete: () => {
+                if (this.elements.chaosBg) {
+                    this.elements.chaosBg.setStrokeStyle(1, 0xffffff, 0.3);
+                    this.elements.chaosBg.setAlpha(0.7);
+                }
+                this.flashTween = null;
+            }
+        });
+    }
+    
+    /**
+     * Update chaos meter with current level
+     */
+    updateChaosMeter() {
+        // First check if the chaos manager exists and if all required elements are available
+        if (!this.scene || !this.scene.chaosManager || 
+            !this.elements.aiBar || !this.elements.coderBar || 
+            !this.elements.chaosValue || !this.elements.chaosValue.setText) {
+            return;
+        }
+        
+        try {
+            const chaosValue = this.scene.chaosManager.getChaos();
+            const maxWidth = 150; // Half of the total bar width (300/2)
+            
+            // Update the value text - wrap in try/catch to handle potential null data
+            this.elements.chaosValue.setText(Math.round(chaosValue));
+            
+            // Update AI bar (left side, negative values)
+            const aiWidth = Math.max(0, -chaosValue) / Math.abs(CHAOS.MIN_VALUE) * maxWidth;
+            this.elements.aiBar.width = aiWidth;
+            this.elements.aiBar.x = -aiWidth;
+            
+            // Update Coder bar (right side, positive values)
+            const coderWidth = Math.max(0, chaosValue) / CHAOS.MAX_VALUE * maxWidth;
+            this.elements.coderBar.width = coderWidth;
+            
+            // Update faction count text beneath the meter - only if available
+            if (this.elements.groupText && this.elements.groupText.setText) {
+                this.updateGroupCountText();
+            }
+        } catch (error) {
+            // Silently handle any error that might occur during update
+            console.debug("Error updating chaos meter:", error);
+        }
+    }
+    
+    /**
+     * Update faction count text beneath the chaos meter
+     */
+    updateGroupCountText() {
+        if (!this.scene.groupManager || !this.elements.groupText) return;
+        
+        const counts = this.scene.groupManager.getAllGroupCounts();
+        
+        // Format the group counts text
+        const aiCount = counts[GroupId.AI] || 0;
+        const coderCount = counts[GroupId.CODER] || 0;
+        const neutralCount = counts[GroupId.NEUTRAL] || 0;
+        
+        // Create text for counts
+        const groupText = `AI: ${aiCount} | CODER: ${coderCount} | NEUTRAL: ${neutralCount}`;
+        this.elements.groupText.setText(groupText);
+    }
+    /**
+     * Update XP UI with current XP and level data
+     * @param {Object} data - XP data object containing level, xp, and xpToNext values
+     */
+    updateXPUI(data) {
+        if (!this.elements.levelText) return;
+        
+        const { level, xp, xpToNext } = data;
+        
+        // Update level text
+        this.elements.levelText.setText(level.toString());
+        
+        // Draw the circular progress arc around the level circle
+        if (this.elements.levelArc) {
+            // Clear previous arc
+            this.elements.levelArc.clear();
+            
+            // Get the position of the level circle
+            const width = this.scene.cameras.main.width;
+            const x = width - 30; // Same as the level circle x position
+            const y = 35;         // Same as the level circle y position
+            const radius = 22;    // Same as the level circle radius
+            
+            // Set arc style
+            this.elements.levelArc.lineStyle(4, 0x00ff99, 1);
+            
+            // Calculate the sweep angle based on XP progress
+            const progress = (xp / xpToNext) || 0;
+            const startAngle = -Math.PI / 2; // Start from top (270 degrees)
+            const endAngle = startAngle + (Math.PI * 2 * progress); // Full circle is 2*PI
+            
+            // Draw the arc
+            this.elements.levelArc.beginPath();
+            this.elements.levelArc.arc(x, y, radius, startAngle, endAngle, false);
+            this.elements.levelArc.strokePath();
+        }
+    }
+    
+    /**
+     * Display level up animation
+     * @param {number} level - New level reached
+     */
+    showLevelUpAnimation(level) {
+        const width = this.scene.cameras.main.width;
+        const height = this.scene.cameras.main.height;
+        
+        // Create level up text
+        const levelUpText = this.scene.add.text(
+            width / 2, height / 2, `LEVEL UP!\nLevel ${level}`,
+            { 
+                fontFamily: 'Arial', 
+                fontSize: 48, 
+                color: '#00ff99',
+                align: 'center',
+                stroke: '#000000',
+                strokeThickness: 4
+            }
+        ).setOrigin(0.5).setScrollFactor(0).setDepth(150).setAlpha(0);
+        
+        // Create particles for level up effect
+        const particles = this.scene.add.particles(width / 2, height / 2, 'particle_texture', {
+            speed: { min: 100, max: 200 },
+            scale: { start: 0.5, end: 0 },
+            alpha: { start: 1, end: 0 },
+            lifespan: 600,
+            blendMode: 'ADD',
+            quantity: 10,
+            tint: 0x00ff99,
+            angle: { min: 0, max: 360 }
+        });
+        
+        particles.setDepth(149);
+        
+        
+        
+        // Play level up sound effect if available
+        if (this.scene.soundManager) {
+            // Use the dedicated levelUp sound effect
+            if (this.scene.soundManager.hasSound('levelUp')) {
+                this.scene.soundManager.playSoundEffect('levelUp', {
+                    volume: 0.7
+                });
+            } else {
+                // Fall back to modified weapon sound if levelUp sound is not available
+                this.scene.soundManager.playSoundEffect('shoot_minigun', {
+                    detune: 1200, // Higher pitch
+                    volume: 0.6,
+                    rate: 0.5 // Slower rate
+                });
+            }
+        }
+        
+        // Animate level up text
+        this.scene.tweens.add({
+            targets: levelUpText,
+            alpha: { from: 0, to: 1 },
+            scale: { from: 2, to: 1 },
+            duration: 500,
+            ease: 'Back.easeOut',
+            onComplete: () => {
+                // Add short pause before fading out
+                this.scene.time.delayedCall(1000, () => {
+                    // Fade out text
+                    this.scene.tweens.add({
+                        targets: levelUpText,
+                        alpha: 0,
+                        y: height * 0.4,
+                        duration: 500,
+                        ease: 'Power2',
+                        onComplete: () => {
+                            levelUpText.destroy();
+                            particles.destroy();
+                        }
+                    });
+                });
+            }
+        });
+        
+        // Pulse the level indicator and make it spin
+        this.scene.tweens.add({
+            targets: [this.elements.levelCircle, this.elements.levelBorder],
+            scale: { from: 1.5, to: 1 },
+            duration: 500,
+            ease: 'Bounce.easeOut'
+        });
+        
+        // Make the level progress arc flash briefly
+        if (this.elements.levelArc) {
+            // Save the original level arc properties
+            this.elements.levelArc.clear();
+            
+            // Create a full circle flash effect
+            this.elements.levelArc.lineStyle(4, 0xffffff, 1);
+            const x = width - 30;
+            const y = 35;
+            const radius = 22;
+            this.elements.levelArc.beginPath();
+            this.elements.levelArc.arc(x, y, radius, 0, Math.PI * 2);
+            this.elements.levelArc.strokePath();
+            
+            // Revert to normal after a short delay (will be updated by updateXPUI)
+            this.scene.time.delayedCall(300, () => {
+                this.elements.levelArc.clear();
+                // The next updateXPUI call will draw the correct arc again
+            });
+        }
+        
+        // Make the level text pop
+        this.scene.tweens.add({
+            targets: this.elements.levelText,
+            scale: { from: 1.5, to: 1 },
+            duration: 500,
+            ease: 'Bounce.easeOut'
+        });
     }
     
     /**
@@ -628,16 +1008,33 @@ export class UIManager {
     }
     
     /**
-     * Handle next wave button click
+     * Handle next wave button click with debounce protection
+     * Ensures the function cannot be called again until animations complete
      */
     onNextWaveClick() {
+        // If already processing a click, ignore subsequent clicks
+        if (this.isProcessingNextWave) {
+            return;
+        }
+        
+        // Set processing flag to prevent multiple rapid clicks
+        this.isProcessingNextWave = true;
+        
         // Hide the button
         this.hideNextWaveButton();
         
-        // Start next wave if wave manager exists
-        if (this.scene.waveManager) {
-            this.scene.waveManager.startNextWave();
-        }
+        // Wait for animation to complete (500ms) before starting next wave
+        this.scene.time.delayedCall(500, () => {
+            // Start next wave if wave manager exists
+            if (this.scene.waveManager) {
+                this.scene.waveManager.startNextWave();
+            }
+            
+            // Reset processing flag after a safety delay
+            this.scene.time.delayedCall(100, () => {
+                this.isProcessingNextWave = false;
+            });
+        });
     }
     
     /**
@@ -655,7 +1052,14 @@ export class UIManager {
             ? `Waves Survived: ${this.scene.waveManager.currentWave}` 
             : '';
         const killText = `Enemies Defeated: ${this.scene.killCount}`;
-        const statsText = `${waveText}\n${killText}`;
+        
+        // Add cash stats if available
+        let cashText = '';
+        if (this.scene.cashManager) {
+            cashText = `\nCash Collected: $${this.scene.cashManager.getCurrentCash().toLocaleString()}`;
+        }
+        
+        const statsText = `${waveText}\n${killText}${cashText}`;
         this.elements.endGameStats.setText(statsText);
         this.elements.endGameStats.setVisible(true);
         this.elements.endGameStats.setAlpha(0);
@@ -710,7 +1114,14 @@ export class UIManager {
         // Prepare stats display
         const waveText = `All 40 Waves Completed!`;
         const killText = `Total Enemies Defeated: ${this.scene.killCount}`;
-        const statsText = `${waveText}\n${killText}`;
+        
+        // Add cash stats if available
+        let cashText = '';
+        if (this.scene.cashManager) {
+            cashText = `\nCash Collected: $${this.scene.cashManager.getCurrentCash().toLocaleString()}`;
+        }
+        
+        const statsText = `${waveText}\n${killText}${cashText}`;
         this.elements.endGameStats.setText(statsText);
         this.elements.endGameStats.setVisible(true);
         this.elements.endGameStats.setAlpha(0);
@@ -759,85 +1170,10 @@ export class UIManager {
         // Return to main menu
         this.scene.scene.start('MainMenu');
     }
-    
-    /**
-     * Update group display with current counts
-     */
-    updateGroupDisplay() {
-        if (!this.scene.groupManager || !this.elements.groupText) return;
-        
-        const counts = this.scene.groupManager.getAllGroupCounts();
-        
-        // Format the group counts text
-        const aiCount = counts[GroupId.AI] || 0;
-        const coderCount = counts[GroupId.CODER] || 0;
-        const neutralCount = counts[GroupId.NEUTRAL] || 0;
-        
-        // Create colored text for each faction
-        let groupText = 'Factions: ';
-        groupText += `[color=#ff3333]AI: ${aiCount}[/color] | `;
-        groupText += `[color=#33aaff]CODER: ${coderCount}[/color] | `;
-        groupText += `[color=#55ff55]NEUTRAL: ${neutralCount}[/color]`;
-        
-        // Use setHTML to support colored text
-        this.elements.groupText.setText(groupText.replace(/\[color=#([0-9a-fA-F]{6})\]/g, '')
-                                               .replace(/\[\/color\]/g, ''));
-    }
-    
-    /**
-     * Update chaos meter with current level
-     */
-    updateChaosMeter() {
-        if (!this.scene.chaosManager || !this.elements.chaosBar) return;
-        
-        const chaosValue = this.scene.chaosManager.getChaos();
-        const normalizedChaos = this.scene.chaosManager.getNormalizedChaos();
-        const polarity = this.scene.chaosManager.getPolarity();
-        const absoluteValue = this.scene.chaosManager.getAbsoluteChaos();
-        
-        // Update bar width based on absolute chaos level (0-146 pixels)
-        const maxBarWidth = 146;
-        const barWidth = Math.round(maxBarWidth * (absoluteValue / 100));
-        this.elements.chaosBar.width = barWidth;
-        
-        // Position bar differently based on polarity:
-        // For positive values: align left (origin 0, 0.5)
-        // For negative values: align right (origin 1, 0.5)
-        if (polarity >= 0) {
-            // Positive or zero
-            this.elements.chaosBar.setOrigin(0, 0.5);
-            this.elements.chaosBar.x = -73; // Left side of container
-        } else {
-            // Negative
-            this.elements.chaosBar.setOrigin(1, 0.5);
-            this.elements.chaosBar.x = 73; // Right side of container
-        }
-        
-        // Update color gradient based on polarity
-        let rgbColor;
-        if (polarity > 0) {
-            // Positive chaos (red)
-            const intensity = Math.min(255, Math.round(255 * (absoluteValue / 100)));
-            rgbColor = Phaser.Display.Color.GetColor(intensity, 50, 50);
-        } else if (polarity < 0) {
-            // Negative chaos (blue)
-            const intensity = Math.min(255, Math.round(255 * (absoluteValue / 100)));
-            rgbColor = Phaser.Display.Color.GetColor(50, 50, intensity);
-        } else {
-            // Neutral (green)
-            rgbColor = Phaser.Display.Color.GetColor(50, 150, 50);
-        }
-        this.elements.chaosBar.fillColor = rgbColor;
-        
-        // Update percentage text with sign
-        const chaosPercentage = this.scene.chaosManager.getChaosPercentage();
-        this.elements.chaosText.setText(`CHAOS: ${chaosPercentage}`);
-    }
-    
-    /**
+     /**
      * Update debug information display
      */
-    updateDebugInfo() {
+     updateDebugInfo() {
         if (!this.elements.debugText || !this.options.showDebug) return;
         
         const { scene } = this;
@@ -891,16 +1227,41 @@ export class UIManager {
         // Update the debug text
         this.elements.debugText.setText(debugText);
     }
-    
     /**
      * Update score UI
      * @param {number} score - Current score value
      */
     updateScoreUI(score) {
-        // No dedicated score UI in wave mode, but we can update debug if needed
-        if (this.isDebugShown) {
-            this.updateDebugInfo();
-        }
+    }
+    
+    /**
+     * Set up event listeners
+     */
+    setupEventListeners() {
+        // Use the imported EventBus instead of trying to access it through scene
+        
+        // Listen for XP updates
+        EventBus.on('xp-updated', this.updateXPUI, this);
+        
+        // Listen for level up events
+        EventBus.on('level-up', (data) => {
+            this.showLevelUpAnimation(data.level);
+            this.updateXPUI(data);
+        }, this);
+        
+        // Listen for cash updates
+        EventBus.on('cash-updated', this.updateCashUI, this);
+        
+        // Listen for faction surge events
+        EventBus.on('faction-surge', this.showFactionSurgeNotification, this);
+        
+        // Clean up listeners when scene changes
+        this.scene.events.once('shutdown', () => {
+            EventBus.off('xp-updated', this.updateXPUI, this);
+            EventBus.off('level-up');
+            EventBus.off('cash-updated', this.updateCashUI, this);
+            EventBus.off('faction-surge', this.showFactionSurgeNotification, this);
+        });
     }
     
     /**
@@ -912,17 +1273,138 @@ export class UIManager {
            // const health = this.scene.playerHealth.getCurrentHealth();
             //const maxHealth = this.scene.playerHealth.getMaxHealth();
             //this.updateHealthUI(health, maxHealth);
+            const healthPercent = this.scene.playerHealth.getHealthPercent() * 100;
+            const maxHealth = this.scene.playerHealth.maxHealth;
+            const currentHealth = this.scene.playerHealth.currentHealth;
+            this.updateHealthUI(currentHealth, maxHealth);
         }
 
-        // Update debug info if enabled
-        if (this.options.showDebug && this.elements.debugText) {
-            this.updateDebugInfo();
-        }
-        
-        // Update group display
-        this.updateGroupDisplay();
         
         // Update chaos meter
         this.updateChaosMeter();
+    }
+    
+    /**
+     * Display a faction surge notification when a dramatic shift in spawn rates occurs
+     * @param {Object} data - Surge data including group ID and strength
+     */
+    showFactionSurgeNotification(data) {
+        const { groupId, strength } = data;
+        
+        // Determine faction name and color based on groupId
+        let factionName = groupId === 'ai' ? 'AI' : 'Coder';
+        let color = groupId === 'ai' ? 0x00aaff : 0xff5500;
+        
+        // Create notification background
+        const surgeBackground = this.scene.add.rectangle(
+            this.scene.cameras.main.width / 2,
+            this.scene.cameras.main.height * 0.2,
+            400,
+            100,
+            0x000000,
+            0.8
+        ).setScrollFactor(0).setDepth(100);
+        
+        // Create notification text
+        const surgeText = this.scene.add.text(
+            this.scene.cameras.main.width / 2,
+            this.scene.cameras.main.height * 0.2,
+            `${factionName} SURGE!\nMassive reinforcements incoming!`,
+            {
+                fontFamily: 'Arial',
+                fontSize: '24px',
+                color: `#${color.toString(16).padStart(6, '0')}`,
+                align: 'center',
+                stroke: '#000000',
+                strokeThickness: 4
+            }
+        ).setOrigin(0.5).setScrollFactor(0).setDepth(101);
+        
+        // Create particle effect
+        if (this.scene.particles) {
+            const particles = this.scene.particles.createEmitter({
+                x: this.scene.cameras.main.width / 2,
+                y: this.scene.cameras.main.height * 0.2 + 30,
+                speed: { min: 100, max: 200 },
+                angle: { min: 230, max: 310 },
+                scale: { start: 0.6, end: 0 },
+                blendMode: 'ADD',
+                lifespan: 800,
+                quantity: 2,
+                tint: color
+            });
+            
+            // Stop after a short time
+            this.scene.time.delayedCall(1500, () => {
+                particles.stop();
+            });
+        }
+        
+        // Create dramatic animation
+        this.scene.tweens.add({
+            targets: [surgeBackground, surgeText],
+            scaleX: { from: 0, to: 1 },
+            scaleY: { from: 0, to: 1 },
+            duration: 300,
+            ease: 'Back.easeOut',
+            onComplete: () => {
+                // Add pulsing effect
+                this.scene.tweens.add({
+                    targets: [surgeBackground, surgeText],
+                    scale: { from: 1, to: 1.05 },
+                    yoyo: true,
+                    repeat: 3,
+                    duration: 150,
+                    onComplete: () => {
+                        // Fade out after delay
+                        this.scene.time.delayedCall(1500, () => {
+                            this.scene.tweens.add({
+                                targets: [surgeBackground, surgeText],
+                                alpha: 0,
+                                y: '-=50',
+                                duration: 500,
+                                onComplete: () => {
+                                    surgeBackground.destroy();
+                                    surgeText.destroy();
+                                }
+                            });
+                        });
+                    }
+                });
+            }
+        });
+        
+        // Camera shake effect
+        if (this.scene.cameras && this.scene.cameras.main) {
+            this.scene.cameras.main.shake(300, 0.005);
+        }
+        
+        // Play dramatic sound if available
+        if (this.scene.soundManager) {
+            this.scene.soundManager.playSoundEffect('surge_alert', { volume: 0.7 });
+        }
+    }
+    
+    /**
+     * Clean up resources when scene is destroyed
+     */
+    destroy() {
+        // Clean up timers
+        if (this.chaosSyncTimer) {
+            this.chaosSyncTimer.destroy();
+            this.chaosSyncTimer = null;
+        }
+        
+        // Clean up elements
+        for (const key in this.elements) {
+            if (this.elements[key] && this.elements[key].destroy) {
+                this.elements[key].destroy();
+            }
+        }
+        
+        // Clear references
+        this.elements = {};
+        this.groups = {};
+        this.scene = null;
     }
 }
