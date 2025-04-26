@@ -1,4 +1,4 @@
-# Fluffy-Swizz Interactive Game
+# Equilibrium-Protocol-GameDevjs-2025-Entry
 
 A top-down shooter game built with Phaser 3 and React.
 
