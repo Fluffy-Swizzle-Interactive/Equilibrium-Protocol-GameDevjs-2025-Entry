@@ -53,18 +53,42 @@ export class PlayerDrone {
      * @param {number} y - Initial y position
      */
     initGraphics(x, y) {
-        // Use testplayer sprite for drone as specified
-        if (this.scene.textures.exists('testplayer')) {
-            this.graphics = this.scene.add.sprite(x, y, 'testplayer');
+        // Use drone sprite atlas for our drone
+        if (this.scene.textures.exists('drone')) {
+            this.graphics = this.scene.add.sprite(x, y, 'drone');
             
-            // Scale to an appropriate size (drones should be smaller than player)
-            this.graphics.setScale(0.05);
+            // Create drone animation if it doesn't exist
+            if (!this.scene.anims.exists('drone_hover')) {
+                this.scene.anims.create({
+                    key: 'drone_hover',
+                    frames: this.scene.anims.generateFrameNames('drone', {
+                        prefix: 'drone_',
+                        start: 0,
+                        end: 5,
+                        suffix: '.png'
+                    }),
+                    frameRate: 12,
+                    repeat: -1
+                });
+            }
+            
+            // Play the hover animation
+            this.graphics.play('drone_hover');
+            
+            // Scale to an appropriate size (increased by 75% from 0.5)
+            this.graphics.setScale(0.8);
             
             // Use appropriate depth to appear below player but above bullets
             this.graphics.setDepth(DEPTHS.PLAYER - 1);
         } else {
-            // Fallback to a simple circle if texture not available
-            this.graphics = this.scene.add.circle(x, y, this.radius, 0x00ffff);
+            // Fallback to testplayer sprite if drone texture not available
+            if (this.scene.textures.exists('testplayer')) {
+                this.graphics = this.scene.add.sprite(x, y, 'testplayer');
+                this.graphics.setScale(0.05);
+            } else {
+                // Fallback to a simple circle if no textures available
+                this.graphics = this.scene.add.circle(x, y, this.radius, 0x00ffff);
+            }
             this.graphics.setDepth(DEPTHS.PLAYER - 1);
         }
         
@@ -109,6 +133,37 @@ export class PlayerDrone {
         // Update drone rotation to face orbit direction
         const facingAngle = this.angle + (Math.PI / 2);
         this.graphics.rotation = facingAngle;
+        
+        // Check if cursor is within minimum shooting range and update tint
+        this.updateShootingRangeTint();
+    }
+    
+    /**
+     * Update the drone's tint based on whether it can shoot at the current target
+     * A red tint indicates the drone cannot shoot (target too close)
+     */
+    updateShootingRangeTint() {
+        if (!this.scene.input || !this.scene.input.activePointer) return;
+        
+        // Get the current cursor position (target)
+        const targetX = this.scene.input.activePointer.worldX;
+        const targetY = this.scene.input.activePointer.worldY;
+        
+        // Calculate distance from drone to cursor/target
+        const dx = targetX - this.graphics.x;
+        const dy = targetY - this.graphics.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        // Minimum distance check - same logic used in WeaponManager.shootDrones
+        const minShootDistance = this.orbitRadius;
+        
+        if (distance <= minShootDistance) {
+            // Target too close - cannot shoot - apply red tint
+            this.graphics.setTint(0xff6666); // Light red tint
+        } else {
+            // Can shoot - clear tint
+            this.graphics.clearTint();
+        }
     }
     
     /**
