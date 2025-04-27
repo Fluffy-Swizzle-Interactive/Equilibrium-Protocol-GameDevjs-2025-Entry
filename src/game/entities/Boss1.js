@@ -409,7 +409,10 @@ export class Boss1 extends BaseEnemy {
             this.scene.enemyManager.spawnProjectile(
                 visual.x, 
                 visual.y,
-                dirX, dirY, 2.0
+                dirX, 
+                dirY, 
+                2.0,
+                this.damage / 10
             );
         }
     }
