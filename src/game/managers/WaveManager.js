@@ -742,6 +742,16 @@ export class WaveManager {
                 this.scene.enemyManager.releaseEnemy(enemy);
                 inactiveCount++;
             }
+            else if(enemy.killCounted) {
+                // Release back to pool to ensure it's properly removed from tracking
+                this.scene.enemyManager.releaseEnemy(enemy);
+                inactiveCount++;
+            }
+            else if (enemy.health <= 0) {
+                // Release back to pool to ensure it's properly removed from tracking
+                this.scene.enemyManager.releaseEnemy(enemy);
+                inactiveCount++;
+            }
         }
 
         // Log cleanup results if any enemies were cleaned up

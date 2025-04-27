@@ -28,6 +28,11 @@ export default defineConfig({
         // Define global constants that will be replaced at build time
         __DEBUG__: false,
     },
+    preview: {
+        port: 5173,
+        host: '0.0.0.0',
+        strictPort: true
+    },
     build: {
         rollupOptions: {
             output: {
