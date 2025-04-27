@@ -219,7 +219,7 @@ export class WaveGame extends Scene {
         // Initialize the enemy manager with pools for different enemy types
         this.enemyManager = new EnemyManager(this, {
             initialSize: 20,
-            maxSize: 500,
+            maxSize: 300,
             growSize: 5
         });
 
@@ -401,7 +401,7 @@ export class WaveGame extends Scene {
                 maxWaves: 20,
                 baseEnemyCount: 50,
                 // Increased growth rate to achieve ~10,000 enemies by wave 20
-                enemyCountGrowth: 1.36,
+                enemyCountGrowth: 1.33,
                 // Increased max enemy cap to allow for requested enemy count
                 maxEnemiesPerWave: 10000,
                 bossWaveInterval: 5
