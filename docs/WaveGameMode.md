@@ -89,7 +89,7 @@ this.waveConfigs = [
         spawnRadius: 800, // Spawn distance from player
         bossWave: false
     },
-    
+
     // Wave 2 - Slightly harder
     {
         enemies: [
@@ -99,7 +99,7 @@ this.waveConfigs = [
         spawnRadius: 800,
         bossWave: false
     },
-    
+
     // Wave 3 - Introduce fast enemies
     {
         enemies: [
@@ -110,7 +110,7 @@ this.waveConfigs = [
         spawnRadius: 800,
         bossWave: false
     },
-    
+
     // Wave 4 - More enemies
     {
         enemies: [
@@ -121,7 +121,7 @@ this.waveConfigs = [
         spawnRadius: 800,
         bossWave: false
     },
-    
+
     // Wave 5 - First boss wave
     {
         enemies: [
@@ -133,7 +133,7 @@ this.waveConfigs = [
         spawnRadius: 800,
         bossWave: true
     },
-    
+
     // Waves 6-20 follow similar patterns with increasing difficulty
     // ...
 ];
@@ -148,20 +148,20 @@ Enemies are spawned based on the wave configuration:
 spawnEnemiesForWave(waveNumber) {
     const config = this.getWaveConfig(waveNumber);
     if (!config) return;
-    
+
     // Reset enemies remaining counter
     this.enemiesRemaining = 0;
-    
+
     // Count total enemies
     for (const enemyGroup of config.enemies) {
         this.enemiesRemaining += enemyGroup.count;
     }
-    
+
     // If boss wave, add boss to count
     if (config.bossWave && config.boss) {
         this.enemiesRemaining += 1;
     }
-    
+
     // Spawn regular enemies
     for (const enemyGroup of config.enemies) {
         this.spawnEnemyGroup(
@@ -171,7 +171,7 @@ spawnEnemiesForWave(waveNumber) {
             config.spawnRadius
         );
     }
-    
+
     // Spawn boss if boss wave
     if (config.bossWave && config.boss) {
         // Delay boss spawn until regular enemies are engaged
@@ -182,7 +182,7 @@ spawnEnemiesForWave(waveNumber) {
             this
         );
     }
-    
+
     // Update UI
     this.scene.events.emit('wave-enemies-update', {
         remaining: this.enemiesRemaining,
@@ -200,10 +200,10 @@ spawnEnemyGroup(type, count, delay, radius) {
                 const angle = Math.random() * Math.PI * 2;
                 const x = this.scene.player.x + Math.cos(angle) * radius;
                 const y = this.scene.player.y + Math.sin(angle) * radius;
-                
+
                 // Spawn enemy
                 const enemy = this.scene.enemyFactory.createEnemy(type, x, y);
-                
+
                 // Register enemy death event
                 enemy.on('died', this.handleEnemyDeath, this);
             },
@@ -216,29 +216,29 @@ spawnEnemyGroup(type, count, delay, radius) {
 spawnBoss(bossType) {
     // Play boss warning sound
     this.scene.soundManager.playSound('boss_warning');
-    
+
     // Show boss incoming message
     this.scene.uiManager.showBossWarning();
-    
+
     // Calculate spawn position (opposite side from player facing direction)
     const angle = this.scene.player.rotation + Math.PI;
     const x = this.scene.player.x + Math.cos(angle) * 800;
     const y = this.scene.player.y + Math.sin(angle) * 800;
-    
+
     // Spawn boss with delay after warning
     this.scene.time.delayedCall(
         3000, // 3 second warning
         () => {
             // Create boss
             const boss = this.scene.enemyFactory.createBoss(bossType, x, y);
-            
+
             // Play boss music
             this.scene.soundManager.crossFadeMusic(
                 'gameplay_music',
                 'boss_music',
                 2000
             );
-            
+
             // Register boss death event
             boss.on('died', this.handleBossDeath, this);
         },
@@ -257,13 +257,13 @@ The wave system tracks enemy deaths and progresses to the next wave:
 handleEnemyDeath(enemy) {
     // Decrement enemies remaining
     this.enemiesRemaining--;
-    
+
     // Update UI
     this.scene.events.emit('wave-enemies-update', {
         remaining: this.enemiesRemaining,
         total: this.getWaveConfig(this.currentWave).totalEnemies
     });
-    
+
     // Check if wave is complete
     if (this.enemiesRemaining <= 0) {
         this.endWave();
@@ -273,22 +273,22 @@ handleEnemyDeath(enemy) {
 endWave() {
     // Set wave state to complete
     this.waveState = 'complete';
-    
+
     // Play wave complete sound
     this.scene.soundManager.playSound('wave_complete');
-    
+
     // Show wave complete message
     this.scene.uiManager.showWaveBanner(`Wave ${this.currentWave} Complete!`);
-    
+
     // Award wave completion bonus
     this.awardWaveCompletionBonus();
-    
+
     // If this was the last wave, trigger victory
     if (this.currentWave >= this.totalWaves) {
         this.completeAllWaves();
         return;
     }
-    
+
     // If break between waves is enabled, show next wave button
     if (this.breakBetweenWaves) {
         this.scene.uiManager.showNextWaveButton();
@@ -301,7 +301,7 @@ endWave() {
             this
         );
     }
-    
+
     // Emit wave complete event
     this.scene.events.emit('wave-complete', {
         waveNumber: this.currentWave,
@@ -313,25 +313,25 @@ endWave() {
 startWave(waveNumber) {
     // Set current wave
     this.currentWave = waveNumber;
-    
+
     // Set wave state to active
     this.waveState = 'active';
-    
+
     // Record start time
     this.waveStartTime = this.scene.time.now;
-    
+
     // Hide next wave button if visible
     this.scene.uiManager.hideNextWaveButton();
-    
+
     // Play wave start sound
     this.scene.soundManager.playSound('wave_start');
-    
+
     // Show wave start message
     this.scene.uiManager.showWaveBanner(`Wave ${waveNumber} Start!`);
-    
+
     // Spawn enemies for this wave
     this.spawnEnemiesForWave(waveNumber);
-    
+
     // Update UI
     this.scene.events.emit('wave-start', {
         waveNumber: waveNumber,
@@ -346,14 +346,14 @@ completeAllWaves() {
         'victory_music',
         2000
     );
-    
+
     // Show victory screen
     this.scene.uiManager.showVictoryScreen({
         score: this.scene.score,
         survivalTime: this.scene.survivalTime,
         wavesCompleted: this.totalWaves
     });
-    
+
     // Emit game complete event
     this.scene.events.emit('game-complete', {
         score: this.scene.score,
@@ -408,13 +408,13 @@ Shows the current wave and total waves:
 createWaveInfo() {
     // Wave text
     this.waveText = this.scene.add.text(
-        512, 30, 'Wave 1/20', 
+        512, 30, 'Wave 1/20',
         { fontFamily: 'Arial', fontSize: 24, color: '#ffffff', stroke: '#000000', strokeThickness: 3 }
     ).setOrigin(0.5).setScrollFactor(0).setDepth(100);
-    
+
     // Enemies remaining text
     this.enemiesText = this.scene.add.text(
-        512, 60, 'Enemies: 0', 
+        512, 60, 'Enemies: 0',
         { fontFamily: 'Arial', fontSize: 18, color: '#ffffff', stroke: '#000000', strokeThickness: 2 }
     ).setOrigin(0.5).setScrollFactor(0).setDepth(100);
 }
@@ -448,13 +448,13 @@ createNextWaveButton() {
     .on('pointerout', () => {
         this.nextWaveButton.fillColor = 0x0066ff;
     });
-    
+
     // Button text
     this.nextWaveText = this.scene.add.text(
-        512, 400, 'Next Wave', 
+        512, 400, 'Next Wave',
         { fontFamily: 'Arial', fontSize: 24, color: '#ffffff' }
     ).setOrigin(0.5).setScrollFactor(0).setDepth(101);
-    
+
     // Hide by default
     this.hideNextWaveButton();
 }
@@ -481,13 +481,13 @@ showWaveBanner(text) {
     const banner = this.scene.add.rectangle(
         512, -50, 400, 80, 0x000000, 0.7
     ).setScrollFactor(0).setDepth(150);
-    
+
     // Create banner text
     const bannerText = this.scene.add.text(
         512, -50, text,
         { fontFamily: 'Arial', fontSize: 32, color: '#ffffff' }
     ).setOrigin(0.5).setScrollFactor(0).setDepth(151);
-    
+
     // Animate banner in and out
     this.scene.tweens.add({
         targets: [banner, bannerText],
@@ -515,13 +515,13 @@ showBossWarning() {
     const warningBg = this.scene.add.rectangle(
         512, 384, 1024, 768, 0xff0000, 0.3
     ).setScrollFactor(0).setDepth(140);
-    
+
     // Create warning text
     const warningText = this.scene.add.text(
-        512, 384, 'BOSS INCOMING', 
+        512, 384, 'BOSS INCOMING',
         { fontFamily: 'Arial', fontSize: 48, color: '#ff0000', stroke: '#000000', strokeThickness: 6 }
     ).setOrigin(0.5).setScrollFactor(0).setDepth(141);
-    
+
     // Flash the warning
     this.scene.tweens.add({
         targets: [warningBg, warningText],
@@ -548,33 +548,33 @@ showVictoryScreen(stats) {
     this.victoryPanel = this.scene.add.rectangle(
         512, 384, 600, 500, 0x000000, 0.8
     ).setScrollFactor(0).setDepth(150);
-    
+
     // Create victory title
     this.victoryTitle = this.scene.add.text(
-        512, 200, 'VICTORY!', 
+        512, 200, 'VICTORY!',
         { fontFamily: 'Arial', fontSize: 48, color: '#ffff00', stroke: '#000000', strokeThickness: 6 }
     ).setOrigin(0.5).setScrollFactor(0).setDepth(151);
-    
+
     // Create stats text
     this.victoryStats = this.scene.add.text(
-        512, 300, 
+        512, 300,
         `Score: ${stats.score}\n` +
         `Time: ${this.formatTime(stats.survivalTime)}\n` +
         `Waves Completed: ${stats.wavesCompleted}`,
         { fontFamily: 'Arial', fontSize: 24, color: '#ffffff', align: 'center' }
     ).setOrigin(0.5).setScrollFactor(0).setDepth(151);
-    
+
     // Create buttons
     this.createButton(
-        512, 450, 'Play Again', 
+        512, 450, 'Play Again',
         () => this.scene.scene.restart()
     ).setScrollFactor(0).setDepth(151);
-    
+
     this.createButton(
-        512, 520, 'Main Menu', 
+        512, 520, 'Main Menu',
         () => this.scene.scene.start('MainMenu')
     ).setScrollFactor(0).setDepth(151);
-    
+
     // Pause game
     this.scene.physics.pause();
 }
@@ -593,13 +593,13 @@ Players earn XP bonuses for completing waves:
 awardWaveCompletionBonus() {
     // Base XP for completing a wave
     const baseXP = 50 + (this.currentWave * 10);
-    
+
     // Apply wave number multiplier
     const xpBonus = Math.floor(baseXP * (1 + (this.currentWave * 0.1)));
-    
+
     // Add XP to player
     this.scene.xpManager.addXP(xpBonus);
-    
+
     // Show XP bonus message
     this.scene.uiManager.showFloatingText(
         this.scene.player.x,
@@ -619,13 +619,13 @@ Players earn cash bonuses for completing waves:
 awardWaveCompletionBonus() {
     // Base cash for completing a wave
     const baseCash = 25 + (this.currentWave * 5);
-    
+
     // Apply wave number multiplier
     const cashBonus = Math.floor(baseCash * (1 + (this.currentWave * 0.1)));
-    
+
     // Add cash to player
     this.scene.cashManager.addCash(cashBonus);
-    
+
     // Show cash bonus message
     this.scene.uiManager.showFloatingText(
         this.scene.player.x,
@@ -645,13 +645,13 @@ Enemy stats scale with wave number:
 createEnemy(type, x, y) {
     // Get base stats for enemy type
     const baseStats = this.enemyStats[type];
-    
+
     // Get current wave number
     const waveNumber = this.scene.waveManager.getCurrentWave();
-    
+
     // Calculate scaling factor based on wave
     const scalingFactor = 1 + (waveNumber * 0.1);
-    
+
     // Apply scaling to stats
     const scaledStats = {
         health: Math.floor(baseStats.health * scalingFactor),
@@ -661,7 +661,7 @@ createEnemy(type, x, y) {
         xpValue: Math.floor(baseStats.xpValue * (1 + (waveNumber * 0.2))),
         cashValue: Math.floor(baseStats.cashValue * (1 + (waveNumber * 0.2)))
     };
-    
+
     // Create enemy with scaled stats
     const enemy = this.enemyPool.get();
     if (enemy) {
@@ -676,12 +676,12 @@ createEnemy(type, x, y) {
         enemy.setData('scoreValue', scaledStats.scoreValue);
         enemy.setData('xpValue', scaledStats.xpValue);
         enemy.setData('cashValue', scaledStats.cashValue);
-        
+
         // Additional setup...
-        
+
         return enemy;
     }
-    
+
     return null;
 }
 ```
@@ -847,16 +847,16 @@ The wave system properly integrates with other managers that can spawn enemies:
  * Register enemies that are spawned by external systems
  * This method allows systems like FactionBattleManager to notify WaveManager
  * about enemies they spawn outside normal wave spawning
- * 
+ *
  * @param {number} count - Number of enemies spawned externally
  */
 registerExternalEnemySpawn(count) {
     if (typeof count !== 'number' || count <= 0) return;
-    
+
     // Track these as part of our spawn counts
     this.enemiesSpawned += count;
     this.activeEnemies += count;
-    
+
     if (this.scene.isDev) {
         console.debug(`[WaveManager] Registered ${count} external enemy spawns. New totals: Spawned=${this.enemiesSpawned}, Active=${this.activeEnemies}`);
     }
@@ -869,18 +869,18 @@ Systems that spawn enemies externally (such as FactionBattleManager and ChaosMan
 // Example from FactionBattleManager
 triggerFactionSurge(factionId) {
     if (!this.groupWeightManager) return;
-    
+
     // Get WaveManager reference to track any extra spawns
     const waveManager = this.scene.waveManager;
-    
+
     // Calculate potential surge enemies
     const surgeEnemiesCount = Math.floor(Math.random() * 3) + 1; // 1-3 enemies
-    
+
     // Register these potential enemy spawns with WaveManager
     if (waveManager && typeof waveManager.registerExternalEnemySpawn === 'function') {
         waveManager.registerExternalEnemySpawn(surgeEnemiesCount);
     }
-    
+
     // Continue with faction surge logic...
 }
 ```
@@ -894,24 +894,56 @@ To prevent waves from getting stuck due to inconsistent enemy counts, the WaveMa
 ```javascript
 verifyEnemyCount() {
     if (!this.scene.enemyManager || !this.isWaveActive) return;
-    
+
     // Get the actual count from enemy manager
     const actualEnemyCount = this.scene.enemyManager.getEnemyCount();
     const actualBossCount = this.scene.enemyManager.getEnemyCount('boss1');
-    
+
     // If there's a mismatch, update our tracking to match reality
     if (actualEnemyCount !== this.activeEnemies || actualBossCount !== this.activeBosses) {
         // Update our tracking to match reality
         this.activeEnemies = actualEnemyCount;
         this.activeBosses = actualBossCount;
     }
-    
+
     // Check if wave should complete
     // ...
 }
 ```
 
 This mechanism ensures accurate enemy counting and proper wave progression.
+
+## Shop Menu Scene
+
+The `ShopMenuScene` is a dedicated scene that appears between waves, allowing players to purchase upgrades with their earned currency.
+
+### `ShopMenuScene.js`
+
+**Methods:**
+- `init(data)` - Initializes the scene with data from the WaveGame scene
+- `create()` - Sets up the shop interface
+- `setupShopUI()` - Creates shop UI elements
+- `generateUpgrades()` - Generates available upgrades for purchase
+- `purchaseUpgrade(upgrade)` - Handles upgrade purchase logic
+- `rerollUpgrades()` - Refreshes available upgrades (costs credits)
+- `continueToNextWave()` - Returns to the WaveGame scene for the next wave
+
+**Properties:**
+- `player` - Reference to player data
+- `playerCredits` - Current player currency
+- `availableUpgrades` - List of upgrades available for purchase
+- `purchasedUpgrades` - List of upgrades already purchased
+- `rerollCount` - Number of times player has rerolled the shop
+- `rerollCost` - Current cost to reroll upgrades
+- `nextWave` - The wave number to continue to
+
+### Shop Flow
+
+1. Wave completes in WaveGame scene
+2. Game transitions to ShopMenuScene with player data
+3. Player purchases upgrades or rerolls options
+4. Player clicks "Continue" to return to WaveGame scene
+5. WaveGame scene starts the next wave with upgraded player
 
 ## End of Wave Shop Integration
 
@@ -929,17 +961,17 @@ When a wave is completed, the WaveManager emits both scene events and EventBus e
 completeWave() {
     // Mark wave as complete
     this.isWaveActive = false;
-    
+
     // ...other code...
-    
+
     // Emit wave completed event on both scene events and EventBus
     const eventData = {
         wave: this.currentWave,
         isLastWave
     };
-    
+
     this.scene.events.emit('wave-completed', eventData);
-    
+
     // Also emit on EventBus to ensure ShopManager receives it
     EventBus.emit('wave-completed', eventData);
 }
@@ -951,7 +983,7 @@ The ShopManager listens for these events:
 // In ShopManager.js
 constructor(scene, player, weapon, rng) {
     // ...other initialization...
-    
+
     // Listen for wave completed events
     EventBus.on('wave-completed', this.onWaveCompleted);
 }
@@ -965,12 +997,12 @@ For more robust integration, systems like the ShopManager can register callbacks
 // In ShopManager.js
 constructor(scene, player, weapon, rng) {
     // ...other initialization...
-    
+
     // Direct integration with WaveManager
     if (scene.waveManager) {
         scene.waveManager.registerEndOfRoundCallback(this.onWaveCompleted);
     }
-    
+
     // Clean up when scene is destroyed
     this.scene.events.once('shutdown', () => {
         if (this.scene.waveManager) {
