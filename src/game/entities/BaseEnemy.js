@@ -123,10 +123,11 @@ export class BaseEnemy {
             this.damage = this.damage * options.damageMultiplier;
         }
 
+        /*
         if (options.speedMultiplier && options.speedMultiplier > 0) {
             this.speed = this.speed * options.speedMultiplier;
         }
-
+        */
         if (options.scoreMultiplier && options.scoreMultiplier > 1) {
             this.scoreValue = this.scoreValue * options.scoreMultiplier;
         }
