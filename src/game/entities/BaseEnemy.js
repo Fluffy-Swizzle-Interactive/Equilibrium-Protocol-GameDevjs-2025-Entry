@@ -718,6 +718,13 @@ export class BaseEnemy {
             this.completeCleanup();
         }
 
+        // Emit event on EventBus for global tracking
+        EventBus.emit('enemy-killed', {
+            enemy: this,
+            position: lastPosition,
+            time: this.scene.time.now
+        });
+        
         // Notify the scene about the enemy death
         this.scene.onEnemyKilled(
             this.isBossEnemy(),

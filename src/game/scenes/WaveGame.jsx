@@ -22,6 +22,7 @@ import ShopManager from '../managers/ShopManager';
 import { HealthRegenerationSystem } from '../systems/HealthRegenerationSystem';
 import { AnimationManager } from '../managers/AnimationManager';
 import { DEPTHS, CHAOS } from '../constants';
+import { KillTimerManager } from '../managers/KillTimerManager';
 
 /**
  * WaveGame scene
@@ -99,6 +100,7 @@ export class WaveGame extends Scene {
         this.setupFactionBattleManager(); // Setup faction battle manager
         this.setupHealthRegenerationSystem(); // Setup health regeneration system
         this.setupInput();
+        this.killTimerManager = new KillTimerManager(this);
 
         EventBus.emit('current-scene-ready', this);
     }
