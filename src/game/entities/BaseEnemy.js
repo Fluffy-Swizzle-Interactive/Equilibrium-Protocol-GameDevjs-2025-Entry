@@ -120,7 +120,9 @@ export class BaseEnemy {
         }
 
         if (options.damageMultiplier && options.damageMultiplier > 1) {
+            if (!options.isBossEncounter) {
             this.damage = this.damage * options.damageMultiplier;
+            }
         }
 
         /*
