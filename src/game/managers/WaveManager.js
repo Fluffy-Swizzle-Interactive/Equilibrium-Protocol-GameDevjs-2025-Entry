@@ -768,7 +768,7 @@ export class WaveManager {
                 this.scene.enemyManager.releaseEnemy(enemy);
                 inactiveCount++;
             }
-            if(timeSinceLastKill > 150000) {
+            if(timeSinceLastKill > 15000) {
                 // Release back to pool to ensure it's properly removed from tracking
                 this.scene.enemyManager.releaseEnemy(enemy);
                 inactiveCount++;
