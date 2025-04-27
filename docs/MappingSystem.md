@@ -18,11 +18,11 @@ The game supports several map types:
 
 ## Implementation
 
-### Tile Map Manager
+### Map Manager
 
-The mapping system is managed by the `TileMapManager` class.
+The mapping system is managed by the `MapManager` class.
 
-#### `TileMapManager.js`
+#### `MapManager.js`
 
 **Methods:**
 - `constructor(scene)` - Initializes the map manager for a scene
@@ -93,22 +93,22 @@ this.mapConfig = {
 Maps are preloaded during the Preloader scene:
 
 ```javascript
-// In TileMapManager.js
+// In MapManager.js
 preloadMaps() {
     // Preload all map files
     for (const mapKey in this.mapConfig) {
         const map = this.mapConfig[mapKey];
-        
+
         // Load map file if not already loaded
         if (map.file && !this.scene.cache.tilemap.exists(map.key)) {
             this.scene.load.tilemapTiledJSON(map.key, map.file);
         }
-        
+
         // Load tilesets if not already loaded
         for (const tilesetKey of map.tilesets) {
             if (!this.scene.textures.exists(tilesetKey)) {
                 this.scene.load.image(
-                    tilesetKey, 
+                    tilesetKey,
                     `assets/tilesets/${tilesetKey}.png`
                 );
             }
@@ -122,7 +122,7 @@ preloadMaps() {
 Maps can be created from Tiled JSON data:
 
 ```javascript
-// In TileMapManager.js
+// In MapManager.js
 createMapFromTiled(key, options = {}) {
     // Get map configuration
     const mapConfig = this.mapConfig[key];
@@ -130,34 +130,34 @@ createMapFromTiled(key, options = {}) {
         console.error(`Map configuration not found for key: ${key}`);
         return null;
     }
-    
+
     // Create tilemap from loaded JSON
     const map = this.scene.make.tilemap({ key: mapConfig.key });
-    
+
     // Add tilesets
     const tilesets = [];
     for (const tilesetKey of mapConfig.tilesets) {
         tilesets.push(map.addTilesetImage(tilesetKey, tilesetKey));
     }
-    
+
     // Create layers
     const layers = {};
     for (const layerData of map.layers) {
         const layer = map.createLayer(
-            layerData.name, 
-            tilesets, 
+            layerData.name,
+            tilesets,
             0, 0
         );
-        
+
         // Set layer properties
         if (options.scale) {
             layer.setScale(options.scale);
         }
-        
+
         // Set collision if this is a collision layer
         if (mapConfig.collisionLayers.includes(layerData.name)) {
             layer.setCollisionByProperty({ collides: true });
-            
+
             // Optionally show debug graphics
             if (options.debug) {
                 const debugGraphics = this.scene.add.graphics();
@@ -168,23 +168,23 @@ createMapFromTiled(key, options = {}) {
                 });
             }
         }
-        
+
         // Store layer reference
         layers[layerData.name] = layer;
     }
-    
+
     // Store map data
     this.currentMap = map;
     this.currentMapKey = key;
     this.layers = layers;
-    
+
     // Set world bounds based on map size
     this.scene.physics.world.setBounds(
-        0, 0, 
-        map.widthInPixels * (options.scale || 1), 
+        0, 0,
+        map.widthInPixels * (options.scale || 1),
         map.heightInPixels * (options.scale || 1)
     );
-    
+
     // Return the created map
     return {
         map: map,
@@ -197,7 +197,7 @@ createMapFromTiled(key, options = {}) {
 Maps can also be created programmatically:
 
 ```javascript
-// In TileMapManager.js
+// In MapManager.js
 generateRandomMap(width, height, options = {}) {
     // Create empty tilemap
     const map = this.scene.make.tilemap({
@@ -206,24 +206,24 @@ generateRandomMap(width, height, options = {}) {
         width: width,
         height: height
     });
-    
+
     // Add tileset
     const tileset = map.addTilesetImage(
         options.tilesetKey || 'scifi_tiles'
     );
-    
+
     // Create layers
     const groundLayer = map.createBlankLayer('ground', tileset);
     const wallsLayer = map.createBlankLayer('walls', tileset);
-    
+
     // Fill ground layer with floor tiles
     const floorTile = options.floorTile || 1;
     groundLayer.fill(floorTile);
-    
+
     // Generate random walls
     const wallTile = options.wallTile || 2;
     const wallDensity = options.wallDensity || 0.1;
-    
+
     for (let y = 0; y < height; y++) {
         for (let x = 0; x < width; x++) {
             // Add border walls
@@ -231,17 +231,17 @@ generateRandomMap(width, height, options = {}) {
                 wallsLayer.putTileAt(wallTile, x, y);
                 continue;
             }
-            
+
             // Random internal walls
             if (Math.random() < wallDensity) {
                 wallsLayer.putTileAt(wallTile, x, y);
             }
         }
     }
-    
+
     // Set collision on walls layer
     wallsLayer.setCollisionByExclusion([-1]);
-    
+
     // Store map data
     this.currentMap = map;
     this.currentMapKey = 'random';
@@ -249,14 +249,14 @@ generateRandomMap(width, height, options = {}) {
         ground: groundLayer,
         walls: wallsLayer
     };
-    
+
     // Set world bounds
     this.scene.physics.world.setBounds(
-        0, 0, 
-        map.widthInPixels, 
+        0, 0,
+        map.widthInPixels,
         map.heightInPixels
     );
-    
+
     // Return the created map
     return {
         map: map,
@@ -274,7 +274,7 @@ generateRandomMap(width, height, options = {}) {
 The game can switch between maps during gameplay:
 
 ```javascript
-// In TileMapManager.js
+// In MapManager.js
 switchMap(key, options = {}) {
     // Clean up current map if it exists
     if (this.currentMap) {
@@ -282,21 +282,21 @@ switchMap(key, options = {}) {
         for (const layerName in this.layers) {
             this.layers[layerName].destroy();
         }
-        
+
         // Clear references
         this.layers = {};
     }
-    
+
     // Create new map
     const mapData = this.createMapFromTiled(key, options);
-    
+
     // Emit map change event
     this.scene.events.emit('map-changed', {
         key: key,
         map: mapData.map,
         spawnPoints: mapData.config.spawnPoints
     });
-    
+
     return mapData;
 }
 ```
@@ -313,17 +313,17 @@ setupMapCollision() {
     for (const layerName of this.mapManager.mapConfig[this.currentMapKey].collisionLayers) {
         collisionLayers.push(this.mapManager.layers[layerName]);
     }
-    
+
     // Set up player collision with map
     for (const layer of collisionLayers) {
         this.physics.add.collider(this.player, layer);
     }
-    
+
     // Set up enemy collision with map
     for (const layer of collisionLayers) {
         this.physics.add.collider(this.enemyGroup, layer);
     }
-    
+
     // Set up bullet collision with map
     for (const layer of collisionLayers) {
         this.physics.add.collider(
@@ -335,7 +335,7 @@ setupMapCollision() {
                     tint: 0xCCCCCC,
                     scale: 0.3
                 });
-                
+
                 // Release bullet back to pool
                 this.bulletPool.releaseBullet(bullet);
             },
@@ -357,7 +357,7 @@ Maps define spawn points for players and enemies:
 setupPlayer() {
     // Get player spawn point from current map
     const spawnPoint = this.mapManager.currentMap.config.spawnPoints.player;
-    
+
     // Create player at spawn point
     this.player = new Player(
         this,
@@ -370,7 +370,7 @@ setupPlayer() {
 spawnEnemies() {
     // Get enemy spawn points from current map
     const spawnPoints = this.mapManager.currentMap.config.spawnPoints.enemies;
-    
+
     // Spawn enemies at each point
     for (const spawnPoint of spawnPoints) {
         this.enemyFactory.createEnemy(
@@ -387,35 +387,35 @@ spawnEnemies() {
 Maps can include interactive tiles with special properties:
 
 ```javascript
-// In TileMapManager.js
+// In MapManager.js
 setupInteractiveTiles() {
     // Check if we have an 'interactive' layer
     if (!this.layers.interactive) return;
-    
+
     // Get all tiles with the 'interactive' property
     const interactiveTiles = this.layers.interactive.filterTiles(
         tile => tile.properties.interactive
     );
-    
+
     // Set up each interactive tile
     for (const tile of interactiveTiles) {
         // Get tile properties
         const props = tile.properties;
-        
+
         // Set up based on interaction type
         switch (props.interactionType) {
             case 'health':
                 this.setupHealthTile(tile);
                 break;
-                
+
             case 'teleport':
                 this.setupTeleportTile(tile);
                 break;
-                
+
             case 'switch':
                 this.setupSwitchTile(tile);
                 break;
-                
+
             // Additional interaction types...
         }
     }
@@ -424,7 +424,7 @@ setupInteractiveTiles() {
 setupHealthTile(tile) {
     // Create a physics body for this tile
     this.scene.physics.add.existing(tile, true);
-    
+
     // Set up overlap with player
     this.scene.physics.add.overlap(
         this.scene.player,
@@ -432,20 +432,20 @@ setupHealthTile(tile) {
         () => {
             // Heal the player
             this.scene.player.heal(tile.properties.healAmount || 20);
-            
+
             // Play healing sound
             this.scene.soundManager.playSound('health_pickup');
-            
+
             // Create healing effect
             this.scene.spritePool.createHealEffect(
                 tile.pixelX + 16,
                 tile.pixelY + 16
             );
-            
+
             // Disable the tile temporarily
             tile.properties.active = false;
             tile.alpha = 0.3;
-            
+
             // Reactivate after cooldown
             this.scene.time.delayedCall(
                 tile.properties.cooldown || 30000,
@@ -465,26 +465,26 @@ setupHealthTile(tile) {
 Maps can include destructible elements:
 
 ```javascript
-// In TileMapManager.js
+// In MapManager.js
 setupDestructibles() {
     // Check if we have a 'destructibles' layer
     if (!this.layers.destructibles) return;
-    
+
     // Get all tiles with the 'destructible' property
     const destructibleTiles = this.layers.destructibles.filterTiles(
         tile => tile.properties.destructible
     );
-    
+
     // Set up each destructible tile
     for (const tile of destructibleTiles) {
         // Set health property if not already set
         if (tile.properties.health === undefined) {
             tile.properties.health = 100;
         }
-        
+
         // Create a physics body for this tile
         this.scene.physics.add.existing(tile, true);
-        
+
         // Set up collision with bullets
         this.scene.physics.add.overlap(
             this.scene.bulletPool.getGroup(),
@@ -492,7 +492,7 @@ setupDestructibles() {
             (tile, bullet) => {
                 // Reduce tile health
                 tile.properties.health -= bullet.damage;
-                
+
                 // Create impact effect
                 this.scene.spritePool.createHitEffect(
                     bullet.x,
@@ -502,15 +502,15 @@ setupDestructibles() {
                         scale: 0.3
                     }
                 );
-                
+
                 // Release bullet back to pool
                 this.scene.bulletPool.releaseBullet(bullet);
-                
+
                 // Check if tile is destroyed
                 if (tile.properties.health <= 0) {
                     // Play destruction sound
                     this.scene.soundManager.playSound('tile_destroy');
-                    
+
                     // Create destruction effect
                     this.scene.spritePool.createDeathEffect(
                         tile.pixelX + 16,
@@ -521,13 +521,13 @@ setupDestructibles() {
                             lifespan: 1000
                         }
                     );
-                    
+
                     // Remove the tile
                     this.layers.destructibles.removeTileAt(
                         tile.x,
                         tile.y
                     );
-                    
+
                     // Potentially spawn pickup
                     if (Math.random() < 0.3) {
                         this.scene.spritePool.createXPPickup(
@@ -552,22 +552,22 @@ The game can transition between maps during gameplay:
 transitionToMap(mapKey) {
     // Show transition effect
     this.cameras.main.fade(500, 0, 0, 0);
-    
+
     // Wait for fade to complete
     this.cameras.main.once('camerafadeoutcomplete', () => {
         // Switch to new map
         const mapData = this.mapManager.switchMap(mapKey);
-        
+
         // Move player to spawn point
         const spawnPoint = mapData.config.spawnPoints.player;
         this.player.setPosition(spawnPoint.x, spawnPoint.y);
-        
+
         // Set up collisions for new map
         this.setupMapCollision();
-        
+
         // Spawn enemies for new map
         this.spawnEnemies();
-        
+
         // Fade back in
         this.cameras.main.fadeIn(500);
     });
@@ -587,20 +587,20 @@ setupCamera() {
         this.mapManager.currentMap.widthInPixels,
         this.mapManager.currentMap.heightInPixels
     );
-    
+
     // Set camera to follow player
     this.cameras.main.startFollow(
         this.player,
         true,
         0.1, 0.1 // Lerp factor for smooth following
     );
-    
+
     // Set camera zoom
     this.cameras.main.setZoom(1);
-    
+
     // Optional: Add camera effects
     this.cameras.main.setBackgroundColor('#111111');
-    
+
     // Add camera shake on player damage
     this.events.on('player-damage', () => {
         this.cameras.main.shake(100, 0.01);
@@ -615,14 +615,14 @@ setupCamera() {
 The mapping system uses culling to improve performance:
 
 ```javascript
-// In TileMapManager.js
+// In MapManager.js
 optimizeMapRendering() {
     // Enable culling on all layers
     for (const layerName in this.layers) {
         this.layers[layerName].setCullPadding(2);
         this.layers[layerName].setSkipCull(false);
     }
-    
+
     // Set render order to optimize for top-down view
     this.currentMap.setRenderOrder(Phaser.Tilemaps.RENDER_ORDER_RIGHT_DOWN);
 }
@@ -638,16 +638,16 @@ setupAnimatedTiles() {
     // Find tiles with animation properties
     for (const layerName in this.layers) {
         const layer = this.layers[layerName];
-        
+
         // Get all tiles with animation data
         const animatedTiles = layer.filterTiles(
             tile => tile.properties.animated
         );
-        
+
         // Set up each animated tile
         for (const tile of animatedTiles) {
             const props = tile.properties;
-            
+
             // Create animation if it doesn't exist
             const animKey = `tile_anim_${props.animationKey}`;
             if (!this.scene.anims.exists(animKey)) {
@@ -664,20 +664,20 @@ setupAnimatedTiles() {
                     repeat: -1
                 });
             }
-            
+
             // Replace tile with sprite
             const sprite = this.scene.add.sprite(
                 tile.pixelX + 16,
                 tile.pixelY + 16,
                 props.spritesheet
             );
-            
+
             // Play animation
             sprite.play(animKey);
-            
+
             // Set sprite depth to match layer
             sprite.setDepth(layer.depth);
-            
+
             // Remove the original tile
             layer.removeTileAt(tile.x, tile.y);
         }
