@@ -470,6 +470,8 @@ export class WaveManager {
      * @param {string} enemyType - The type of enemy that was killed
      */
     onEnemyKilled(isBoss, enemyType) {
+
+
         // Debug log the kill if in dev mode
         if (this.scene.isDev) {
             console.debug(`[WaveManager] Enemy killed: ${enemyType}, isBoss: ${isBoss}, active enemies remaining: ${this.activeEnemies - 1}, active bosses: ${isBoss ? this.activeBosses - 1 : this.activeBosses}`);
@@ -732,12 +734,41 @@ export class WaveManager {
 
         let inactiveCount = 0;
 
+        let timeSinceLastKill = 0;
+        
+        // Get the time since last kill from KillTimerManager if available
+        if (this.scene.killTimerManager) {
+            timeSinceLastKill = this.scene.killTimerManager.getTimeSinceLastKill();
+        } else {
+            // Fallback if KillTimerManager isn't available
+            // Try to get from EventBus one time (not as an event listener)
+            const killTimerData = EventBus.getLastEventData('kill-timer-updated');
+            if (killTimerData) {
+                timeSinceLastKill = killTimerData.timeSinceLastKill;
+            }
+        }
+
         // Loop through enemy manager's enemies
         for (let i = this.scene.enemyManager.enemies.length - 1; i >= 0; i--) {
             const enemy = this.scene.enemyManager.enemies[i];
 
             // Check if this enemy is inactive or missing graphics
             if (!enemy || !enemy.active || !enemy.graphics || !enemy.graphics.active) {
+                // Release back to pool to ensure it's properly removed from tracking
+                this.scene.enemyManager.releaseEnemy(enemy);
+                inactiveCount++;
+            }
+            if(enemy.killCounted) {
+                // Release back to pool to ensure it's properly removed from tracking
+                this.scene.enemyManager.releaseEnemy(enemy);
+                inactiveCount++;
+            }
+            if (enemy.health <= 0) {
+                // Release back to pool to ensure it's properly removed from tracking
+                this.scene.enemyManager.releaseEnemy(enemy);
+                inactiveCount++;
+            }
+            if(timeSinceLastKill > 15000) {
                 // Release back to pool to ensure it's properly removed from tracking
                 this.scene.enemyManager.releaseEnemy(enemy);
                 inactiveCount++;

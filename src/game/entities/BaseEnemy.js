@@ -120,13 +120,16 @@ export class BaseEnemy {
         }
 
         if (options.damageMultiplier && options.damageMultiplier > 1) {
+            if (!options.isBossEncounter) {
             this.damage = this.damage * options.damageMultiplier;
+            }
         }
 
+        /*
         if (options.speedMultiplier && options.speedMultiplier > 0) {
             this.speed = this.speed * options.speedMultiplier;
         }
-
+        */
         if (options.scoreMultiplier && options.scoreMultiplier > 1) {
             this.scoreValue = this.scoreValue * options.scoreMultiplier;
         }
@@ -718,6 +721,13 @@ export class BaseEnemy {
             this.completeCleanup();
         }
 
+        // Emit event on EventBus for global tracking
+        EventBus.emit('enemy-killed', {
+            enemy: this,
+            position: lastPosition,
+            time: this.scene.time.now
+        });
+        
         // Notify the scene about the enemy death
         this.scene.onEnemyKilled(
             this.isBossEnemy(),

@@ -20,6 +20,11 @@ The player is the main character controlled by the user.
 - `level` - Current player level
 - `xp` - Current experience points
 - `cash` - Current cash amount
+- `defense` - Damage reduction percentage
+- `critChance` - Critical hit chance percentage
+- `critMultiplier` - Critical hit damage multiplier
+- `bulletPierce` - Number of enemies a bullet can pass through
+- `bulletRange` - Maximum bullet travel distance
 
 **Methods:**
 - `update(time, delta)` - Updates player state each frame
@@ -31,6 +36,9 @@ The player is the main character controlled by the user.
 - `addXP(amount)` - Adds experience points
 - `levelUp()` - Increases player level and stats
 - `addCash(amount)` - Adds cash to player's total
+- `initWeaponSystem()` - Initializes the weapon system
+- `upgradeWeapon(upgradeType, amount)` - Applies weapon upgrades
+- `upgradePlayer(upgradeType, amount)` - Applies player upgrades
 
 **Events Emitted:**
 - `player-damage` - When player takes damage
@@ -38,11 +46,54 @@ The player is the main character controlled by the user.
 - `player-level-up` - When player gains a level
 - `player-cash-change` - When player cash amount changes
 
+### `PlayerDrone.js`
+
+Combat drones that assist the player in battle.
+
+**Properties:**
+- `owner` - Reference to the player that owns the drone
+- `damage` - Damage dealt by drone attacks
+- `fireRate` - Rate of fire (shots per second)
+- `range` - Maximum attack range
+- `orbitDistance` - Distance from player
+- `orbitSpeed` - Speed of orbit around player
+- `targetingMode` - How the drone selects targets ('nearest', 'weakest', 'random')
+
+**Methods:**
+- `update(time, delta)` - Updates drone state each frame
+- `orbit()` - Moves drone in orbit around the player
+- `findTarget()` - Locates the nearest valid target
+- `fire()` - Attacks the current target
+- `upgrade(upgradeType, amount)` - Applies drone upgrades
+
+### `PlayerHealth.js`
+
+Manages player health and damage handling.
+
+**Properties:**
+- `currentHealth` - Current health points
+- `maxHealth` - Maximum health points
+- `damageResistance` - Percentage of damage reduced
+- `regenRate` - Health regeneration per second
+- `invulnerableTime` - Time remaining of invulnerability after taking damage
+
+**Methods:**
+- `update(time, delta)` - Updates health state each frame
+- `takeDamage(amount)` - Processes incoming damage with resistance
+- `heal(amount)` - Increases current health
+- `setMaxHealth(amount)` - Changes maximum health
+- `setDamageResistance(percentage)` - Sets damage resistance
+- `setRegenRate(amount)` - Sets health regeneration rate
+
 ## Enemies
 
 Enemies are the hostile entities that attack the player.
 
-### `Enemy.js`
+### Base Enemy Class
+
+#### `BaseEnemy.js`
+
+The base class that all enemy types inherit from.
 
 **Properties:**
 - `health` - Current health points
@@ -52,7 +103,9 @@ Enemies are the hostile entities that attack the player.
 - `scoreValue` - Points awarded when defeated
 - `xpValue` - XP awarded when defeated
 - `cashValue` - Cash awarded when defeated
-- `type` - Enemy type (basic, fast, tank, boss)
+- `type` - Enemy type identifier
+- `state` - Current AI state
+- `target` - Current target (usually the player)
 
 **Methods:**
 - `update(time, delta)` - Updates enemy state each frame
@@ -60,12 +113,77 @@ Enemies are the hostile entities that attack the player.
 - `takeDamage(amount)` - Reduces enemy health
 - `die()` - Handles enemy death (drops, effects)
 - `playAnimation(key)` - Plays specified animation
+- `setState(newState)` - Changes the enemy's AI state
+- `getDistanceToTarget()` - Calculates distance to current target
 
-**Enemy Types:**
-- **Basic** - Standard enemy with balanced stats
-- **Fast** - Quick but fragile enemy
-- **Tank** - Slow but durable enemy
-- **Boss** - Powerful enemy with special abilities
+### Enemy Types
+
+#### `Enemy1.js` (Basic Enemy)
+
+**Properties:**
+- Balanced health and speed
+- Medium damage
+- Standard movement pattern
+- No special abilities
+
+**Methods:**
+- `update(time, delta)` - Basic chase behavior
+
+#### `Enemy2.js` (Fast Enemy)
+
+**Properties:**
+- Low health
+- High speed
+- Low damage
+- Erratic movement pattern
+
+**Methods:**
+- `update(time, delta)` - Fast chase with occasional direction changes
+- `dodge()` - Attempts to dodge player bullets
+
+#### `Enemy3.js` (Tank Enemy)
+
+**Properties:**
+- High health
+- Low speed
+- High damage
+- Resistant to knockback
+
+**Methods:**
+- `update(time, delta)` - Slow but persistent chase
+- `chargeAttack()` - Occasional charge toward player
+
+#### `Boss1.js` (Boss Enemy)
+
+**Properties:**
+- Very high health
+- Medium speed
+- Very high damage
+- Special abilities
+
+**Methods:**
+- `update(time, delta)` - Complex boss behavior
+- `summonMinions()` - Spawns smaller enemies
+- `specialAttack()` - Performs area-of-effect attack
+- `changePhase()` - Changes behavior based on health percentage
+
+### Enemy AI System
+
+The enemy AI system uses a state machine pattern to control enemy behavior.
+
+#### `ai/PanicFleeState.js`
+
+**Behavior:**
+- Enemy flees from the player when health is low
+- Attempts to find safe positions away from the player
+- May transition back to aggressive state if health is restored
+
+#### `ai/RageState.js`
+
+**Behavior:**
+- Enemy becomes more aggressive when damaged
+- Increased movement speed and attack rate
+- May perform special attacks not available in normal state
 
 ## Projectiles
 
@@ -126,7 +244,7 @@ The game uses Phaser's Arcade Physics for collision detection.
 ```javascript
 // Example: Setting up player-enemy collision
 this.physics.add.collider(
-    this.player, 
+    this.player,
     this.enemyGroup,
     this.handlePlayerEnemyCollision,
     null,
@@ -154,7 +272,7 @@ The game uses factory methods to create entities with consistent configuration:
 createEnemy(type, x, y) {
     const config = this.enemyConfigs[type];
     const enemy = this.enemyPool.get();
-    
+
     if (enemy) {
         enemy.setPosition(x, y);
         enemy.setActive(true);
@@ -163,10 +281,10 @@ createEnemy(type, x, y) {
         enemy.setData('health', config.health);
         enemy.setData('speed', config.speed);
         // Additional setup...
-        
+
         return enemy;
     }
-    
+
     return null;
 }
 ```
@@ -178,8 +296,8 @@ Entities are managed through object pools for performance optimization:
 ```javascript
 // Example: Getting a bullet from the pool
 const bullet = this.bulletPool.getBullet(
-    this.x, 
-    this.y, 
+    this.x,
+    this.y,
     {
         angle: this.angle,
         speed: 500,

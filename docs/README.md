@@ -34,7 +34,9 @@ This documentation is organized into modular sections for easier navigation and 
 - [Mapping System](MappingSystem.md) - Map creation and management
 - [Enemy System](EnemySystem.md) - Enemy types, behavior, and spawning
 - [Chaos System](ChaosSystem.md) - Chaos meter and related mechanics
-- [Weapon System](WeaponSystem.md) - Unified weapon mechanics and upgrades
+- [Weapon System](WeaponSystem.md) - Weapons, projectiles, and drone companions
+- [Collectible System](CollectibleSystem.md) - Pickups and collection mechanics
+- [Scene Transitions](SceneTransitions.md) - Flow between different game scenes
 
 ### Development
 
@@ -128,3 +130,4 @@ When updating documentation:
 ---
 
 *This documentation is maintained by the Fluffy-Swizz Interactive development team.*
+

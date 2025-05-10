@@ -30,8 +30,8 @@ export class Boss1 extends BaseEnemy {
         this.speed = 0.3; // Slower
         this.size = 80;   // Much larger
         this.color = 0xff0000; // Red color
-        this.health = 100000;
-        this.baseHealth = 100000;
+        this.health = 10000;
+        this.baseHealth = 10000;
         this.damage = 40;
         this.scoreValue = 100;
         
@@ -409,7 +409,10 @@ export class Boss1 extends BaseEnemy {
             this.scene.enemyManager.spawnProjectile(
                 visual.x, 
                 visual.y,
-                dirX, dirY, 2.0
+                dirX, 
+                dirY, 
+                2.0,
+                this.damage / 10
             );
         }
     }

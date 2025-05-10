@@ -16,25 +16,53 @@ src/
     ├── EventBus.js        # Events communication system
     ├── main.js            # Phaser game initialization
     ├── PhaserGame.jsx     # React-Phaser integration
+    ├── constants/         # Game constants and configuration
+    │   ├── PlayerUpgrades.js # Player upgrade definitions
+    │   └── WeaponUpgrades.js # Weapon upgrade definitions
     ├── debug/             # Debug tools
     │   └── DebugPanel.jsx # In-game debug panel
     ├── entities/          # Game objects
-    │   ├── Enemy.js       # Enemy entity
+    │   ├── ai/            # Enemy AI states and behaviors
+    │   │   ├── PanicFleeState.js # Fleeing behavior
+    │   │   └── RageState.js # Aggressive behavior
+    │   ├── BaseEnemy.js   # Base enemy class
+    │   ├── Enemy1.js      # Basic enemy type
+    │   ├── Enemy2.js      # Fast enemy type
+    │   ├── Enemy3.js      # Tank enemy type
+    │   ├── Boss1.js       # Boss enemy type
     │   ├── Player.js      # Player entity
+    │   ├── PlayerDrone.js # Player's combat drone companion
+    │   ├── PlayerHealth.js # Player health component
     │   ├── BulletPool.js  # Bullet pool implementation
     │   └── SpritePool.js  # Sprite object pool (effects, pickups)
     ├── managers/          # Game system managers
+    │   ├── AnimationManager.js # Animation handling
+    │   ├── CashManager.js # In-game currency system
+    │   ├── ChaosManager.js # Dynamic difficulty system
+    │   ├── CollectibleManager.js # Pickup item management
+    │   ├── EnemyManager.js # Enemy spawning and management
     │   ├── GameObjectManager.js # Centralized object manager
+    │   ├── GroupManager.js # Entity group management
+    │   ├── ShopManager.js # Upgrade shop system
     │   ├── SoundManager.js # Centralized audio system
     │   ├── UIManager.js   # UI components manager
-    │   └── WaveManager.js # Wave-based gameplay manager
+    │   ├── UpgradeManager.js # Player and weapon upgrades
+    │   ├── WaveManager.js # Wave-based gameplay manager
+    │   ├── WeaponManager.js # Weapon systems and drones
+    │   └── XPManager.js   # Experience and leveling system
     ├── mapping/           # Tile map handling
-    │   └── TileMapManager.js # Map creation and handling
+    │   └── MapManager.js  # Map creation and handling
+    ├── systems/           # Core game systems
+    ├── ui/                # UI components and helpers
+    ├── utils/             # Utility functions
+    │   └── ButtonSoundHelper.js # Sound effects for buttons
     └── scenes/            # Game screens
         ├── Boot.js        # Initial loading
         ├── GameOver.js    # End screen
         ├── MainMenu.js    # Menu screen
+        ├── PreSpawn.js    # Game instructions screen
         ├── Preloader.js   # Asset loading
+        ├── ShopMenuScene.js # Upgrade shop between waves
         └── WaveGame.jsx   # Main gameplay scene with wave-based mechanics
 ```
 
@@ -74,7 +102,9 @@ Initializes the Phaser game with appropriate configuration.
 - `Boot` - Initial loading
 - `Preloader` - Asset loading
 - `MainMenu` - Game menu
+- `PreSpawn` - Instructions and preparation before gameplay
 - `WaveGame` - Main gameplay scene with wave-based mechanics
+- `ShopMenuScene` - Upgrade shop between waves
 - `GameOver` - End screen
 
 ## Communication System
@@ -103,8 +133,13 @@ The game follows a specific scene flow:
 1. **Boot Scene** - Initial loading and setup
 2. **Preloader Scene** - Loads all game assets
 3. **MainMenu Scene** - Player selects game mode
-4. **WaveGame Scene** - Main gameplay
-5. **GameOver Scene** - Displays results when player dies
+4. **PreSpawn Scene** - Displays instructions and controls
+5. **WaveGame Scene** - Main gameplay
+6. **ShopMenuScene** - Between waves for purchasing upgrades
+7. **GameOver Scene** - Displays results when player dies
+
+The typical gameplay loop is:
+WaveGame (complete wave) → ShopMenuScene (purchase upgrades) → WaveGame (next wave)
 
 ### Scene Transitions
 
@@ -115,9 +150,9 @@ Scenes transition between each other using Phaser's scene management:
 this.scene.start('WaveGame', { gameMode: 'minigun' });
 
 // Example: Transitioning to GameOver with stats
-this.scene.start('GameOver', { 
+this.scene.start('GameOver', {
     survivalTime: this.survivalTime,
-    killCount: this.killCount 
+    killCount: this.killCount
 });
 ```
 

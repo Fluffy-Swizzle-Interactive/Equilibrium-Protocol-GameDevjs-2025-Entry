@@ -13,7 +13,7 @@
     "bugs": {
         "url": "https://github.com/phaserjs/template-react/issues"
     },
-    "homepage": "https://github.com/phaserjs/template-react#readme",
+    "homepage": "https://fluffy-swizzle-interactive.github.io/Equilibrium-Protocol-GameDevjs-2025-Entry/",
     "keywords": [
         "phaser",
         "phaser3",
@@ -23,7 +23,7 @@
     "scripts": {
         "dev": "node log.js dev & vite --config vite/config.dev.mjs",
         "build": "node log.js build & vite build --config vite/config.prod.mjs",
-        "preview": "vite preview",
+        "preview": "vite preview --config vite/config.prod.mjs",
         "dev-nolog": "vite --config vite/config.dev.mjs",
         "build-nolog": "vite build --config vite/config.prod.mjs",
         "deploy": "npm run build && butler push dist fluffymcchicken/gjg2:web",
@@ -44,6 +44,7 @@
         "eslint-plugin-react": "^7.34.2",
         "eslint-plugin-react-hooks": "^4.6.2",
         "eslint-plugin-react-refresh": "^0.4.7",
+        "gh-pages": "^6.3.0",
         "terser": "^5.28.1",
         "vite": "^5.3.1"
     }
