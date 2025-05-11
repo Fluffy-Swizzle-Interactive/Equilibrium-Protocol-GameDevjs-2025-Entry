@@ -128,4 +128,4 @@ When updating documentation:
 
 ---
 
-*This documentation is maintained by the -Swizz Interactive development team.*
+*This documentation is maintained by the Fluffy-Swizz Interactive development team.*
