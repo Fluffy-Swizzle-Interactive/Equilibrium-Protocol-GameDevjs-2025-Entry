@@ -53,3 +53,49 @@ If game assets are not loading correctly:
 2. Verify the asset path in the asset manifest
 3. Make sure the asset is correctly placed in the public/assets directory
 4. Try clearing the browser cache
+
+### Wave Progression Issues
+
+If rounds/waves fail to progress or get stuck:
+
+#### Invisible Enemies in Walls
+Sometimes enemies can spawn inside walls or obstacles, making them unreachable by player bullets:
+
+**Symptoms:**
+- Wave doesn't complete despite appearing to have no visible enemies
+- Enemy counter shows active enemies but none are visible on screen
+- Debug panel shows active enemies count > 0
+
+**Debug Steps:**
+1. Press `U` key in development mode to enable hitbox visualization
+2. Look for red circles (normal enemies) or magenta circles (stuck enemies)
+3. Check the browser console for debug messages about stuck enemies
+4. Use the debug panel to verify enemy counts match actual visible enemies
+
+**Automatic Fixes (Implemented):**
+- Enemy spawn validation now checks collision with walls/obstacles
+- Stuck enemy detection automatically removes unreachable enemies
+- Enhanced cleanup runs every 15 seconds to remove problematic enemies
+
+**Manual Fixes:**
+- Use the "Next Wave" button in debug panel to force wave progression
+- Restart the current wave if enemies remain stuck
+- Check collision layer setup in the map configuration
+
+#### Enemy Count Mismatches
+If tracked enemy counts don't match actual enemies:
+
+**Debug Steps:**
+1. Open browser console and look for "[WaveManager]" debug messages
+2. Check for enemy count mismatches or cleanup operations
+3. Verify that enemy pools are properly releasing destroyed enemies
+
+**Console Test:**
+Run this in browser console to diagnose enemy issues:
+```javascript
+// Check current enemy state
+const scene = window.phaserGame?.scene?.getScene('WaveGame');
+if (scene?.waveManager) {
+    scene.waveManager.verifyEnemyCount();
+}
+```
