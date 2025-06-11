@@ -168,8 +168,8 @@ export class VolumeSlider {
 
             // Call onChange callback if provided
             if (this.options.onChange) {
-                // Scale the value to max out at 0.1 for actual volume
-                const scaledValue = newValue * 0.1;
+                // Scale the value to max out at 0.8 for actual volume
+                const scaledValue = newValue * 0.8;
                 this.options.onChange(scaledValue);
             }
         }
@@ -188,22 +188,22 @@ export class VolumeSlider {
 
     /**
      * Set the slider value programmatically
-     * @param {number} value - New value (0-0.1 for actual volume, will be scaled to 0-1 for display)
+     * @param {number} value - New value (0-0.8 for actual volume, will be scaled to 0-1 for display)
      */
     setValue(value) {
-        // Scale the incoming value from 0-0.1 to 0-1 for the visual slider
-        const scaledValue = value / 0.1;
+        // Scale the incoming value from 0-0.8 to 0-1 for the visual slider
+        const scaledValue = value / 0.8;
         this.value = Phaser.Math.Clamp(scaledValue, 0, 1);
         this.updateVisuals();
     }
 
     /**
      * Get the current slider value
-     * @returns {number} Current value (0-0.1 for actual volume)
+     * @returns {number} Current value (0-0.8 for actual volume)
      */
     getValue() {
-        // Scale the internal 0-1 value to 0-0.1 for actual volume
-        return this.value * 0.1;
+        // Scale the internal 0-1 value to 0-0.8 for actual volume
+        return this.value * 0.8;
     }
 
     /**
