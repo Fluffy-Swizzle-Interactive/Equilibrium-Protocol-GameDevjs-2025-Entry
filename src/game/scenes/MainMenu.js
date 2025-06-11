@@ -34,7 +34,7 @@ export class MainMenu extends Scene
         waveButton.on('pointerdown', () => {
             // Emit button click event for sound
             EventBus.emit('button-click', {
-                volume: 0.06, // Reduced to 10% of original value (0.6 -> 0.06)
+                volume: 0.4, // Increased volume for better audio output
                 detune: -200, // Pitch down slightly
                 rate: 1.2 // Speed up slightly
             });
@@ -111,13 +111,13 @@ export class MainMenu extends Scene
 
         // Initialize menu music
         this.soundManager.initBackgroundMusic('menu_music', {
-            volume: 0.04,  // Reduced to 10% of original value (0.4 -> 0.04)
+            volume: 0.3,  // Increased volume for better audio output
             loop: true
         });
 
         // Initialize UI sound effects
         this.soundManager.initSoundEffect('button_click', {
-            volume: 0.06, // Reduced to 10% of original value (0.6 -> 0.06)
+            volume: 0.4, // Increased volume for better audio output
             rate: 1.0
         });
 
@@ -194,7 +194,7 @@ export class MainMenu extends Scene
     handleVolumeControls() {
         if (!this.soundManager) return;
 
-        const volumeStep = 0.01; // 1% volume change per key press (of the 0-0.1 range)
+        const volumeStep = 0.08; // 10% volume change per key press (of the 0-0.8 range)
         let volumeChanged = false;
         let newVolume = this.soundManager.musicVolume;
 
@@ -206,7 +206,7 @@ export class MainMenu extends Scene
 
         // Check for volume up key (0)
         if (Phaser.Input.Keyboard.JustDown(this.volumeUpKey)) {
-            newVolume = Math.min(0.1, newVolume + volumeStep);
+            newVolume = Math.min(0.8, newVolume + volumeStep);
             volumeChanged = true;
         }
 
@@ -235,8 +235,8 @@ export class MainMenu extends Scene
             this.volumeIndicator.destroy();
         }
 
-        // Calculate percentage for display
-        const volumePercent = Math.round(volume * 100);
+        // Calculate percentage for display (based on 0-0.8 range)
+        const volumePercent = Math.round((volume / 0.8) * 100);
 
         // Get camera dimensions
         const camera = this.cameras.main;

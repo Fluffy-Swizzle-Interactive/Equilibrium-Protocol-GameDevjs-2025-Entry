@@ -33,8 +33,17 @@ The game uses a centralized `SoundManager` class to handle all audio playback.
 - `options` - Configuration options
 - `isMuted` - Current mute state
 - `masterVolume` - Overall volume level (0-1)
-- `soundVolume` - Sound effects volume level (0-1)
-- `musicVolume` - Music volume level (0-1)
+- `soundVolume` - Sound effects volume level (0-0.8)
+- `musicVolume` - Music volume level (0-0.8)
+
+### Volume System
+
+The sound system uses an enhanced volume management approach:
+
+- **Maximum Volume Range**: 0 to 0.8 (80% of full Phaser volume range)
+- **Dynamic Range Compression**: Automatic compression prevents sudden loud sounds
+- **Smooth Fade-ins**: All music starts with a minimum 200ms fade-in for smoother entry
+- **Volume Scaling**: UI sliders map 0-100% to the 0-0.8 range internally
 
 ## Implementation
 
@@ -47,8 +56,8 @@ The sound manager is initialized in each scene that requires audio:
 this.soundManager = new SoundManager(this);
 this.soundManager.init({
     masterVolume: 0.8,
-    soundVolume: 1.0,
-    musicVolume: 0.6,
+    soundVolume: 0.5,
+    musicVolume: 0.4,
     defaultSoundConfig: {
         rate: 1,
         detune: 0,
@@ -62,7 +71,7 @@ this.soundManager.init({
         seek: 0,
         loop: true,
         delay: 0,
-        volume: 0.6
+        volume: 0.4
     }
 });
 ```
@@ -179,6 +188,29 @@ preload() {
 }
 ```
 
+#### Format Recommendations
+
+**For optimal volume output and compatibility:**
+
+1. **MP3 (Primary)**: Best overall compatibility and quality
+   - Use 44.1kHz sample rate
+   - 128-320 kbps bitrate for SFX, 192-320 kbps for music
+   - Excellent compression and browser support
+
+2. **OGG Vorbis (Fallback)**: Open-source alternative
+   - Generally smaller file sizes than MP3
+   - Good quality at lower bitrates
+   - Supported by Firefox and Chrome
+
+3. **WAV (Legacy)**: Uncompressed format
+   - Use only for very short SFX (< 2 seconds)
+   - Larger file sizes but immediate playback
+
+**Volume Optimization Tips:**
+- Normalize audio files to -3dB to prevent clipping
+- Use consistent volume levels across similar sound types
+- Apply soft limiting during production to maintain dynamic range
+
 ## Performance Considerations
 
 ### Audio Pooling
@@ -223,6 +255,36 @@ playPooledSound(key, maxInstances = 4, config = {}) {
     return sound;
 }
 ```
+
+### Dynamic Range Compression
+
+The sound manager includes built-in dynamic range compression to prevent sudden loud sounds and maintain consistent audio levels:
+
+```javascript
+/**
+ * Apply dynamic range compression to a volume value
+ * This helps prevent sudden loud sounds and manages dynamic range
+ * @param {number} volume - Input volume (0-1)
+ * @param {number} threshold - Compression threshold (default 0.7)
+ * @param {number} ratio - Compression ratio (default 3:1)
+ * @returns {number} Compressed volume
+ */
+applyCompression(volume, threshold = 0.7, ratio = 3) {
+    if (volume <= threshold) {
+        return volume;
+    }
+    
+    // Apply compression above threshold
+    const excess = volume - threshold;
+    const compressedExcess = excess / ratio;
+    return threshold + compressedExcess;
+}
+```
+
+**Compression Settings:**
+- **Threshold**: 0.7 (70% volume level)
+- **Ratio**: 3:1 (sounds above threshold are reduced by a factor of 3)
+- **Automatic Application**: All sound effects and music automatically use compression
 
 ### Distance-Based Audio
 
