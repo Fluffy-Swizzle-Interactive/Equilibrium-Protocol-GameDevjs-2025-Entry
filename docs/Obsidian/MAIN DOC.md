@@ -324,7 +324,7 @@ Manages enemy entities including movement, collision, and boss variants.
 
 - `size` - Enemy size (15 for normal, 50 for boss)
 
-- `health` - Health points (10 for normal, 10000 for boss)
+- `health` - Health points (10 for normal, 1500 for boss)
 
 - `isBoss` - Boolean flag for boss enemies
 
