@@ -431,8 +431,13 @@ export class EnemyManager {
             const offsetY = Math.sin(angle) * distance;
             
             // Calculate final spawn position with offset and clamp to map
-            const x = Math.max(50, Math.min(mapDimensions.width - 50, baseX + offsetX));
-            const y = Math.max(50, Math.min(mapDimensions.height - 50, baseY + offsetY));
+            let x = Math.max(50, Math.min(mapDimensions.width - 50, baseX + offsetX));
+            let y = Math.max(50, Math.min(mapDimensions.height - 50, baseY + offsetY));
+            
+            // Validate spawn position to avoid walls/obstacles
+            const validatedPosition = this.validateSpawnPosition(x, y, 32); // 32px radius for enemy size
+            x = validatedPosition.x;
+            y = validatedPosition.y;
             
             // Create enemy from pool
             const enemy = this.spawnEnemy(type, x, y, options);
@@ -516,8 +521,11 @@ export class EnemyManager {
             x = Math.max(50, Math.min(mapDimensions.width - 50, x));
             y = Math.max(50, Math.min(mapDimensions.height - 50, y));
             
+            // Validate spawn position to avoid walls/obstacles
+            const validatedPosition = this.validateSpawnPosition(x, y, 32); // 32px radius for enemy size
+            
             // Spawn the enemy
-            this.spawnEnemy(type, x, y);
+            this.spawnEnemy(type, validatedPosition.x, validatedPosition.y);
         }
     }
     
@@ -541,6 +549,11 @@ export class EnemyManager {
         // Ensure spawn is within map bounds
         x = Math.max(50, Math.min(mapDimensions.width - 50, x));
         y = Math.max(50, Math.min(mapDimensions.height - 50, y));
+        
+        // Validate spawn position to avoid walls/obstacles (bosses are larger)
+        const validatedPosition = this.validateSpawnPosition(x, y, 64); // 64px radius for boss size
+        x = validatedPosition.x;
+        y = validatedPosition.y;
         
         // Increment boss counter - each boss gets progressively harder
         this.bossCounter++;
@@ -933,5 +946,96 @@ export class EnemyManager {
             if (projectile.graphics) projectile.graphics.destroy();
         });
         this.projectiles = [];
+    }
+    
+    /**
+     * Validate and fix spawn position to avoid walls/obstacles
+     * @param {number} x - Initial X position
+     * @param {number} y - Initial Y position
+     * @param {number} radius - Radius around position to check (enemy size)
+     * @returns {Object} Validated position {x, y}
+     */
+    validateSpawnPosition(x, y, radius = 32) {
+        // Check if we have a map manager to validate against
+        if (!this.scene.mapManager || !this.scene.mapManager.currentMapData) {
+            // If no map manager or map data, just ensure we're within reasonable bounds
+            const mapDimensions = this.scene.mapDimensions || { width: 1920, height: 1080 };
+            const clampedX = Math.max(radius, Math.min(mapDimensions.width - radius, x));
+            const clampedY = Math.max(radius, Math.min(mapDimensions.height - radius, y));
+            return { x: clampedX, y: clampedY };
+        }
+        
+        // Get collision layers to check against
+        const collisionLayers = ['Walls', 'Props', 'Props1']; // Common collision layer names
+        
+        // Check if the initial position is valid
+        const isValidPosition = (testX, testY) => {
+            // Check multiple points around the enemy's radius
+            const checkPositions = [
+                { x: testX, y: testY }, // Center
+                { x: testX - radius, y: testY }, // Left
+                { x: testX + radius, y: testY }, // Right
+                { x: testX, y: testY - radius }, // Top
+                { x: testX, y: testY + radius }, // Bottom
+            ];
+            
+            for (const pos of checkPositions) {
+                for (const layerName of collisionLayers) {
+                    try {
+                        if (!this.scene.mapManager.isPositionValid(pos.x, pos.y, { collisionLayer: layerName })) {
+                            return false;
+                        }
+                    } catch (error) {
+                        // If there's an error checking collision, assume the position is valid
+                        // This prevents crashes when map layers aren't properly initialized
+                        if (this.isDev) {
+                            console.warn(`[EnemyManager] Error checking collision for layer ${layerName}:`, error);
+                        }
+                        continue;
+                    }
+                }
+            }
+            return true;
+        };
+        
+        // If initial position is valid, return it
+        if (isValidPosition(x, y)) {
+            return { x, y };
+        }
+        
+        // Try to find a nearby valid position
+        const maxAttempts = 20;
+        const searchRadius = 100; // How far to search for a valid position
+        
+        for (let attempt = 0; attempt < maxAttempts; attempt++) {
+            // Generate a random position within search radius
+            const angle = Math.random() * Math.PI * 2;
+            const distance = Math.random() * searchRadius;
+            const testX = x + Math.cos(angle) * distance;
+            const testY = y + Math.sin(angle) * distance;
+            
+            // Ensure test position is within map bounds
+            const mapDimensions = this.scene.mapDimensions || { width: 1920, height: 1080 };
+            const clampedX = Math.max(radius, Math.min(mapDimensions.width - radius, testX));
+            const clampedY = Math.max(radius, Math.min(mapDimensions.height - radius, testY));
+            
+            if (isValidPosition(clampedX, clampedY)) {
+                if (this.isDev) {
+                    console.debug(`[EnemyManager] Adjusted spawn position from (${x}, ${y}) to (${clampedX}, ${clampedY}) after ${attempt + 1} attempts`);
+                }
+                return { x: clampedX, y: clampedY };
+            }
+        }
+        
+        // If no valid position found, return a fallback position near the center of the map
+        const mapDimensions = this.scene.mapDimensions || { width: 1920, height: 1080 };
+        const fallbackX = mapDimensions.width / 2;
+        const fallbackY = mapDimensions.height / 2;
+        
+        if (this.isDev) {
+            console.warn(`[EnemyManager] Could not find valid spawn position near (${x}, ${y}), using fallback position (${fallbackX}, ${fallbackY})`);
+        }
+        
+        return { x: fallbackX, y: fallbackY };
     }
 }

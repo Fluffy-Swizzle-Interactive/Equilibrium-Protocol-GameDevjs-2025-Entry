@@ -611,6 +611,43 @@ increaseDifficulty() {
 }
 ```
 
+### Spawn Position Validation
+
+The enemy spawning system now includes collision validation to prevent enemies from spawning inside walls or obstacles:
+
+```javascript
+// In EnemyManager.js
+validateSpawnPosition(x, y, radius = 32) {
+    // Check if we have a map manager to validate against
+    if (!this.scene.mapManager || !this.scene.mapManager.currentMapData) {
+        // Fallback to basic bounds checking
+        const mapDimensions = this.scene.mapDimensions || { width: 1920, height: 1080 };
+        const clampedX = Math.max(radius, Math.min(mapDimensions.width - radius, x));
+        const clampedY = Math.max(radius, Math.min(mapDimensions.height - radius, y));
+        return { x: clampedX, y: clampedY };
+    }
+    
+    // Check collision with walls, props, and other obstacles
+    const collisionLayers = ['Walls', 'Props', 'Props1'];
+    
+    // If spawn position is invalid, search for a nearby valid position
+    // Falls back to map center if no valid position found within search radius
+}
+
+// Used in all spawn methods:
+spawnEnemiesAtEdges(type, count = 1) {
+    // ... calculate spawn position ...
+    
+    // Validate spawn position to avoid walls/obstacles
+    const validatedPosition = this.validateSpawnPosition(x, y, 32);
+    
+    // Spawn the enemy at validated position
+    this.spawnEnemy(type, validatedPosition.x, validatedPosition.y);
+}
+```
+
+This prevents the issue where enemies could spawn inside walls and become unreachable, causing waves to never complete.
+
 ## Enemy Health Display
 
 Enemies display health bars above them:

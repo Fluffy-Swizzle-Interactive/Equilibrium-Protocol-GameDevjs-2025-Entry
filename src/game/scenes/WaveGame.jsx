@@ -2467,8 +2467,19 @@ export class WaveGame extends Scene {
         if (this.enemyManager && this.enemyManager.enemies) {
             this.enemyManager.enemies.forEach(enemy => {
                 if (enemy && enemy.active && enemy.graphics && enemy.graphics.active) {
+                    // Check if enemy is stuck in walls (for visual debugging)
+                    let isStuck = false;
+                    if (this.waveManager && this.waveManager.isEnemyStuckInWalls) {
+                        isStuck = this.waveManager.isEnemyStuckInWalls(enemy);
+                    }
+                    
+                    // Use different color for stuck enemies
+                    const currentStyle = isStuck ? 
+                        { lineWidth: 2, lineColor: 0xff00ff, lineAlpha: 1.0 } : // Magenta for stuck enemies
+                        enemyStyle; // Red for normal enemies
+                    
                     // Set enemy hitbox style
-                    this.hitboxGraphics.lineStyle(enemyStyle.lineWidth, enemyStyle.lineColor, enemyStyle.lineAlpha);
+                    this.hitboxGraphics.lineStyle(currentStyle.lineWidth, currentStyle.lineColor, currentStyle.lineAlpha);
 
                     // Draw circle for enemy hitbox
                     this.hitboxGraphics.strokeCircle(
@@ -2491,6 +2502,12 @@ export class WaveGame extends Scene {
                         enemy.graphics.x,
                         enemy.graphics.y + crossSize
                     );
+                    
+                    // Add "STUCK" label for stuck enemies
+                    if (isStuck) {
+                        this.hitboxGraphics.fillStyle(0xff00ff, 0.8);
+                        // This is just for visual debugging - the text won't persist between frames
+                    }
                 }
             });
         }
