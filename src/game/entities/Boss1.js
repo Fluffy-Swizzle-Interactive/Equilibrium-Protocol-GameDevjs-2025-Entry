@@ -30,8 +30,8 @@ export class Boss1 extends BaseEnemy {
         this.speed = 0.3; // Slower
         this.size = 80;   // Much larger
         this.color = 0xff0000; // Red color
-        this.health = 10000;
-        this.baseHealth = 10000;
+        this.health = 1500;
+        this.baseHealth = 1500;
         this.damage = 40;
         this.scoreValue = 100;
         
@@ -168,7 +168,7 @@ export class Boss1 extends BaseEnemy {
             
             // If it's a summon attack, immediately spawn minions
             if (pattern.name === 'summon') {
-                this.summonMinions(playerPos);
+                this.summonMinions();
             }
             
         } else if (this.isAttacking) {
@@ -318,9 +318,8 @@ export class Boss1 extends BaseEnemy {
     
     /**
      * Spawn minions around the boss
-     * @param {Object} playerPos - The player's position {x, y}
      */
-    summonMinions(playerPos) {
+    summonMinions() {
         // Request the EnemyManager to spawn minions around the boss
         if (this.scene.enemyManager) {
             const visual = this.sprite || this.graphics;

@@ -148,7 +148,7 @@ this.enemyConfigs = {
 this.bossConfigs = {
     'boss1': {
         sprite: 'boss1',
-        health: 1000,
+        health: 1500,
         speed: 80,
         damage: 30,
         scoreValue: 100,
