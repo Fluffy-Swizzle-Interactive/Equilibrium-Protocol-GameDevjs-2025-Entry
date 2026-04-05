@@ -28,8 +28,8 @@ let mainWindow
 
 function createWindow() {
   mainWindow = new BrowserWindow({
-    width: 1280,
-    height: 720,
+    width: 1024,
+    height: 768,
     minWidth: 1024,
     minHeight: 768,
     fullscreenable: true,
@@ -38,7 +38,6 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: false,
     },
   })
 
