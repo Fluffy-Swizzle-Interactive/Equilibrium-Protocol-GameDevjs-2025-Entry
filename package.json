@@ -28,7 +28,9 @@
         "build-nolog": "vite build --config vite/config.prod.mjs",
         "deploy": "npm run build && butler push dist fluffymcchicken/gjg2:web",
         "deploy:win": "npm run build && butler push dist fluffymcchicken/gjg2:windows-web",
-        "deploy:all": "npm run build && butler push dist fluffymcchicken/gjg2:all"
+        "deploy:all": "npm run build && butler push dist fluffymcchicken/gjg2:all",
+        "test": "vitest run",
+        "test:watch": "vitest"
     },
     "dependencies": {
         "phaser": "^3.88.2",
@@ -37,6 +39,8 @@
         "react-dom": "^18.3.1"
     },
     "devDependencies": {
+        "@testing-library/jest-dom": "^6.9.1",
+        "@testing-library/react": "^16.3.2",
         "@types/react": "^18.3.3",
         "@types/react-dom": "^18.3.0",
         "@vitejs/plugin-react": "^4.3.1",
@@ -45,7 +49,9 @@
         "eslint-plugin-react-hooks": "^4.6.2",
         "eslint-plugin-react-refresh": "^0.4.7",
         "gh-pages": "^6.3.0",
+        "jsdom": "^29.0.1",
         "terser": "^5.28.1",
-        "vite": "^5.3.1"
+        "vite": "^5.3.1",
+        "vitest": "^4.1.2"
     }
 }
