@@ -2,6 +2,7 @@ import { useRef, useState, useEffect } from 'react';
 import { PhaserGame } from './game/PhaserGame';
 import { DebugPanel } from './game/debug/DebugPanel';
 import { EventBus } from './game/EventBus';
+import { ErrorBoundary } from './ErrorBoundary';
 
 function App() {
     // Reference to the PhaserGame component (game and scene are exposed)
@@ -35,7 +36,9 @@ function App() {
     return (
         <div id="app">
             <div style={{ position: 'relative' }}>
-                <PhaserGame ref={phaserRef} />
+                <ErrorBoundary>
+                    <PhaserGame ref={phaserRef} />
+                </ErrorBoundary>
             </div>
             
             {isDev && (
