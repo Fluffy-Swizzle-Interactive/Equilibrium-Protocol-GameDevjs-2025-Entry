@@ -44,6 +44,10 @@
         "@types/react": "^18.3.3",
         "@types/react-dom": "^18.3.0",
         "@vitejs/plugin-react": "^4.3.1",
+        "concurrently": "^9.2.1",
+        "cross-env": "^10.1.0",
+        "electron": "^41.1.1",
+        "electron-builder": "^26.8.1",
         "eslint": "^8.57.0",
         "eslint-plugin-react": "^7.34.2",
         "eslint-plugin-react-hooks": "^4.6.2",
@@ -52,6 +56,7 @@
         "jsdom": "^29.0.1",
         "terser": "^5.28.1",
         "vite": "^5.3.1",
-        "vitest": "^4.1.2"
+        "vitest": "^4.1.2",
+        "wait-on": "^9.0.4"
     }
 }
