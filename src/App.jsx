@@ -26,6 +26,19 @@ function App() {
         };
     }, []);
 
+    // F11 toggles fullscreen in Electron desktop builds.
+    // window.electronAPI is undefined in web/browser builds — optional chaining is intentional.
+    useEffect(() => {
+        const handleKeyDown = (e) => {
+            if (e.key === 'F11') {
+                e.preventDefault()
+                window.electronAPI?.toggleFullscreen()
+            }
+        }
+        window.addEventListener('keydown', handleKeyDown)
+        return () => window.removeEventListener('keydown', handleKeyDown)
+    }, [])
+
     const changeScene = () => {
         const scene = phaserRef.current.scene;
         if (scene) {
