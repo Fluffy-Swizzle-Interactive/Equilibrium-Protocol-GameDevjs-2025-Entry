@@ -23,6 +23,7 @@ import { HealthRegenerationSystem } from '../systems/HealthRegenerationSystem';
 import { AnimationManager } from '../managers/AnimationManager';
 import { DEPTHS, CHAOS } from '../constants';
 import { KillTimerManager } from '../managers/KillTimerManager';
+import { SaveManager } from '../managers/SaveManager';
 
 /**
  * WaveGame scene
@@ -1114,6 +1115,11 @@ export class WaveGame extends Scene {
             console.debug('Victory! All waves completed.');
         }
 
+        this.saveSessionStats(
+            this.waveManager ? this.waveManager.maxWaves : 20,
+            this.killCount || 0
+        )
+
         // Show victory UI
         this.uiManager.showVictoryUI();
 
@@ -1847,6 +1853,24 @@ export class WaveGame extends Scene {
     }
 
     /**
+     * Save end-of-session stats (wave reached, kills).
+     * Accumulates total kills across sessions.
+     * @param {number} waveReached
+     * @param {number} sessionKills
+     */
+    async saveSessionStats(waveReached, sessionKills) {
+        try {
+            const current = await SaveManager.loadGameState()
+            await SaveManager.saveGameState({
+                highestWave: Math.max(current.highestWave, waveReached),
+                totalKills: current.totalKills + sessionKills,
+            })
+        } catch (e) {
+            console.warn('[WaveGame] Failed to save session stats:', e)
+        }
+    }
+
+    /**
      * Handle player death
      * Called when player health reaches 0
      */
@@ -1856,6 +1880,11 @@ export class WaveGame extends Scene {
 
         // Set game over state
         this.isGameOver = true;
+
+        this.saveSessionStats(
+            this.waveManager ? this.waveManager.currentWave : 0,
+            this.killCount || 0
+        )
 
         // Stop any active waves
         if (this.waveManager) {
