@@ -32,6 +32,10 @@ const config = {
         deltaHistory: 10,     // Number of frames to calculate average
         panicMax: 60         // FPS threshold to reset delta history if exceeded
     },
+    // Enable gamepad input
+    input: {
+        gamepad: true
+    },
     // Enable physics
     physics: {
         default: 'arcade',
