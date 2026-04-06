@@ -53,9 +53,15 @@ function createWindow() {
     mainWindow.loadFile(path.join(__dirname, '../dist/electron/index.html'))
   }
 
-  // Open external links in the system browser, not in the game window
+  // Open external links in the system browser, not in the game window.
+  // Only allow http/https to prevent file: or custom-protocol abuse.
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    shell.openExternal(url)
+    try {
+      const { protocol } = new URL(url)
+      if (protocol === 'https:' || protocol === 'http:') {
+        shell.openExternal(url)
+      }
+    } catch (_) { /* malformed URL — deny silently */ }
     return { action: 'deny' }
   })
 
