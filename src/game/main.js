@@ -18,6 +18,10 @@ const config = {
     width: 1024,
     height: 768,
     parent: 'game-container',
+    scale: {
+        mode: Phaser.Scale.FIT,
+        autoCenter: Phaser.Scale.CENTER_BOTH,
+    },
     backgroundColor: '#028af8',
     // FPS configuration
     fps: {

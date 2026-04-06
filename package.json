@@ -2,6 +2,7 @@
     "name": "phaser-editor-template-react",
     "description": "A Phaser 3 project template that demonstrates React communication and uses Vite for bundling.",
     "version": "1.1.1",
+    "main": "electron/main.cjs",
     "type": "module",
     "repository": {
         "type": "git",
@@ -22,13 +23,20 @@
     ],
     "scripts": {
         "dev": "node log.js dev & vite --config vite/config.dev.mjs",
+        "dev:electron": "concurrently \"vite --config vite/config.dev.mjs\" \"wait-on http://localhost:5173 && cross-env NODE_ENV=development electron .\"",
         "build": "node log.js build & vite build --config vite/config.prod.mjs",
+        "build:web": "vite build --config vite/config.prod.mjs --outDir dist/web --emptyOutDir",
+        "build:electron": "vite build --config vite/config.electron.mjs",
+        "build:win": "npm run build:electron && electron-builder --win --config electron-builder.config.cjs",
+        "build:linux": "npm run build:electron && electron-builder --linux --config electron-builder.config.cjs",
         "preview": "vite preview --config vite/config.prod.mjs",
         "dev-nolog": "vite --config vite/config.dev.mjs",
         "build-nolog": "vite build --config vite/config.prod.mjs",
-        "deploy": "npm run build && butler push dist fluffymcchicken/gjg2:web",
-        "deploy:win": "npm run build && butler push dist fluffymcchicken/gjg2:windows-web",
-        "deploy:all": "npm run build && butler push dist fluffymcchicken/gjg2:all"
+        "test": "vitest run",
+        "test:watch": "vitest",
+        "deploy": "npm run build:web && butler push dist/web fluffymcchicken/gjg2:web",
+        "deploy:win": "npm run build:web && butler push dist/web fluffymcchicken/gjg2:windows-web",
+        "deploy:all": "npm run build:web && butler push dist/web fluffymcchicken/gjg2:all"
     },
     "dependencies": {
         "phaser": "^3.88.2",
@@ -37,15 +45,24 @@
         "react-dom": "^18.3.1"
     },
     "devDependencies": {
+        "@testing-library/jest-dom": "^6.9.1",
+        "@testing-library/react": "^16.3.2",
         "@types/react": "^18.3.3",
         "@types/react-dom": "^18.3.0",
         "@vitejs/plugin-react": "^4.3.1",
+        "concurrently": "^9.2.1",
+        "cross-env": "^10.1.0",
+        "electron": "^41.1.1",
+        "electron-builder": "^26.8.1",
         "eslint": "^8.57.0",
         "eslint-plugin-react": "^7.34.2",
         "eslint-plugin-react-hooks": "^4.6.2",
         "eslint-plugin-react-refresh": "^0.4.7",
         "gh-pages": "^6.3.0",
+        "jsdom": "^29.0.1",
         "terser": "^5.28.1",
-        "vite": "^5.3.1"
+        "vite": "^5.3.1",
+        "vitest": "^4.1.2",
+        "wait-on": "^9.0.4"
     }
 }

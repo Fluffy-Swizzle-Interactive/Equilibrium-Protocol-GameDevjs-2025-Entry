@@ -11,7 +11,11 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+release
 *.local
+
+# Git worktrees
+.worktrees
 
 # Editor directories and files
 .vscode/*

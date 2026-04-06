@@ -1,7 +1,8 @@
-import { useRef, useState, useEffect } from 'react';
+import { useRef, useEffect } from 'react';
 import { PhaserGame } from './game/PhaserGame';
 import { DebugPanel } from './game/debug/DebugPanel';
 import { EventBus } from './game/EventBus';
+import { ErrorBoundary } from './ErrorBoundary';
 
 function App() {
     // Reference to the PhaserGame component (game and scene are exposed)
@@ -25,6 +26,20 @@ function App() {
         };
     }, []);
 
+    // F11 toggles fullscreen in Electron desktop builds.
+    // In web/browser builds window.electronAPI is undefined, so we let the
+    // event fall through to the browser's native fullscreen behavior.
+    useEffect(() => {
+        const handleKeyDown = (e) => {
+            if (e.key === 'F11' && window.electronAPI) {
+                e.preventDefault()
+                window.electronAPI.toggleFullscreen()
+            }
+        }
+        window.addEventListener('keydown', handleKeyDown)
+        return () => window.removeEventListener('keydown', handleKeyDown)
+    }, [])
+
     const changeScene = () => {
         const scene = phaserRef.current.scene;
         if (scene) {
@@ -35,7 +50,9 @@ function App() {
     return (
         <div id="app">
             <div style={{ position: 'relative' }}>
-                <PhaserGame ref={phaserRef} />
+                <ErrorBoundary>
+                    <PhaserGame ref={phaserRef} />
+                </ErrorBoundary>
             </div>
             
             {isDev && (
