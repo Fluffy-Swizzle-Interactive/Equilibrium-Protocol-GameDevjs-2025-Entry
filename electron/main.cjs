@@ -23,6 +23,16 @@ process.on('uncaughtException', (error) => {
   } catch (_) { /* can't log the logger */ }
 })
 
+process.on('unhandledRejection', (reason) => {
+  try {
+    const message = reason instanceof Error ? reason.stack : String(reason)
+    fs.appendFileSync(
+      getLogPath(),
+      `${new Date().toISOString()} [unhandledRejection]\n${message}\n\n`
+    )
+  } catch (_) { /* can't log the logger */ }
+})
+
 // ── Window creation ──────────────────────────────────────────────────────────
 let mainWindow
 
