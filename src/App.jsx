@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect } from 'react';
+import { useRef, useEffect } from 'react';
 import { PhaserGame } from './game/PhaserGame';
 import { DebugPanel } from './game/debug/DebugPanel';
 import { EventBus } from './game/EventBus';
