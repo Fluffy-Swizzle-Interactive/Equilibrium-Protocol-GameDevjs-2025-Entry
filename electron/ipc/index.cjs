@@ -1,6 +1,6 @@
 'use strict'
 
-const { ipcMain, BrowserWindow } = require('electron')
+const { ipcMain } = require('electron')
 
 /**
  * Register all IPC handlers.
