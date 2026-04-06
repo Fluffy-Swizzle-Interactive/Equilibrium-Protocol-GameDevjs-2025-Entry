@@ -21,7 +21,12 @@ function registerIpcHandlers(mainWindow) {
   })
 
   // --- Data persistence ---
+  const ALLOWED_SAVE_KEYS = new Set(['settings', 'gameState'])
+
   ipcMain.handle('data:save', (_, key, data) => {
+    if (!ALLOWED_SAVE_KEYS.has(key)) {
+      return { success: false, error: `Unknown save key: ${key}` }
+    }
     try {
       const filePath = path.join(app.getPath('userData'), `${key}.json`)
       fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8')
@@ -32,6 +37,9 @@ function registerIpcHandlers(mainWindow) {
   })
 
   ipcMain.handle('data:load', (_, key) => {
+    if (!ALLOWED_SAVE_KEYS.has(key)) {
+      return { success: false, error: `Unknown save key: ${key}` }
+    }
     try {
       const filePath = path.join(app.getPath('userData'), `${key}.json`)
       if (!fs.existsSync(filePath)) return { success: true, data: null }

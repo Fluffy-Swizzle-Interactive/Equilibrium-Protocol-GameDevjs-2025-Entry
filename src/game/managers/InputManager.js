@@ -38,6 +38,10 @@ export class InputManager {
       [INPUT_ACTIONS.SHIELD]:     scene.input.keyboard.addKey(K.E),
     }
 
+    // Track previous gamepad button state for rising-edge (justDown) detection
+    /** @type {Record<string, boolean>} */
+    this._prevGamepadState = {}
+
     scene.input.gamepad.once('connected', (pad) => {
       console.log('[InputManager] Gamepad connected:', pad.id)
     })
@@ -54,7 +58,7 @@ export class InputManager {
   }
 
   /**
-   * Returns true only on the first frame the action is pressed.
+   * Returns true only on the first frame the action is pressed (rising edge).
    * @param {string} action - One of INPUT_ACTIONS values
    * @returns {boolean}
    */
@@ -63,10 +67,11 @@ export class InputManager {
       ? Phaser.Input.Keyboard.JustDown(this.keys[action])
       : false
     if (keyJustDown) return true
-    return this._isGamepadActionDown(action)
+    return this._isGamepadActionJustDown(action)
   }
 
   /**
+   * Returns true while the gamepad action is held.
    * @private
    */
   _isGamepadActionDown(action) {
@@ -91,5 +96,17 @@ export class InputManager {
       default:
         return false
     }
+  }
+
+  /**
+   * Returns true only on the rising edge of a gamepad action (first frame pressed).
+   * Reads current state, compares to previous frame, then stores current as previous.
+   * @private
+   */
+  _isGamepadActionJustDown(action) {
+    const current = this._isGamepadActionDown(action)
+    const previous = this._prevGamepadState[action] ?? false
+    this._prevGamepadState[action] = current
+    return current && !previous
   }
 }

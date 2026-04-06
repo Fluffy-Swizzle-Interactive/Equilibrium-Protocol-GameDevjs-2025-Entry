@@ -116,11 +116,13 @@ export class MainMenu extends Scene
         // Create sound manager
         this.soundManager = new SoundManager(this);
 
-        // Apply saved volume settings
+        // Apply saved volume settings via setters so clamping logic is applied
         const savedSettings = this.registry.get('savedSettings')
         if (savedSettings) {
-            this.soundManager.musicVolume = savedSettings.musicVolume
-            this.soundManager.effectsVolume = savedSettings.sfxVolume
+            const music = Number(savedSettings.musicVolume)
+            const sfx = Number(savedSettings.sfxVolume)
+            if (Number.isFinite(music)) this.soundManager.setMusicVolume(Math.max(0, Math.min(0.1, music)))
+            if (Number.isFinite(sfx)) this.soundManager.setEffectsVolume(Math.max(0, Math.min(0.1, sfx)))
         }
 
         // Initialize menu music
