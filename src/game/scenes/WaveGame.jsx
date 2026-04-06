@@ -24,6 +24,7 @@ import { AnimationManager } from '../managers/AnimationManager';
 import { DEPTHS, CHAOS } from '../constants';
 import { KillTimerManager } from '../managers/KillTimerManager';
 import { SaveManager } from '../managers/SaveManager';
+import { InputManager } from '../managers/InputManager';
 
 /**
  * WaveGame scene
@@ -905,22 +906,8 @@ export class WaveGame extends Scene {
             this.isMouseDown = false;
         });
 
-        // Set up WASD keys
-        this.wasd = {
-            up: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.W),
-            down: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.S),
-            left: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.A),
-            right: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D)
-        };
-
-        // Set up spacebar for pause
-        this.pauseKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
-
-        // Set up Q key for dash ability
-        this.dashKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.Q);
-
-        // Set up E key for shield ability
-        this.shieldKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
+        // Unified input manager (keyboard + gamepad)
+        this.inputManager = new InputManager(this);
 
 
         // Set up volume control keys (9 for volume down, 0 for volume up)
@@ -1258,7 +1245,7 @@ export class WaveGame extends Scene {
 
     update(time, delta) {
         // Handle pause state
-        if (Phaser.Input.Keyboard.JustDown(this.pauseKey)) {
+        if (this.inputManager.justDown('PAUSE')) {
             this.togglePause();
         }
 
@@ -1335,7 +1322,7 @@ export class WaveGame extends Scene {
         }
 
         // Check for dash ability activation (Q key)
-        if (Phaser.Input.Keyboard.JustDown(this.dashKey)) {
+        if (this.inputManager.justDown('DASH')) {
             if (this.player.hasDash) {
                 const dashActivated = this.player.activateDash();
 
@@ -1370,7 +1357,7 @@ export class WaveGame extends Scene {
         }
 
         // Check for shield ability activation (E key)
-        if (Phaser.Input.Keyboard.JustDown(this.shieldKey)) {
+        if (this.inputManager.justDown('SHIELD')) {
             if (this.player.hasShield) {
                 const shieldActivated = this.player.activateShield();
 
