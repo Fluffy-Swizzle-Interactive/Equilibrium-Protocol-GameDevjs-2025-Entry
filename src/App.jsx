@@ -27,12 +27,13 @@ function App() {
     }, []);
 
     // F11 toggles fullscreen in Electron desktop builds.
-    // window.electronAPI is undefined in web/browser builds — optional chaining is intentional.
+    // In web/browser builds window.electronAPI is undefined, so we let the
+    // event fall through to the browser's native fullscreen behavior.
     useEffect(() => {
         const handleKeyDown = (e) => {
-            if (e.key === 'F11') {
+            if (e.key === 'F11' && window.electronAPI) {
                 e.preventDefault()
-                window.electronAPI?.toggleFullscreen()
+                window.electronAPI.toggleFullscreen()
             }
         }
         window.addEventListener('keydown', handleKeyDown)

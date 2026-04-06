@@ -1,42 +1,46 @@
 describe('F11 fullscreen handler', () => {
-  it('calls electronAPI.toggleFullscreen when F11 is pressed', () => {
-    // Mock the electronAPI (only available in Electron, not browser/test)
+  it('calls electronAPI.toggleFullscreen and prevents default when Electron is present', () => {
     const toggleFullscreen = vi.fn().mockResolvedValue(true)
     window.electronAPI = { toggleFullscreen, isFullscreen: vi.fn(), platform: 'linux' }
 
-    // Simulate the keydown handler directly (the handler is tested in isolation)
     const handler = (e) => {
-      if (e.key === 'F11') {
+      if (e.key === 'F11' && window.electronAPI) {
         e.preventDefault()
-        window.electronAPI?.toggleFullscreen()
+        window.electronAPI.toggleFullscreen()
       }
     }
 
+    const event = new KeyboardEvent('keydown', { key: 'F11', cancelable: true })
+    const preventDefaultSpy = vi.spyOn(event, 'preventDefault')
+
     window.addEventListener('keydown', handler)
-    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'F11' }))
+    window.dispatchEvent(event)
     window.removeEventListener('keydown', handler)
 
     expect(toggleFullscreen).toHaveBeenCalledOnce()
+    expect(preventDefaultSpy).toHaveBeenCalledOnce()
 
     delete window.electronAPI
   })
 
-  it('does nothing when electronAPI is absent (web build)', () => {
-    // electronAPI is undefined in web/browser context
+  it('does not preventDefault and lets event fall through in web builds', () => {
+    // electronAPI is undefined — browser should handle F11 natively
     expect(window.electronAPI).toBeUndefined()
 
     const handler = (e) => {
-      if (e.key === 'F11') {
+      if (e.key === 'F11' && window.electronAPI) {
         e.preventDefault()
-        window.electronAPI?.toggleFullscreen()
+        window.electronAPI.toggleFullscreen()
       }
     }
 
-    // Should not throw
+    const event = new KeyboardEvent('keydown', { key: 'F11', cancelable: true })
+    const preventDefaultSpy = vi.spyOn(event, 'preventDefault')
+
     window.addEventListener('keydown', handler)
-    expect(() => {
-      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'F11' }))
-    }).not.toThrow()
+    window.dispatchEvent(event)
     window.removeEventListener('keydown', handler)
+
+    expect(preventDefaultSpy).not.toHaveBeenCalled()
   })
 })
