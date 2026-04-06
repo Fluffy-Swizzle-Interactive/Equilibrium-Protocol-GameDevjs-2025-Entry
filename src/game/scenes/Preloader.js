@@ -1,5 +1,6 @@
 import { EventBus } from '../EventBus';
 import { Scene } from 'phaser';
+import { SaveManager } from '../managers/SaveManager';
 
 export class Preloader extends Scene
 {
@@ -155,11 +156,20 @@ export class Preloader extends Scene
         this.load.tilemapTiledJSON('darkcavemap', 'assets/maps/darkcavenet.json');
     }
 
-    create ()
+    async create ()
     {
         // Double check if particle_texture was loaded, if not create a fallback
         if (!this.textures.exists('particle_texture')) {
             this.createFallbackParticleTexture();
+        }
+
+        // Load saved settings and store in Phaser's cross-scene registry
+        try {
+            const settings = await SaveManager.loadSettings()
+            this.registry.set('savedSettings', settings)
+        } catch (e) {
+            console.warn('[Preloader] Failed to load settings, using defaults:', e)
+            this.registry.set('savedSettings', SaveManager.defaultSettings())
         }
 
         EventBus.emit('preloader-complete', this);
