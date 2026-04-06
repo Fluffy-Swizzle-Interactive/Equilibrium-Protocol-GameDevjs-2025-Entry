@@ -2,8 +2,8 @@ name: Deploy Dev Build to GitHub Pages
 
 on:
   push:
-    branches:
-      - dev
+    tags:
+      - '*'
   workflow_dispatch:
 
 jobs:
