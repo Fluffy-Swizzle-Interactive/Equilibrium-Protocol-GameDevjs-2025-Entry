@@ -18,4 +18,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   /** @type {string} 'win32' | 'linux' | 'darwin' */
   platform: process.platform,
+
+  /** @param {string} key @param {Object} data @returns {Promise<{success: boolean, error?: string}>} */
+  saveData: (key, data) => ipcRenderer.invoke('data:save', key, data),
+
+  /** @param {string} key @returns {Promise<{success: boolean, data: Object|null, error?: string}>} */
+  loadData: (key) => ipcRenderer.invoke('data:load', key),
 })
