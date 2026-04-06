@@ -99,6 +99,12 @@ export class MainMenu extends Scene
                     this.soundManager.setMusicVolume(value);
                     this.soundManager.setEffectsVolume(value);
                 }
+                // Persist settings — fire and forget
+                SaveManager.saveSettings({
+                    musicVolume: value,
+                    sfxVolume: value,
+                    fullscreen: this.scale.isFullscreen,
+                });
             }
         });
     }
