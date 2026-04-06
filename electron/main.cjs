@@ -7,6 +7,10 @@ const { registerIpcHandlers } = require('./ipc/index.cjs')
 
 const isDev = process.env.NODE_ENV === 'development'
 
+// Ensure packaged builds use the productName for userData path,
+// not the package.json "name" field (phaser-editor-template-react).
+if (!isDev) app.setName('Equilibrium Protocol')
+
 // ── Crash logging ────────────────────────────────────────────────────────────
 function getLogPath() {
   const logDir = path.join(app.getPath('userData'), 'logs')
