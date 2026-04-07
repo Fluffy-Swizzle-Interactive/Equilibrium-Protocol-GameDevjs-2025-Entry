@@ -21,6 +21,17 @@ module.exports = {
     'package.json',
   ],
 
+  // steamworks.js contains native .node binaries that cannot run from inside
+  // an .asar archive — unpack the entire package into app.asar.unpacked.
+  asarUnpack: [
+    'node_modules/steamworks.js/**/*',
+  ],
+
+  // Copy steam_appid.txt next to the executable so Steam can identify the app.
+  extraFiles: [
+    { from: 'steam_appid.txt', to: 'steam_appid.txt' },
+  ],
+
   // electron-builder needs the package.json "main" field to point here
   // Already set to "electron/main.cjs" in Task 4.
 
