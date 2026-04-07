@@ -84,3 +84,7 @@ yarn-error.log*
 # Coverage directory used by tools like istanbul
 coverage/
 *.lcov
+
+# steam_appid.txt IS committed (with value 480 for dev).
+# Replace 480 with your real Steam App ID before release.
+# Do NOT commit the production App ID — set it via your build pipeline.
