@@ -1,5 +1,7 @@
 'use strict'
 
+const { registerSteamHandlers, initSteam } = require('./steam.cjs')
+
 const { ipcMain, app } = require('electron')
 const path = require('path')
 const fs = require('fs')
@@ -49,6 +51,11 @@ function registerIpcHandlers(mainWindow) {
       return { success: false, error: e.message }
     }
   })
+
+  // Register all Steamworks IPC routes
+  registerSteamHandlers()
+  // Attempt Steam init immediately (non-blocking — fails gracefully if Steam not running)
+  initSteam()
 }
 
 module.exports = { registerIpcHandlers }

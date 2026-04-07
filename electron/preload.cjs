@@ -25,3 +25,19 @@ contextBridge.exposeInMainWorld('electronAPI', {
   /** @param {string} key @returns {Promise<{success: boolean, data: Object|null, error?: string}>} */
   loadData: (key) => ipcRenderer.invoke('data:load', key),
 })
+
+contextBridge.exposeInMainWorld('steamAPI', {
+  init:             () => ipcRenderer.invoke('steam:init'),
+  isAvailable:      () => ipcRenderer.invoke('steam:is-available'),
+  getPlayerName:    () => ipcRenderer.invoke('steam:get-player-name'),
+  getSteamId:       () => ipcRenderer.invoke('steam:get-steam-id'),
+  getPlayerLevel:   () => ipcRenderer.invoke('steam:get-player-level'),
+  unlockAchievement:(achievementId) => ipcRenderer.invoke('steam:unlock-achievement', achievementId),
+  getAchievement:   (achievementId) => ipcRenderer.invoke('steam:get-achievement', achievementId),
+  submitScore:      (leaderboardName, score) => ipcRenderer.invoke('steam:submit-score', { leaderboardName, score }),
+  getLeaderboard:   (leaderboardName, count = 10) => ipcRenderer.invoke('steam:get-leaderboard', { leaderboardName, count }),
+  cloudIsEnabled:   () => ipcRenderer.invoke('steam:cloud-is-enabled'),
+  cloudWrite:       (filename, data) => ipcRenderer.invoke('steam:cloud-write', { filename, data }),
+  cloudRead:        (filename) => ipcRenderer.invoke('steam:cloud-read', filename),
+  activateOverlay:  (page = 'Achievements') => ipcRenderer.invoke('steam:activate-overlay', page),
+})
