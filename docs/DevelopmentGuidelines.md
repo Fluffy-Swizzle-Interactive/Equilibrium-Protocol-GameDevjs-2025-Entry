@@ -332,6 +332,8 @@ We follow a simplified Git Flow model:
    - Show hitboxes, paths, and other invisible elements
    - Press `U` key in development mode to toggle hitbox visualization for enemies and bullets
    - Hitboxes will be displayed as red circles for enemies and green circles for bullets
+   - **Stuck enemy detection**: Enemies stuck in walls will be highlighted in magenta
+   - Use the debug panel to monitor enemy counts and detect discrepancies
 
 3. **Console Logging**:
    ```javascript

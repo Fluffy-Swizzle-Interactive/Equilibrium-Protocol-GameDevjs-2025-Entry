@@ -629,10 +629,23 @@ export class WaveManager {
         // Get the actual count from enemy manager
         const actualEnemyCount = this.scene.enemyManager.getEnemyCount();
         const actualBossCount = this.scene.enemyManager.getEnemyCount('boss1');
+        
+        // Count stuck enemies for debugging
+        let stuckEnemiesCount = 0;
+        if (this.scene.enemyManager && this.scene.enemyManager.enemies) {
+            stuckEnemiesCount = this.scene.enemyManager.enemies.filter(enemy => 
+                enemy && enemy.active && enemy.graphics && enemy.graphics.active && 
+                this.isEnemyStuckInWalls(enemy)
+            ).length;
+        }
 
         // Log any discrepancies in dev mode
-        if (this.scene.isDev && (actualEnemyCount !== this.activeEnemies || actualBossCount !== this.activeBosses)) {
-            console.debug(`[WaveManager] Enemy count mismatch! Tracked: ${this.activeEnemies} (bosses: ${this.activeBosses}), Actual: ${actualEnemyCount} (bosses: ${actualBossCount})`);
+        if (this.scene.isDev && (actualEnemyCount !== this.activeEnemies || actualBossCount !== this.activeBosses || cleanedUpCount > 0 || stuckEnemiesCount > 0)) {
+            console.debug(`[WaveManager] Enemy count info: 
+                - Tracked: ${this.activeEnemies} (bosses: ${this.activeBosses})
+                - Actual: ${actualEnemyCount} (bosses: ${actualBossCount})
+                - Cleaned up: ${cleanedUpCount} inactive enemies
+                - Stuck in walls: ${stuckEnemiesCount} enemies`);
         }
 
         // Check for negative values (error condition) and fix them
@@ -769,7 +782,17 @@ export class WaveManager {
                 inactiveCount++;
             }
             if(timeSinceLastKill > 15000) {
-                // Release back to pool to ensure it's properly removed from tracking
+                // If it's been more than 15 seconds since last kill, 
+                // any remaining enemies are likely stuck or inaccessible
+                this.scene.enemyManager.releaseEnemy(enemy);
+                inactiveCount++;
+            }
+            
+            // NEW: Check if enemy is stuck in walls or inaccessible areas
+            if (enemy && enemy.graphics && enemy.graphics.active && this.isEnemyStuckInWalls(enemy)) {
+                if (this.scene.isDev) {
+                    console.debug(`[WaveManager] Found enemy stuck in walls at (${enemy.graphics.x}, ${enemy.graphics.y}), removing`);
+                }
                 this.scene.enemyManager.releaseEnemy(enemy);
                 inactiveCount++;
             }
@@ -782,6 +805,62 @@ export class WaveManager {
 
         return inactiveCount;
 
+    }
+
+    /**
+     * Check if an enemy is stuck in walls or inaccessible areas
+     * @param {Object} enemy - The enemy to check
+     * @returns {boolean} True if enemy is likely stuck
+     * @private
+     */
+    isEnemyStuckInWalls(enemy) {
+        if (!enemy || !enemy.graphics || !enemy.graphics.active) {
+            return false;
+        }
+        
+        // Check if we have a map manager to validate against
+        if (!this.scene.mapManager || !this.scene.mapManager.currentMapData) {
+            return false;
+        }
+        
+        const x = enemy.graphics.x;
+        const y = enemy.graphics.y;
+        const enemyRadius = enemy.size || 32; // Default to 32px if size not specified
+        
+        // Check collision layers
+        const collisionLayers = ['Walls', 'Props', 'Props1'];
+        
+        // Check if enemy is inside a collision tile
+        for (const layerName of collisionLayers) {
+            try {
+                if (!this.scene.mapManager.isPositionValid(x, y, { collisionLayer: layerName })) {
+                    return true; // Enemy is in a wall/obstacle
+                }
+                
+                // Also check a few points around the enemy's radius
+                const checkPositions = [
+                    { x: x - enemyRadius/2, y: y - enemyRadius/2 },
+                    { x: x + enemyRadius/2, y: y - enemyRadius/2 },
+                    { x: x - enemyRadius/2, y: y + enemyRadius/2 },
+                    { x: x + enemyRadius/2, y: y + enemyRadius/2 }
+                ];
+                
+                for (const pos of checkPositions) {
+                    if (!this.scene.mapManager.isPositionValid(pos.x, pos.y, { collisionLayer: layerName })) {
+                        return true; // Enemy is partially in a wall/obstacle
+                    }
+                }
+            } catch (error) {
+                // If there's an error checking collision, assume the enemy is not stuck
+                // This prevents crashes when map layers aren't properly initialized
+                if (this.scene.isDev) {
+                    console.warn(`[WaveManager] Error checking if enemy is stuck for layer ${layerName}:`, error);
+                }
+                continue;
+            }
+        }
+        
+        return false;
     }
 
     /**
