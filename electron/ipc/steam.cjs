@@ -1,6 +1,8 @@
 'use strict'
 
-const { ipcMain } = require('electron')
+const { ipcMain, app } = require('electron')
+const fs = require('fs')
+const path = require('path')
 
 // steamworks.js wraps the Steamworks C SDK. It must be initialized in the
 // main process (Node.js). If Steam is not running, init() throws — we catch
@@ -9,12 +11,32 @@ const { ipcMain } = require('electron')
 let steamworks = null
 let steamClient = null
 
+/**
+ * Resolve the path to steam_appid.txt.
+ * In packaged builds, extraFiles places it next to the executable.
+ * In dev, it sits in the project root (process.cwd()).
+ */
+function getSteamAppIdPath() {
+  if (app.isPackaged) {
+    return path.join(path.dirname(process.execPath), 'steam_appid.txt')
+  }
+  return path.join(process.cwd(), 'steam_appid.txt')
+}
+
+/**
+ * Initialize the Steamworks SDK. Idempotent — returns true immediately if
+ * already initialized, so calling it from both startup and the steam:init
+ * IPC handler is safe.
+ * @returns {boolean}
+ */
 function initSteam() {
+  if (steamClient) return true  // Already initialized
   try {
     steamworks = require('steamworks.js')
-    const appId = parseInt(process.env.STEAM_APP_ID || require('fs').readFileSync(
-      require('path').join(process.cwd(), 'steam_appid.txt'), 'utf8'
-    ).trim())
+    const appId = parseInt(
+      process.env.STEAM_APP_ID ||
+      fs.readFileSync(getSteamAppIdPath(), 'utf8').trim()
+    )
     steamClient = steamworks.init(appId)
     console.log('[Steam] Initialized. Player:', steamClient.localplayer.getName())
     return true
@@ -26,7 +48,12 @@ function initSteam() {
   }
 }
 
-/** @returns {{success: false, error: string}} */
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+/**
+ * Standard failure response when Steam is not available.
+ * @returns {{success: false, error: string}}
+ */
 function notAvailable() {
   return { success: false, error: 'Steam not available' }
 }
@@ -34,6 +61,7 @@ function notAvailable() {
 /**
  * Wrap a synchronous Steam call in a try/catch.
  * @param {() => any} fn
+ * @returns {{success: boolean, data?: any, error?: string}}
  */
 function steamCall(fn) {
   if (!steamClient) return notAvailable()
@@ -48,6 +76,7 @@ function steamCall(fn) {
 /**
  * Wrap an async Steam call in a try/catch.
  * @param {() => Promise<any>} fn
+ * @returns {Promise<{success: boolean, data?: any, error?: string}>}
  */
 async function steamCallAsync(fn) {
   if (!steamClient) return notAvailable()
@@ -59,12 +88,16 @@ async function steamCallAsync(fn) {
   }
 }
 
+// ── IPC Handlers ─────────────────────────────────────────────────────────────
+
 function registerSteamHandlers() {
+  // Returns { success: true } if Steam initialised, { success: false, error } if not.
   ipcMain.handle('steam:init', () => {
     const ok = initSteam()
-    return { success: ok }
+    return ok ? { success: true } : { success: false, error: 'Steam not available' }
   })
 
+  // Returns { success: true, data: boolean } — never fails, reports availability.
   ipcMain.handle('steam:is-available', () => {
     return { success: true, data: steamClient !== null }
   })
