@@ -1,6 +1,7 @@
 import { EventBus } from '../EventBus';
 import { Scene } from 'phaser';
 import { SoundManager } from '../managers/SoundManager';
+import { SaveManager } from '../managers/SaveManager';
 import { DEPTHS } from '../constants';
 import { VolumeSlider } from '../ui/VolumeSlider';
 import { ButtonSoundHelper } from '../utils/ButtonSoundHelper';
@@ -82,7 +83,7 @@ export class MainMenu extends Scene
             fillColor: 0x39C66B, // Match the green color of the start button
             knobColor: 0xffffff,
             knobRadius: 8,
-            initialValue: this.soundManager ? this.soundManager.musicVolume : 0.5,
+            initialValue: this.soundManager ? (this.soundManager.musicVolume / 0.1) : 0.5,
             depth: 100,
             label: 'Volume',
             labelStyle: {
@@ -98,6 +99,12 @@ export class MainMenu extends Scene
                     this.soundManager.setMusicVolume(value);
                     this.soundManager.setEffectsVolume(value);
                 }
+                // Persist settings — fire and forget
+                SaveManager.saveSettings({
+                    musicVolume: value,
+                    sfxVolume: value,
+                    fullscreen: this.scale.isFullscreen,
+                });
             }
         });
     }
@@ -108,6 +115,15 @@ export class MainMenu extends Scene
     setupSoundManager() {
         // Create sound manager
         this.soundManager = new SoundManager(this);
+
+        // Apply saved volume settings via setters so clamping logic is applied
+        const savedSettings = this.registry.get('savedSettings')
+        if (savedSettings) {
+            const music = Number(savedSettings.musicVolume)
+            const sfx = Number(savedSettings.sfxVolume)
+            if (Number.isFinite(music)) this.soundManager.setMusicVolume(Math.max(0, Math.min(0.1, music)))
+            if (Number.isFinite(sfx)) this.soundManager.setEffectsVolume(Math.max(0, Math.min(0.1, sfx)))
+        }
 
         // Initialize menu music
         this.soundManager.initBackgroundMusic('menu_music', {

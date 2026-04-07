@@ -1060,8 +1060,8 @@ export class Player {
     }
 
     updateMovement() {
-        // Get keyboard references from scene
-        const keys = this.scene.wasd;
+        // Get input manager from scene
+        const input = this.scene.inputManager;
 
         // Reset velocity for this frame
         this.velX = 0;
@@ -1071,16 +1071,16 @@ export class Player {
         const moveSpeed = 300; // Use a higher value for better responsiveness
 
         // Apply direct velocity based on keys
-        if (keys.up.isDown) {
+        if (input.isDown('MOVE_UP')) {
             this.velY = -moveSpeed;
         }
-        if (keys.down.isDown) {
+        if (input.isDown('MOVE_DOWN')) {
             this.velY = moveSpeed;
         }
-        if (keys.left.isDown) {
+        if (input.isDown('MOVE_LEFT')) {
             this.velX = -moveSpeed;
         }
-        if (keys.right.isDown) {
+        if (input.isDown('MOVE_RIGHT')) {
             this.velX = moveSpeed;
         }
 
