@@ -8,9 +8,9 @@ export class SoundManager {
         this.musicTracks = {};
         this.soundEffects = {};
         this.currentMusic = null;
-        // Reduced to 10% of original values (0.5 -> 0.05, 0.7 -> 0.07)
-        this.musicVolume = 0.05;
-        this.effectsVolume = 0.07;
+        // Increased volume levels for better audio output (0.05 -> 0.4, 0.07 -> 0.5)
+        this.musicVolume = 0.4;
+        this.effectsVolume = 0.5;
         this.isMuted = false;
 
         // Initialize pause-related state properties
@@ -115,33 +115,27 @@ export class SoundManager {
         // Set as current music
         this.currentMusic = this.musicTracks[key];
 
-        // Set the target volume
-        const targetVolume = this.isMuted ? 0 : this.musicVolume;
+        // Set the target volume with compression applied
+        const targetVolume = this.isMuted ? 0 : this.applyCompression(this.musicVolume);
 
-        // If no fade-in is requested or duration is very short, start at target volume
-        if (fadeInDuration <= 50) {
-            this.currentMusic.volume = targetVolume;
+        // Always use fade-in for smoother audio start, minimum 200ms
+        const effectiveFadeIn = Math.max(fadeInDuration, 200);
+        
+        // Start with volume 0 for fade-in
+        this.currentMusic.volume = 0;
 
-            // Start playback
-            this.currentMusic.play({
-                delay: delay / 1000 // Convert ms to seconds
-            });
-        } else {
-            // Start with volume 0 for fade-in
-            this.currentMusic.volume = 0;
+        // Start playback
+        this.currentMusic.play({
+            delay: delay / 1000 // Convert ms to seconds
+        });
 
-            // Start playback
-            this.currentMusic.play({
-                delay: delay / 1000 // Convert ms to seconds
-            });
-
-            // Fade in
-            this.scene.tweens.add({
-                targets: this.currentMusic,
-                volume: targetVolume,
-                duration: fadeInDuration
-            });
-        }
+        // Fade in
+        this.scene.tweens.add({
+            targets: this.currentMusic,
+            volume: targetVolume,
+            duration: effectiveFadeIn,
+            ease: 'Power2.out' // Smoother easing curve
+        });
     }
 
     /**
@@ -291,10 +285,10 @@ export class SoundManager {
 
     /**
      * Set music volume
-     * @param {number} volume - Volume level (0 to 0.1)
+     * @param {number} volume - Volume level (0 to 0.8)
      */
     setMusicVolume(volume) {
-        this.musicVolume = Phaser.Math.Clamp(volume, 0, 0.1);
+        this.musicVolume = Phaser.Math.Clamp(volume, 0, 0.8);
 
         // Apply to current music if playing
         if (this.currentMusic) {
@@ -309,15 +303,34 @@ export class SoundManager {
 
     /**
      * Set sound effects volume
-     * @param {number} volume - Volume level (0 to 0.1)
+     * @param {number} volume - Volume level (0 to 0.8)
      */
     setEffectsVolume(volume) {
-        this.effectsVolume = Phaser.Math.Clamp(volume, 0, 0.1);
+        this.effectsVolume = Phaser.Math.Clamp(volume, 0, 0.8);
 
         // Apply to all sound effects
         Object.values(this.soundEffects).forEach(sound => {
             sound.volume = this.effectsVolume;
         });
+    }
+
+    /**
+     * Apply dynamic range compression to a volume value
+     * This helps prevent sudden loud sounds and manages dynamic range
+     * @param {number} volume - Input volume (0-1)
+     * @param {number} threshold - Compression threshold (default 0.7)
+     * @param {number} ratio - Compression ratio (default 3:1)
+     * @returns {number} Compressed volume
+     */
+    applyCompression(volume, threshold = 0.7, ratio = 3) {
+        if (volume <= threshold) {
+            return volume;
+        }
+        
+        // Apply compression above threshold
+        const excess = volume - threshold;
+        const compressedExcess = excess / ratio;
+        return threshold + compressedExcess;
     }
 
     /**
@@ -392,11 +405,14 @@ export class SoundManager {
             this.soundEffects[key].stop();
         }
 
-        // Ensure loop is false in the options and volume is capped at effectsVolume
+        // Ensure loop is false in the options and apply compression to volume
+        const rawVolume = Math.min(options.volume || this.effectsVolume, this.effectsVolume);
+        const compressedVolume = this.applyCompression(rawVolume);
+        
         const playOptions = {
             ...options,
             loop: false,
-            volume: Math.min(options.volume || this.effectsVolume, this.effectsVolume)
+            volume: compressedVolume
         };
 
         // Log the volume for debugging
@@ -432,7 +448,7 @@ export class SoundManager {
 
         // Default options for wave end sounds
         const defaultOptions = {
-            volume: 0.07, // Reduced to 10% of original value (0.7 -> 0.07)
+            volume: 0.5, // Increased volume for better audio output
             // Add slight pitch variation for more variety
             detune: Math.random() * 100 - 50, // Random detune between -50 and +50
             loop: false, // Explicitly set loop to false to prevent looping
